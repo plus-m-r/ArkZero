@@ -1,39 +1,91 @@
-# NdkXComponent
+# 系统服务-Native XComponent（ArkTS）
 
-#### 介绍
-{**以下是 Gitee 平台说明，您可以替换此简介**
-Gitee 是 OSCHINA 推出的基于 Git 的代码托管平台（同时支持 SVN）。专为开发者提供稳定、高效、安全的云端软件开发协作平台
-无论是个人、团队、或是企业，都能够用 Gitee 实现代码托管、项目管理、协作开发。企业项目请看 [https://gitee.com/enterprises](https://gitee.com/enterprises)}
+### 介绍
 
-#### 软件架构
-软件架构说明
+本示例中主要介绍开发者如何使用Native XComponent接口来获取NativeWindow实例、获取布局/事件信息、注册事件回调、通过OpenGL/EGL实现在页面上绘制形状、渲染YUV图像文件。功能主要包括点击按钮绘制一个五角星，并可以通过点击XComponent区域改变五角星的颜色；点击按钮渲染YUV图像文件。
 
+### 效果预览
 
-#### 安装教程
+|  绘制五角星                               | 改变颜色                                         | 图像渲染                                            |
+|--------------------------------------|-----------------------------------------------|-------------------------------------------------|
+| ![main](screenshots/device/drawStar.jpg) | ![draw star](screenshots/device/changeColor.jpg) | ![change color](screenshots/device/loadYUV.jpg) |
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+使用说明
 
-#### 使用说明
+1. 安装编译生成的hap包，并打开应用。
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+2. 点击页面底部“Draw Star”按钮，页面将绘制一个五角星。
 
-#### 参与贡献
+3. 点击XComponent组件区域（页面中白色区域）改变五角星颜色。
 
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
+4. 切换页签，点击“Load YUV”按钮，页面渲染YUV文件。
 
 
-#### 特技
+### 工程目录
 
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+```
+├──entry/src/main/cpp            // C++代码区
+│  ├──CMakeLists.txt             // CMake配置文件
+│  ├──napi_init.cpp              // Napi模块注册
+│  ├──common
+│  │  └──common.h                // 常量定义文件
+│  ├──manager                    // 生命周期管理模块
+│  │  ├──plugin_manager.cpp
+│  │  └──plugin_manager.h
+│  └──render                     // 渲染模块
+│     ├──egl_core.cpp
+│     ├──egl_core.h
+│     ├──plugin_render.cpp
+│     └──plugin_render.h
+├──entry/src/main/ets            // ets代码区
+│  ├──common
+│  │  └──CommonConstant.ets      // 常量类
+│  ├──entryability
+│  │  └──EntryAbility.ets        // 程序入口类
+│  ├──interface
+│  │  └──XComponentContext.ets   // 接口类
+│  ├──pages                      // 页面文件
+│  │  └──Index.ets               // 主界面
+│  └──view
+│     ├──OpenGLView.ets          // OpenGL绘制
+│     └──YUVView.ets             // YUV渲染
+└──entry/src/main/resources      // 资源文件目录
+ 
+```
+
+### 具体实现
+
+通过在IDE中创建Native c++ 工程。
+
+**OpenGL绘制图像**
+
+在c++代码中定义对外接口为drawPattern，在ArkTS侧调用该接口可在页面上绘制出一个五角星。
+
+在XComponent的OnSurfaceCreated回调中获取NativeWindow实例并初始化EGL环境。调用OH_NativeXComponent_GetXComponentSize接口获取XComponent的宽高，并以此为输入调用EGL相关的绘制接口在NativeWindow上绘制出一个五角星。在DispatchTouchEvent回调中再次调用EGL相关的绘制接口在NativeWindow上绘制出一个大小相同、颜色不同的五角星，以达到点击后改变颜色的目的。
+
+**Load YUV**
+
+YUV图像渲染页签初始化时将yuv文件写入沙箱，点击按钮C++侧从沙箱读取yuv文件，使用yuv渲染相关接口实现图像渲染。
+
+
+源码参考：[render目录](entry/src/main/cpp/render)下的文件。
+
+
+
+### 相关权限
+
+不涉及。
+
+### 依赖
+
+不涉及。
+
+### 约束与限制
+
+1.本示例仅支持标准系统上运行，支持设备：华为手机。
+
+2.HarmonyOS系统：HarmonyOS NEXT Developer Beta1及以上。
+
+3.DevEco Studio版本：DevEco Studio NEXT Developer Beta1及以上。
+
+4.HarmonyOS SDK版本：HarmonyOS NEXT Developer Beta1 SDK及以上。
