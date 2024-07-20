@@ -1,4 +1,4 @@
-# 系统服务-Native XComponent（ArkTS）
+# Native XComponent
 
 ### 介绍
 
@@ -8,7 +8,7 @@
 
 |  绘制五角星                               | 改变颜色                                         | 图像渲染                                            |
 |--------------------------------------|-----------------------------------------------|-------------------------------------------------|
-| ![main](screenshots/device/drawStar.jpg) | ![draw star](screenshots/device/changeColor.jpg) | ![change color](screenshots/device/loadYUV.jpg) |
+| ![main](screenshots/device/drawStar.png) | ![draw star](screenshots/device/changeColor.png) | ![change color](screenshots/device/loadYUV.png) |
 
 使用说明
 
