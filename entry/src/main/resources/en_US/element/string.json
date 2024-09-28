@@ -10,7 +10,7 @@
     },
     {
       "name": "EntryAbility_label",
-      "value": "label"
+      "value": "XComponent"
     },
     {
       "name": "page_title",
@@ -18,15 +18,15 @@
     },
     {
       "name": "opengl_draw",
-      "value": "OpenGL graphics drawing"
+      "value": "OpenGL drawing"
     },
     {
       "name": "yuv_draw",
-      "value": "YUV image rendering"
+      "value": "YUV rendering"
     },
     {
       "name": "status_redraw",
-      "value": "Click the button to redraw"
+      "value": "Touch button below to redraw"
     },
     {
       "name": "draw_star",
@@ -34,7 +34,7 @@
     },
     {
       "name": "change_color",
-      "value": "Click on the image to change the color"
+      "value": "Touch image to change its color"
     },
     {
       "name": "load_yuv",
