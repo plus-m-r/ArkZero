@@ -10,7 +10,7 @@
     },
     {
       "name": "EntryAbility_label",
-      "value": "label"
+      "value": "XComponent"
     },
     {
       "name": "page_title",
@@ -18,15 +18,15 @@
     },
     {
       "name": "opengl_draw",
-      "value": "OPENGL图形绘制"
+      "value": "OpenGL drawing"
     },
     {
       "name": "yuv_draw",
-      "value": "YUV图像渲染"
+      "value": "YUV rendering"
     },
     {
       "name": "status_redraw",
-      "value": "点击按钮重新绘制"
+      "value": "Touch button below to redraw"
     },
     {
       "name": "draw_star",
@@ -34,7 +34,7 @@
     },
     {
       "name": "change_color",
-      "value": "点击图片改变颜色"
+      "value": "Touch image to change its color"
     },
     {
       "name": "load_yuv",
