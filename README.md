@@ -1,4 +1,4 @@
-# Native XComponent
+# 于XComponent组件实现OpenGL图形绘制及YUV图像渲染功能
 
 ### 介绍
 
