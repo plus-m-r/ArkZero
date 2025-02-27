@@ -7,7 +7,7 @@ This sample shows how to use the native XComponent interface to obtain a NativeW
 ### Preview
 
 | Pentagon drawn                              | Color changed                                       | Image rendering                                    |
-|---------------------------------------------|-----------------------------------------------------|----------------------------------------------------|
+| ------------------------------------------- | --------------------------------------------------- | -------------------------------------------------- |
 | ![main](screenshots/device/drawStar.en.png) | ![draw star](screenshots/device/changeColor.en.png) | ![change color](screenshots/device/loadYUV.en.png) |
 
 ### How to Use
@@ -19,7 +19,6 @@ This sample shows how to use the native XComponent interface to obtain a NativeW
 3. Touch the XComponent area (white area on the page) to change the color of the pentagon.
 
 4. Switch to the YUV rendering tab page and touch **Load YUV**. A YUV image is rendered on the page.
-
 
 ### Project Directory
 
@@ -50,7 +49,7 @@ This sample shows how to use the native XComponent interface to obtain a NativeW
 │     ├──OpenGLView.ets          // OpenGL drawing
 │     └──YUVView.ets             // YUV rendering
 └──entry/src/main/resources      // Static resources
- 
+
 ```
 
 ### How to Implement
@@ -67,7 +66,6 @@ Obtain a NativeWindow instance and initialize the EGL environment in the **OnSur
 
 During the initialization of the YUV image rendering tab page, a YUV file is written to the sandbox. When you touch **Load YUV**, the C++ code reads the YUV file from the sandbox and uses the YUV rendering API to implement image rendering.
 
-
 For details about the source code, see the files in the [render directory](entry/src/main/cpp/render).
 
 ### Required Permissions
@@ -80,10 +78,10 @@ N/A
 
 ### Constraints
 
-1. The sample app is supported only on Huawei phones running the standard system.
+1. The sample is only supported on Huawei phones with standard systems.
 
-2. The HarmonyOS version must be HarmonyOS NEXT Developer Beta1 or later.
+2. The HarmonyOS version must be HarmonyOS 5.0.0 Release or later.
 
-3. The DevEco Studio version must be DevEco Studio NEXT Developer Beta1 or later.
+3. The DevEco Studio version must be DevEco Studio 5.0.0 Release or later.
 
-4. The HarmonyOS SDK version must be HarmonyOS NEXT Developer Beta1 or later.
+4. The HarmonyOS SDK version must be HarmonyOS 5.0.0 Release SDK or later.
