@@ -78,7 +78,7 @@ export struct YUVView {
   async writeYUVFile() {
     // Write the yuv file to the sandbox path.
     const resourceManager = this.getUIContext().getHostContext()!.resourceManager;
-    const imageArray = await resourceManager.getMediaContent($r('app.media.ic_picture'));
+    const imageArray = await resourceManager.getMediaContent($r('app.media.ic_picture').id);
     let path: string = this.getUIContext().getHostContext()!.filesDir + "/image.yuv";
     let file = fileIo.openSync(path, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE);
     fileIo.write(file.fd, imageArray.buffer).then((writeLen) => {
