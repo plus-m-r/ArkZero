@@ -49,7 +49,6 @@ This sample shows how to use the native XComponent interface to obtain a NativeW
 │     ├──OpenGLView.ets          // OpenGL drawing
 │     └──YUVView.ets             // YUV rendering
 └──entry/src/main/resources      // Static resources
-
 ```
 
 ### How to Implement
@@ -58,9 +57,9 @@ Create a native C++ project in DevEco Studio.
 
 **OpenGL Image Drawing**
 
-Define the external interface **drawPattern** in the C++ code. You can call this interface on the ArkTS side to draw a pentagon on the page.
+Define the external interface **drawPattern()** in the C++ code. You can call this interface on the ArkTS side to draw a pentagon on the page.
 
-Obtain a NativeWindow instance and initialize the EGL environment in the **OnSurfaceCreated** callback of the XComponent. Call **OH_NativeXComponent_GetXComponentSize** to obtain the width and height of the XComponent, and pass in the width and height into the EGL drawing API to draw a pentagon on the NativeWindow. In the **DispatchTouchEvent** callback, call the EGL drawing API again to draw a pentagon with the same size but different colors on the NativeWindow. In this way, the color is changed when the XComponent is touched.
+Obtain a NativeWindow instance and initialize the EGL environment in the **OnSurfaceCreated()** callback of the XComponent. Call **OH_NativeXComponent_GetXComponentSize()** to obtain the width and height of the XComponent, and pass in the width and height into the EGL drawing API to draw a pentagon on the NativeWindow. In the **DispatchTouchEvent()** callback, call the EGL drawing API again to draw a pentagon with the same size but different colors on the NativeWindow. In this way, the color is changed when the XComponent is touched.
 
 **Loading YUV Images**
 
@@ -80,8 +79,8 @@ N/A
 
 1. The sample is only supported on Huawei phones with standard systems.
 
-2. The HarmonyOS version must be HarmonyOS 5.0.0 Release or later.
+2. The HarmonyOS version must be HarmonyOS 5.0.5 Release or later.
 
-3. The DevEco Studio version must be DevEco Studio 5.0.0 Release or later.
+3. The DevEco Studio version must be DevEco Studio 5.0.5 Release or later.
 
-4. The HarmonyOS SDK version must be HarmonyOS 5.0.0 Release SDK or later.
+4. The HarmonyOS SDK version must be HarmonyOS 5.0.5 Release SDK or later.
