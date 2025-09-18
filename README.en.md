@@ -1,16 +1,16 @@
 # Native XComponent
 
-### Overview
+## Overview
 
 This sample shows how to use the native XComponent interface to obtain a NativeWindow instance, obtain the layout/event information, register an event callback, draw shapes on the page through OpenGL/EGL, and render YUV images. In this sample app, you can draw a pentagon, touch the XComponent area to change the pentagon color, and render a YUV image.
 
-### Preview
+## Preview
 
 | Pentagon drawn                              | Color changed                                       | Image rendering                                    |
 | ------------------------------------------- | --------------------------------------------------- | -------------------------------------------------- |
 | ![main](screenshots/device/drawStar.en.png) | ![draw star](screenshots/device/changeColor.en.png) | ![change color](screenshots/device/loadYUV.en.png) |
 
-### How to Use
+## How to Use
 
 1. Install the HAP file and open the app.
 
@@ -20,22 +20,22 @@ This sample shows how to use the native XComponent interface to obtain a NativeW
 
 4. Switch to the YUV rendering tab page and touch **Load YUV**. A YUV image is rendered on the page.
 
-### Project Directory
+## Project Directory
 
 ```
 ├──entry/src/main/cpp            // C++ code
-│  ├──CMakeLists.txt             // CMake build script
-│  ├──napi_init.cpp              // NAPI module registration
 │  ├──common
 │  │  └──common.h                // Common constants
 │  ├──manager                    // Lifecycle management module
 │  │  ├──plugin_manager.cpp
 │  │  └──plugin_manager.h
-│  └──render                     // Rendering module
-│     ├──egl_core.cpp
-│     ├──egl_core.h
-│     ├──plugin_render.cpp
-│     └──plugin_render.h
+│  ├──render                     // Rendering module
+│  │  ├──egl_core.cpp
+│  │  ├──egl_core.h
+│  │  ├──plugin_render.cpp
+│  │  └──plugin_render.h
+│  ├──CMakeLists.txt             // CMake build script
+│  └──napi_init.cpp              // NAPI module registration
 ├──entry/src/main/ets            // ets code
 │  ├──common
 │  │  └──CommonConstant.ets      // Common constants
@@ -51,7 +51,7 @@ This sample shows how to use the native XComponent interface to obtain a NativeW
 └──entry/src/main/resources      // Static resources
 ```
 
-### How to Implement
+## How to Implement
 
 Create a native C++ project in DevEco Studio.
 
@@ -67,15 +67,15 @@ During the initialization of the YUV image rendering tab page, a YUV file is wri
 
 For details about the source code, see the files in the [render directory](entry/src/main/cpp/render).
 
-### Required Permissions
+## Required Permissions
 
 N/A
 
-### Dependencies
+## Dependencies
 
 N/A
 
-### Constraints
+## Constraints
 
 1. The sample is only supported on Huawei phones with standard systems.
 
