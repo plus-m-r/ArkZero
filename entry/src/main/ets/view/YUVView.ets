@@ -76,16 +76,20 @@ export struct YUVView {
   }
 
   async writeYUVFile() {
-    // Write the yuv file to the sandbox path.
-    const resourceManager = this.getUIContext().getHostContext()!.resourceManager;
-    const imageArray = await resourceManager.getMediaContent($r('app.media.ic_picture').id);
-    let path: string = this.getUIContext().getHostContext()!.filesDir + "/image.yuv";
-    let file = fileIo.openSync(path, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE);
-    fileIo.write(file.fd, imageArray.buffer).then((writeLen) => {
-      fileIo.closeSync(file);
-    }).catch((err: BusinessError) => {
-      hilog.info(0x0000, TAG, "write data to file failed with error message: " + err.message +
-        ", error code: " + err.code);
-    });
+    try {
+      // Write the yuv file to the sandbox path.
+      const resourceManager = this.getUIContext().getHostContext()!.resourceManager;
+      const imageArray = await resourceManager.getMediaContent($r('app.media.ic_picture').id);
+      let path: string = this.getUIContext().getHostContext()!.filesDir + '/image.yuv';
+      let file = fileIo.openSync(path, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE);
+      fileIo.write(file.fd, imageArray.buffer).then(() => {
+        fileIo.closeSync(file);
+      }).catch((err: BusinessError) => {
+        hilog.error(0x0000, TAG, `write data to file failed with error message: ${err.message}, code: ${err.code}`);
+      });
+    } catch (error) {
+      let err = error as BusinessError;
+      hilog.error(0x0000, TAG, `writeYUVFile failed. error code=${err.code}, message=${err.message}`);
+    }
   }
 }
