@@ -67,12 +67,6 @@ public:
                     int32_t width, int32_t height);
 
     /**
-     * 获取纹理 ID
-     * @return 纹理 ID
-     */
-    uint64_t GetTextureId() const;
-
-    /**
      * 调整尺寸
      * @param width 新宽度
      * @param height 新高度

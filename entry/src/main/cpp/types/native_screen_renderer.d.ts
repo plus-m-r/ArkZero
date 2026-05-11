@@ -51,14 +51,6 @@ declare module 'nativerender' {
   ): Promise<void>;
 
   /**
-   * 获取纹理ID
-   * 
-   * @param handle 渲染器句柄
-   * @returns 纹理ID（number）
-   */
-  export function getTextureId(handle: number): number;
-
-  /**
    * 调整渲染尺寸
    * 
    * @param handle 渲染器句柄

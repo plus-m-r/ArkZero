@@ -57,7 +57,7 @@ export class ArkZeroRenderer {
   private isInitialized: boolean = false;
   
   // 渲染完成回调
-  private onFrameRenderedCallback?: (textureId: number) => void;
+  private onFrameRenderedCallback?: () => void;
 
   constructor(config: ArkZeroRendererConfig) {
     this.config = config;
@@ -116,21 +116,20 @@ export class ArkZeroRenderer {
   /**
    * 设置渲染完成回调
    * 
-   * @param callback 回调函数，接收textureId参数
+   * @param callback 回调函数，渲染完成后调用
    * 
    * 🎯 **设计说明**：
    * - renderFrame完成后自动调用此回调
-   * - 回调中可以直接更新@State变量
    * - 多实例场景下，每个renderer设置独立的回调
    * 
    * 示例：
    * ```typescript
-   * renderer.setOnFrameRendered((textureId) => {
-   *   this.screenTextureId = textureId;
+   * renderer.setOnFrameRendered(() => {
+   *   console.log('Frame rendered successfully');
    * });
    * ```
    */
-  setOnFrameRendered(callback: (textureId: number) => void): void {
+  setOnFrameRendered(callback: () => void): void {
     this.onFrameRenderedCallback = callback;
   }
 
@@ -240,7 +239,7 @@ export class ArkZeroRenderer {
       
       // ⭐ 渲染完成后自动调用回调
       if (this.onFrameRenderedCallback) {
-        this.onFrameRenderedCallback(this.getTextureId());
+        this.onFrameRenderedCallback();
       }
 
     } catch (error) {
@@ -248,27 +247,6 @@ export class ArkZeroRenderer {
       hilog.error(DOMAIN, TAG, '❌ renderFrame failed: %{public}s', errorMsg);
       throw error;
     }
-  }
-
-  /**
-   * 获取纹理ID（用于Image组件绑定）
-   * 
-   * @returns 纹理ID（number类型）
-   * 
-   * 示例：
-   * ```typescript
-   * const textureId = renderer.getTextureId();
-   * Image(textureId)
-   *   .width('100%')
-   *   .height('100%');
-   * ```
-   */
-  getTextureId(): number {
-    if (!this.isInitialized) {
-      throw new Error('ArkZeroRenderer not initialized');
-    }
-
-    return nativeScreenRenderer.getTextureId(this.nativeHandle);
   }
 
   /**

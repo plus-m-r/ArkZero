@@ -135,10 +135,6 @@ bool GLESBackend::RenderFrame(const void* pixelData, size_t dataSize,
     return true;
 }
 
-uint64_t GLESBackend::GetTextureId() const {
-    return static_cast<uint64_t>(m_textureId);
-}
-
 bool GLESBackend::Resize(int32_t width, int32_t height) {
     if (!m_isInitialized) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 

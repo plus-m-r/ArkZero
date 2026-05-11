@@ -55,12 +55,6 @@ public:
                             int32_t width, int32_t height) = 0;
 
     /**
-     * 获取纹理/图像 ID（用于 UI 绑定）
-     * @return 纹理 ID
-     */
-    virtual uint64_t GetTextureId() const = 0;
-
-    /**
      * 调整尺寸
      * @param width 新宽度
      * @param height 新高度

@@ -251,64 +251,6 @@ napi_value RenderFrame(napi_env env, napi_callback_info info) {
 }
 
 /**
- * getTextureId(handle: number): number
- */
-napi_value GetTextureId(napi_env env, napi_callback_info info) {
-    if ((env == nullptr) || (info == nullptr)) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "GetTextureId: env or info is null");
-        return nullptr;
-    }
-
-    size_t argCnt = 1;
-    napi_value args[1] = { nullptr };
-    if (napi_get_cb_info(env, info, &argCnt, args, nullptr, nullptr) != napi_ok) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "GetTextureId: napi_get_cb_info failed");
-        return nullptr;
-    }
-
-    if (argCnt != 1) {
-        napi_throw_type_error(env, NULL, "Wrong number of arguments. Expected: handle");
-        return nullptr;
-    }
-
-    // 获取handle
-    napi_valuetype valuetype;
-    if (napi_typeof(env, args[0], &valuetype) != napi_ok || valuetype != napi_number) {
-        napi_throw_type_error(env, NULL, "Argument must be a number (handle)");
-        return nullptr;
-    }
-    int32_t handle;
-    if (napi_get_value_int32(env, args[0], &handle) != napi_ok) {
-        napi_throw_type_error(env, NULL, "Failed to get handle value");
-        return nullptr;
-    }
-
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "RendererApi", "GetTextureId: handle=%{public}d", handle);
-
-    // 获取renderer实例
-    Renderer* renderer = RendererManager::GetInstance().GetRenderer(handle);
-    if (renderer == nullptr) {
-        napi_throw_error(env, NULL, "Invalid renderer handle");
-        return nullptr;
-    }
-
-    // 获取纹理ID
-    uint32_t textureId = renderer->GetTextureId();
-
-    napi_value result;
-    if (napi_create_uint32(env, textureId, &result) != napi_ok) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "GetTextureId: napi_create_uint32 failed");
-        return nullptr;
-    }
-
-    return result;
-}
-
-/**
  * resize(handle: number, width: number, height: number): Promise<void>
  */
 napi_value ResizeRenderer(napi_env env, napi_callback_info info) {

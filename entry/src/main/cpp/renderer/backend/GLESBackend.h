@@ -38,7 +38,6 @@ public:
     bool Initialize(int32_t width, int32_t height, PixelFormat format) override;
     bool RenderFrame(const void* pixelData, size_t dataSize, 
                     int32_t width, int32_t height) override;
-    uint64_t GetTextureId() const override;
     bool Resize(int32_t width, int32_t height) override;
     void Destroy() override;
     const char* GetBackendName() const override { return "OpenGL ES"; }

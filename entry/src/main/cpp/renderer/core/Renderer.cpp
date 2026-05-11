@@ -81,17 +81,6 @@ bool Renderer::RenderFrame(const void* pixelData, size_t dataSize,
     return m_backend->RenderFrame(pixelData, dataSize, width, height);
 }
 
-uint64_t Renderer::GetTextureId() const {
-    if (!m_backend || !m_backend->IsInitialized()) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "Renderer", "Not initialized");
-        return 0;
-    }
-
-    // ⭐ 委托给后端
-    return m_backend->GetTextureId();
-}
-
 bool Renderer::Resize(int32_t width, int32_t height) {
     if (!m_backend || !m_backend->IsInitialized()) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
