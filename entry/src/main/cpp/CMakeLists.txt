@@ -13,7 +13,6 @@ include_directories(
 add_library(nativerender SHARED
     # 分层架构文件
     renderer/backend/GLESBackend.cpp
-    renderer/manager/BackendFactory.cpp
     renderer/core/Renderer.cpp
     renderer/manager/RendererManager.cpp
     renderer/api/RendererApi.cpp

@@ -14,7 +14,7 @@
  */
 
 #include "Renderer.h"
-#include "../manager/BackendFactory.h"
+#include "../backend/GLESBackend.h"
 #include <hilog/log.h>
 
 #include "../../common/common.h"
@@ -47,8 +47,8 @@ bool Renderer::Initialize() {
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "Renderer", "Initializing...");
 
-    // ⭐ 使用工厂创建最佳后端
-    m_backend = BackendFactory::CreateBestBackend();
+    // ⭐ 直接创建 OpenGL ES 后端（HarmonyOS 平台默认支持）
+    m_backend = std::make_unique<GLESBackend>();
     if (!m_backend) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
             "Renderer", "Failed to create any render backend");
