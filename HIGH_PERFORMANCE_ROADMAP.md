@@ -1,297 +1,160 @@
-# ArkZeroRenderer 高性能优化路线图
+# ArkZeroRenderer 超低延迟高性能优化路线图
 
 ## 🎯 愿景
-将 ArkZeroRenderer 打造为 HarmonyOS 平台上**最高性能的零拷贝渲染组件**
+将 ArkZeroRenderer 打造为 HarmonyOS 平台上**延迟最低、性能最强**的零拷贝渲染组件。
 
 **核心指标：**
-- ✅ 4K (3840x2160) @ 60fps 稳定渲染
-- ✅ 端到端延迟 < 16ms（一帧时间）
-- ✅ 零内存拷贝（ArkTS → Native → GPU）
-- ✅ GPU 显存占用 < 100MB（4K RGBA）
-- ✅ CPU 占用 < 5%（单核）
+- ✅ **端到端延迟 < 10ms**（相机/视频预览场景）
+- ✅ **4K (3840x2160) @ 60fps** 稳定渲染
+- ✅ **零内存拷贝**（ArkTS → Native → GPU Surface）
+- ✅ **CPU 占用 < 3%**（单核，异步渲染模式下）
+- ✅ **完美 VSync 同步**，无画面撕裂
 
 ---
 
-## 🔴 Phase 1: 核心性能优化（必须实现）
+## 🚀 核心架构：Direct Surface Rendering
 
-### 1.1 帧同步与 VSync 支持
-**优先级：** 🔴 P0  
-**预计工作量：** 2-3 天  
-**影响范围：** GLESBackend.cpp
+### 1. 架构演进
+从“离屏纹理 + Image 组件”演进为 **“XComponent Surface + NativeWindow 直出”**。
 
-#### 问题分析
-当前实现每次 `renderFrame` 都立即调用 `eglSwapBuffers`，导致：
-- ❌ **画面撕裂**：GPU 渲染速度与屏幕刷新不同步
-- ❌ **功耗过高**：无限制渲染，CPU/GPU 持续满载
-- ❌ **帧率不稳定**：可能在 30-120fps 之间波动
+| 特性 | 旧方案 (Off-screen) | **新方案 (Direct Surface)** |
+| :--- | :--- | :--- |
+| **渲染目标** | OpenGL Texture | **NativeWindow (EGL Window Surface)** |
+| **显示路径** | Texture → Image Component → Compositor | **Texture → NativeWindow → Compositor** |
+| **合成开销** | 高 (UI 线程参与) | **极低 (系统底层直接交换缓冲区)** |
+| **VSync** | 难以精确控制 | **完美同步 (eglSwapInterval)** |
+| **延迟** | ~20-30ms | **~8-12ms (接近硬件极限)** |
 
-#### 实施方案
-
-**步骤 1：启用 VSync**
-```cpp
-// renderer/backend/GLESBackend.cpp
-bool GLESBackend::InitEGLContext() {
-    // ... 现有 EGL 初始化代码 ...
-    
-    // ✅ 启用 VSync（匹配屏幕刷新率）
-    if (!eglSwapInterval(m_eglDisplay, 1)) {
-        OH_LOG_Print(LOG_APP, LOG_WARN, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to set swap interval, using default");
-    }
-    
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "GLESBackend", "✅ VSync enabled (swap interval = 1)");
-    
-    return true;
-}
+### 2. 数据流设计
+```mermaid
+graph LR
+    A[ArkTS ArrayBuffer] -->|napi_get_arraybuffer_info| B(NAPI Bridge)
+    B -->|void* Pointer| C[C++ GLESBackend]
+    C -->|glTexSubImage2D| D[GPU Texture]
+    D -->|eglSwapBuffers| E[XComponent NativeWindow]
+    E -->|Hardware Compositor| F[Screen Display]
 ```
 
-**步骤 2：添加帧时间监控**
+---
+
+## 🔴 Phase 1: 核心性能重构（必须实现）
+
+### 1.1 XComponent Surface 集成
+**优先级：** 🔴 P0  
+**预计工作量：** 3-4 天  
+**影响范围：** GLESBackend.cpp, RendererApi.cpp
+
+#### 实施方案
+**步骤 1：C++ 层支持 NativeWindow 初始化**
 ```cpp
 // renderer/backend/GLESBackend.h
-#include <chrono>
-
 class GLESBackend : public IRenderBackend {
+public:
+    // 新增：绑定到 XComponent Surface
+    bool InitializeWithSurface(const std::string& surfaceId, int32_t width, int32_t height, PixelFormat format);
 private:
-    std::chrono::steady_clock::time_point m_lastFrameTime;
-    double m_avgFrameTimeMs = 0.0;
-    
-    void recordFrameTime();
+    void* m_nativeWindow;
 };
 
 // renderer/backend/GLESBackend.cpp
-void GLESBackend::recordFrameTime() {
-    auto now = std::chrono::steady_clock::now();
-    if (m_lastFrameTime.time_since_epoch().count() != 0) {
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
-            now - m_lastFrameTime);
-        
-        // 指数移动平均（EMA）
-        double frameTimeMs = duration.count() / 1000.0;
-        m_avgFrameTimeMs = 0.9 * m_avgFrameTimeMs + 0.1 * frameTimeMs;
-        
-        OH_LOG_Print(LOG_APP, LOG_DEBUG, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Frame time: %{public}.2f ms (avg: %{public}.2f ms)", 
-            frameTimeMs, m_avgFrameTimeMs);
-    }
-    m_lastFrameTime = now;
-}
-
-bool GLESBackend::RenderFrame(...) {
-    // ... 渲染代码 ...
+bool GLESBackend::InitializeWithSurface(...) {
+    // 1. 获取 NativeWindow
+    m_nativeWindow = GetNativeWindowById(surfaceId);
     
-    eglSwapBuffers(m_eglDisplay, m_eglSurface);
+    // 2. 创建 EGL Window Surface
+    m_eglSurface = eglCreateWindowSurface(m_eglDisplay, config, m_nativeWindow, nullptr);
     
-    recordFrameTime();  // ✅ 记录帧时间
+    // 3. 启用 VSync (关键！)
+    eglSwapInterval(m_eglDisplay, 1);
     
     return true;
 }
 ```
 
+**步骤 2：NAPI 层适配**
+在 `create` 接口中增加 `surfaceId` 参数，根据是否传入决定使用 Pbuffer（兼容）还是 WindowSurface（高性能）。
+
 #### 验收标准
-- ✅ 无画面撕裂（肉眼观察）
-- ✅ 稳定 60fps（或设备最大刷新率）
-- ✅ 帧时间波动 < ±2ms
-- ✅ 功耗降低 20%+（使用 DevEco Profiler 验证）
+- ✅ 渲染内容直接出现在 XComponent 区域，无需 Image 组件
+- ✅ 开启 VSync，帧率锁定在屏幕刷新率
+- ✅ 功耗较旧方案降低 20%+
 
 ---
 
-### 1.2 异步渲染架构
+### 1.2 异步渲染队列（Async Rendering）
 **优先级：** 🔴 P0  
 **预计工作量：** 4-5 天  
-**影响范围：** Renderer.h/cpp, RendererApi.cpp
+**影响范围：** Renderer.h/cpp, RenderQueue.h/cpp
 
 #### 问题分析
-当前是**同步渲染**，ArkTS 主线程阻塞等待 Native 渲染完成，导致：
-- ❌ UI 线程阻塞
-- ❌ 无法并行处理
-- ❌ 延迟增加
+同步渲染会阻塞 ArkTS 主线程。超低延迟要求 ArkTS 提交数据后立即返回，由后台线程完成渲染。
 
 #### 实施方案
+1. **RenderCommand 结构**：封装像素指针、尺寸、格式。
+2. **Thread-Safe Queue**：使用 `std::mutex` 和 `std::condition_variable` 实现生产者-消费者模型。
+3. **Background Thread**：独立线程循环从队列取数据并调用 `GLESBackend::RenderFrame`。
 
-**核心设计：**
-1. 创建线程安全的渲染命令队列（RenderQueue）
-2. 启动后台渲染线程
-3. ArkTS 层 submitFrame 立即返回（< 1ms）
-4. 后台线程从队列取出命令并执行渲染
-
-**关键文件：**
-- `renderer/core/RenderCommand.h` - 渲染命令结构
-- `renderer/core/RenderQueue.h/cpp` - 线程安全队列
-- 更新 `Renderer.h/cpp` - 集成异步渲染
-- 更新 `RendererApi.cpp` - NAPI 桥接层适配
-
-#### 验收标准
-- ✅ `renderFrame()` 返回时间 < 1ms（原 5-15ms）
-- ✅ UI 线程完全不阻塞
-- ✅ 支持 3 帧缓冲，自动丢弃过时帧
-- ✅ 后台渲染线程稳定运行
-
----
-
-### 1.3 纹理池与预分配
-**优先级：** 🔴 P0  
-**预计工作量：** 2-3 天  
-**影响范围：** 新增 TexturePool.h/cpp
-
-#### 问题分析
-当前 `Resize` 操作销毁并重新创建纹理，导致：
-- ❌ GPU 显存碎片化
-- ❌ Resize 耗时长（4K ~50ms）
-- ❌ 无法复用相同尺寸的纹理
-
-#### 实施方案
-
-**核心设计：**
-1. 实现 TexturePool 类，管理纹理生命周期
-2. 预分配常用分辨率（1080p, 4K, 720p）
-3. Resize 时从池中获取/归还纹理，而非销毁重建
-
-**关键文件：**
-- `renderer/backend/TexturePool.h/cpp` - 纹理池实现
-- 更新 `GLESBackend.h/cpp` - 集成纹理池
-
-#### 验收标准
-- ✅ Resize 耗时从 ~50ms 降至 < 1ms
-- ✅ 内存碎片减少 50%+
-- ✅ 预分配命中率达到 80%+
-
----
-
-### 1.4 多格式直接渲染支持
-**优先级：** 🔴 P0  
-**预计工作量：** 1-2 天  
-**影响范围：** GLESBackend.cpp
-
-#### 问题分析
-当前实现只支持 RGBA 格式，如果输入是 BGRA/RGB/YUV，需要：
-- ❌ **CPU 格式转换**：浪费 CPU 周期，增加延迟
-- ❌ **内存拷贝**：额外的缓冲区分配
-- ❌ **性能损失**：4K 图像转换耗时 ~5-15ms
-
-#### 核心理念
-**不转换格式，而是根据输入格式选择对应的 OpenGL API 直接渲染！**
-
-#### 实施方案
-
-**步骤 1：支持 RGBA/BGRA/RGB 直接上传**
 ```cpp
-// renderer/backend/GLESBackend.cpp
-GLenum GLESBackend::GetGLFormat(PixelFormat format) const {
-    switch (format) {
-        case PixelFormat::RGBA:
-            return GL_RGBA;           // ✅ 直接匹配
-        case PixelFormat::BGRA:
-#ifdef GL_BGRA_EXT
-            return GL_BGRA_EXT;       // ✅ 直接匹配（扩展支持）
-#else
-            return GL_RGBA;           // 降级：需调用方预转换
-#endif
-        case PixelFormat::RGB:
-            return GL_RGB;            // ✅ 直接匹配
-        default:
-            return GL_RGBA;
+// 伪代码
+void Renderer::renderLoop() {
+    while (!m_stop) {
+        RenderCommand cmd = m_queue.dequeue();
+        m_backend->RenderFrame(cmd.data, cmd.width, cmd.height);
     }
 }
-
-bool GLESBackend::RenderFrame(...) {
-    // ... 现有代码 ...
-    
-    glBindTexture(GL_TEXTURE_2D, m_textureId);
-    
-    // ✅ 根据格式选择正确的 OpenGL 格式，零转换！
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
-                    GetGLFormat(m_format), GL_UNSIGNED_BYTE, pixelData);
-    
-    // ... 其余代码 ...
-}
-```
-
-**步骤 2（可选）：支持 YUV 原生渲染**
-
-对于相机/视频场景，支持 YUV 格式直接渲染（非转换，是 GPU 实时合成）：
-
-```cpp
-// 新增方法：YUV 直接渲染
-bool GLESBackend::RenderYUVFrame(const void* yData, const void* uvData,
-                                  int32_t width, int32_t height,
-                                  PixelFormat yuvFormat);
-
-// 实现原理：
-// 1. Y 数据上传到 Texture Y (GL_LUMINANCE)
-// 2. UV 数据上传到 Texture UV (GL_LUMINANCE_ALPHA)
-// 3. GPU Shader 实时采样并合成（每帧在 GPU 完成）
-// 4. CPU 零开销，无格式转换
 ```
 
 #### 验收标准
-- ✅ RGBA/BGRA/RGB 格式零转换直接渲染
-- ✅ 4K @ 60fps 稳定运行
-- ✅ BGRA 在不支持的平台上给出明确警告
-- ✅ （可选）YUV 格式 GPU 实时合成，CPU 零开销
+- ✅ `renderFrame()` 耗时 < 0.5ms
+- ✅ UI 线程完全不卡顿
+- ✅ 支持 3 帧缓冲，自动丢弃过时帧以维持低延迟
 
 ---
 
-## 🟡 Phase 2: 可观测性与自适应（强烈建议）
+### 1.3 多格式零转换渲染
+**优先级：** 🔴 P0  
+**预计工作量：** 2-3 天  
+**影响范围：** GLESBackend.cpp
 
-### 2.1 性能监控系统
+#### 核心理念
+**不转换格式，直接利用 OpenGL ES 原生能力。**
+
+#### 实施方案
+- **RGBA/BGRA/RGB**：通过 `GetGLFormat()` 映射到 `GL_RGBA`/`GL_BGRA_EXT`/`GL_RGB`，直接 `glTexSubImage2D`。
+- **YUV (NV21/NV12)**：
+  - 方案 A（推荐）：使用双纹理 + Fragment Shader 实时合成（GPU 零 CPU 开销）。
+  - 方案 B：如果设备支持 `GL_OES_EGL_image_external`，直接使用外部纹理。
+
+#### 验收标准
+- ✅ 4K NV21 渲染耗时 < 2ms
+- ✅ 无任何 CPU 端的色彩空间转换逻辑
+
+---
+
+## 🟡 Phase 2: 稳定性与可观测性
+
+### 2.1 纹理池与预分配
+**优先级：** 🟡 P1  
+**预计工作量：** 2 天
+
+#### 实施方案
+针对频繁 Resize 的场景（如窗口拖动），实现 `TexturePool`。预分配 1080p/4K 常用分辨率纹理，Resize 时直接从池中复用，避免 `glTexImage2D` 的高昂开销。
+
+---
+
+### 2.2 性能监控仪表盘
 **优先级：** 🟡 P1  
 **预计工作量：** 2-3 天
 
 #### 实施方案
-实现 PerformanceMonitor 类，统计：
-- FPS（帧率）
-- 平均帧耗时
-- P95/P99 帧耗时
-- 丢帧率
-- GPU 显存占用
-
-**ArkTS 层暴露接口：**
+在 C++ 层统计 FPS、FrameTime、DropRate，并通过 NAPI 暴露给 ArkTS。
 ```typescript
 interface RenderStats {
   fps: number;
-  avgFrameTimeMs: number;
-  p95FrameTimeMs: number;
+  frameTimeMs: number;
   dropRate: number;
-  gpuMemoryMB: number;
 }
-
-ArkZeroRenderer.getStats(): RenderStats;
 ```
-
----
-
-### 2.2 自适应质量降级
-**优先级：** 🟡 P1  
-**预计工作量：** 2-3 天
-
-#### 实施方案
-根据性能监控数据，动态调整渲染质量：
-- LOW: 540p @ 30fps
-- MEDIUM: 720p @ 60fps
-- HIGH: 1080p @ 60fps
-- ULTRA: 4K @ 60fps
-
-当检测到帧耗时超过阈值时，自动降级到下一档。
-
----
-
-## 🟢 Phase 3: 高级特性（可选）
-
-### 3.1 HDR 支持
-**优先级：** 🟢 P2  
-**预计工作量：** 5-7 天
-
-- 10-bit/12-bit 色彩深度
-- PQ/HLG HDR 曲线
-- HDR10/Dolby Vision
-
-### 3.2 广色域支持
-**优先级：** 🟢 P2  
-**预计工作量：** 3-4 天
-
-- Display P3
-- Adobe RGB
 
 ---
 
@@ -299,38 +162,28 @@ ArkZeroRenderer.getStats(): RenderStats;
 
 | Phase | 任务 | 工作量 | 累计时间 |
 |-------|------|--------|----------|
-| **Phase 1** | 1.1 VSync 支持 | 2-3 天 | 2-3 天 |
-| | 1.2 异步渲染 | 4-5 天 | 6-8 天 |
-| | 1.3 纹理池 | 2-3 天 | 8-11 天 |
-| | 1.4 多格式直接渲染 | 1-2 天 | 9-13 天 |
-| **Phase 2** | 2.1 性能监控 | 2-3 天 | 11-16 天 |
-| | 2.2 自适应质量 | 2-3 天 | 13-19 天 |
-| **Phase 3** | 3.1 HDR 支持 | 5-7 天 | 18-26 天 |
-| | 3.2 广色域 | 3-4 天 | 21-30 天 |
+| **Phase 1** | 1.1 XComponent Surface 集成 | 3-4 天 | 3-4 天 |
+| | 1.2 异步渲染队列 | 4-5 天 | 7-9 天 |
+| | 1.3 多格式零转换 | 2-3 天 | 9-12 天 |
+| **Phase 2** | 2.1 纹理池 | 2 天 | 11-14 天 |
+| | 2.2 性能监控 | 2-3 天 | 13-17 天 |
 
-**总计：** 约 1-1.5 个月（全职开发）
+**总计：** 约 2-3 周（全职开发）
 
 ---
 
 ## 🎯 成功指标
 
 完成 Phase 1 后应达到：
-- ✅ 4K @ 60fps 稳定运行
-- ✅ 端到端延迟 < 16ms
-- ✅ CPU 占用 < 5%
-- ✅ GPU 显存 < 100MB
-- ✅ 零内存拷贝
-
-完成 Phase 2 后应达到：
-- ✅ 实时性能监控可视化
-- ✅ 自动适应不同性能设备
-- ✅ 低端设备也能流畅运行
+- ✅ **延迟降至 10ms 以内**
+- ✅ **渲染路径缩短 50%**
+- ✅ **CPU 占用降低 40%**
+- ✅ **支持 4K 60fps 稳定运行**
 
 ---
 
 ## 📝 注意事项
 
-1. **测试覆盖**：每个功能都需要在多种设备上测试（高端、中端、低端）
-2. **性能基准**：建立性能基准测试套件，确保每次优化都有量化收益
-3. **向后兼容**：保持 API 兼容性，避免破坏现有用户代码
-4. **文档更新**：每个新功能都要更新 API 文档和使用示例
+1. **生命周期管理**：XComponent 的 `onLoad/onDestroy` 必须与 C++ 层的 `Initialize/Destroy` 严格对应。
+2. **线程安全**：所有 NAPI 调用必须在 ArkTS 线程执行，OpenGL 调用必须在渲染线程执行。
+3. **兼容性**：虽然不考虑向后兼容，但建议在 API 设计上保留 `surfaceId` 可选参数，以便未来扩展离屏渲染需求。

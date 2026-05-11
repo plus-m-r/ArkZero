@@ -13,80 +13,23 @@
  * limitations under the License.
  */
 
-import { OpenGLView } from '../view/OpenGLView';
-import { YUVView } from '../view/YUVView';
-import { CommonConstant as Common } from '../common/CommonConstant';
-
 @Entry
 @Component
 struct Index {
-  @State currentIndex: number = 0;
-
-  @Builder
-  tabBuilder(index: number, name: ResourceStr) {
-    Column() {
-      Row() {
-        Text(name)
-          .fontColor(this.currentIndex === index ? $r('app.color.selected_font_color') : $r('app.color.font_color'))
-          .fontSize($r('app.float.tab_bar_font_size'))
-          .fontWeight(this.currentIndex === index ? Common.FONT_WEIGHT_500 : FontWeight.Normal)
-          .lineHeight($r('app.float.tab_bar_line_height'))
-          .margin({ top: $r('app.float.tab_bar_title_margin_top') })
-      }
-      .height($r('app.float.tab_bar_title_height'))
-      .alignItems(VerticalAlign.Top)
-      .borderWidth({
-        bottom: this.currentIndex === index ? $r('app.float.tab_bar_title_border_width') : $r('app.float.zero')
-      })
-      .borderColor($r('app.color.tab_bar_title_border_color'))
-    }
-    .width(Common.FULL_PERCENT)
-    .height(Common.FULL_PERCENT)
-  }
-
   build() {
     Column() {
-      Row() {
-        Text($r('app.string.page_title'))
-          .fontSize($r('app.float.page_title_font_size'))
-          .fontWeight(Common.FONT_WEIGHT_500)
-          .margin({
-            left: $r('app.float.page_title_margin_left')
-          })
-      }
-      .margin({
-        top: $r('app.float.page_title_margin_top')
-      })
-      .width(Common.FULL_PERCENT)
-      .height($r('app.float.page_title_height'))
-      .justifyContent(FlexAlign.Start)
-
-      Tabs({ barPosition: BarPosition.Start, index: this.currentIndex }) {
-        TabContent() {
-          OpenGLView()
-        }
-        .tabBar(this.tabBuilder(0, $r('app.string.opengl_draw')))
-
-        TabContent() {
-          YUVView()
-        }
-        .tabBar(this.tabBuilder(1, $r('app.string.yuv_draw')))
-      }
-      .vertical(false)
-      .barMode(BarMode.Fixed)
-      .barWidth(Common.FULL_PERCENT)
-      .barHeight($r('app.float.bar_height'))
-      .onChange((index: number) => {
-        this.currentIndex = index;
-      })
-      .width(Common.FULL_PERCENT)
-      .layoutWeight(1)
-      .margin({
-        top: $r('app.float.tabs_margin_top')
-      })
+      Text('ArkZeroRenderer - Ultra Low Latency Demo')
+        .fontSize(20)
+        .fontWeight(FontWeight.Bold)
+        .margin({ top: 20 })
+      
+      Text('Ready for XComponent Surface Integration')
+        .fontSize(16)
+        .margin({ top: 10 })
     }
-    .width(Common.FULL_PERCENT)
-    .height(Common.FULL_PERCENT)
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
     .backgroundColor('#F0F3F5')
   }
 }
