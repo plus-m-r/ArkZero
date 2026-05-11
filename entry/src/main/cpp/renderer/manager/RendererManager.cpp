@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#include "ScreenRendererManager.h"
+#include "RendererManager.h"
 #include <hilog/log.h>
 
 #include "../../common/common.h"
@@ -22,12 +22,12 @@ namespace NativeXComponentSample {
 
 RendererManager::RendererManager() : m_nextHandle(1) {
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "ScreenRendererManager", "Manager created");
+        "RendererManager", "Manager created");
 }
 
 RendererManager::~RendererManager() {
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "ScreenRendererManager", "Manager destroying, cleaning up all renderers");
+        "RendererManager", "Manager destroying, cleaning up all renderers");
     
     // 清理所有renderer
     for (auto& pair : m_renderers) {
@@ -38,7 +38,7 @@ RendererManager::~RendererManager() {
     m_renderers.clear();
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "ScreenRendererManager", "Manager destroyed");
+        "RendererManager", "Manager destroyed");
 }
 
 RendererManager& RendererManager::GetInstance() {
@@ -50,13 +50,13 @@ int32_t RendererManager::CreateRenderer(int32_t width, int32_t height, PixelForm
     std::lock_guard<std::mutex> lock(m_mutex);
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "ScreenRendererManager", "Creating renderer: %{public}dx%{public}d, format=%{public}d", 
+        "RendererManager", "Creating renderer: %{public}dx%{public}d, format=%{public}d", 
         width, height, static_cast<int>(format));
     
     auto renderer = std::make_unique<Renderer>(width, height, format);
     if (!renderer->Initialize()) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererManager", "Failed to initialize renderer");
+            "RendererManager", "Failed to initialize renderer");
         return -1;
     }
     
@@ -64,7 +64,7 @@ int32_t RendererManager::CreateRenderer(int32_t width, int32_t height, PixelForm
     m_renderers[handle] = std::move(renderer);
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "ScreenRendererManager", "✅ Created renderer: handle=%{public}d", handle);
+        "RendererManager", "✅ Created renderer: handle=%{public}d", handle);
     
     return handle;
 }
@@ -75,7 +75,7 @@ Renderer* RendererManager::GetRenderer(int32_t handle) {
     auto it = m_renderers.find(handle);
     if (it == m_renderers.end()) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererManager", "Renderer not found: handle=%{public}d", handle);
+            "RendererManager", "Renderer not found: handle=%{public}d", handle);
         return nullptr;
     }
     
@@ -88,18 +88,18 @@ bool RendererManager::DestroyRenderer(int32_t handle) {
     auto it = m_renderers.find(handle);
     if (it == m_renderers.end()) {
         OH_LOG_Print(LOG_APP, LOG_WARN, LOG_PRINT_DOMAIN, 
-            "ScreenRendererManager", "Renderer not found for destroy: handle=%{public}d", handle);
+            "RendererManager", "Renderer not found for destroy: handle=%{public}d", handle);
         return false;
     }
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "ScreenRendererManager", "Destroying renderer: handle=%{public}d", handle);
+        "RendererManager", "Destroying renderer: handle=%{public}d", handle);
     
     it->second->Destroy();
     m_renderers.erase(it);
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "ScreenRendererManager", "♻️ Destroyed renderer: handle=%{public}d", handle);
+        "RendererManager", "♻️ Destroyed renderer: handle=%{public}d", handle);
     
     return true;
 }

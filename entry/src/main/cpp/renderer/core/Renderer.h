@@ -31,7 +31,7 @@ namespace NativeXComponentSample {
  * - 不包含任何渲染逻辑
  * 
  * 📊 架构：
- * ArkTS → NAPI → ScreenRenderer → IRenderBackend → GLES/Vulkan/Software
+ * ArkTS → NAPI → Renderer → IRenderBackend → GLES/Vulkan/Software
  */
 class Renderer {
 public:
@@ -46,7 +46,7 @@ public:
     /**
      * 析构函数
      */
-    ~ScreenRenderer();
+    ~Renderer();
 
     /**
      * 初始化渲染器
@@ -99,8 +99,8 @@ public:
 
 private:
     // 禁止拷贝
-    ScreenRenderer(const ScreenRenderer&) = delete;
-    ScreenRenderer& operator=(const ScreenRenderer&) = delete;
+    Renderer(const Renderer&) = delete;
+    Renderer& operator=(const Renderer&) = delete;
 
 private:
     std::unique_ptr<IRenderBackend> m_backend; // ⭐ 多态后端

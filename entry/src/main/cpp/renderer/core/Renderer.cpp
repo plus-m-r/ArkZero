@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#include "ScreenRendererFacade.h"
+#include "Renderer.h"
 #include "../manager/BackendFactory.h"
 #include <hilog/log.h>
 
@@ -27,31 +27,31 @@ Renderer::Renderer(int32_t width, int32_t height, PixelFormat format)
     , m_format(format)
 {
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "ScreenRenderer", "Constructor: width=%{public}d, height=%{public}d, format=%{public}d", 
+        "Renderer", "Constructor: width=%{public}d, height=%{public}d, format=%{public}d", 
         width, height, static_cast<int>(format));
 }
 
 Renderer::~Renderer() {
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "ScreenRenderer", "Destructor");
+        "Renderer", "Destructor");
     Destroy();
 }
 
 bool Renderer::Initialize() {
     if (m_backend && m_backend->IsInitialized()) {
         OH_LOG_Print(LOG_APP, LOG_WARN, LOG_PRINT_DOMAIN, 
-            "ScreenRenderer", "Already initialized");
+            "Renderer", "Already initialized");
         return true;
     }
 
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "ScreenRenderer", "Initializing...");
+        "Renderer", "Initializing...");
 
     // ⭐ 使用工厂创建最佳后端
     m_backend = BackendFactory::CreateBestBackend();
     if (!m_backend) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRenderer", "Failed to create any render backend");
+            "Renderer", "Failed to create any render backend");
         return false;
     }
 
@@ -59,10 +59,10 @@ bool Renderer::Initialize() {
     bool success = m_backend->Initialize(m_width, m_height, m_format);
     if (success) {
         OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-            "ScreenRenderer", "✅ Initialized with backend: %s", m_backend->GetBackendName());
+            "Renderer", "✅ Initialized with backend: %s", m_backend->GetBackendName());
     } else {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRenderer", "Failed to initialize backend");
+            "Renderer", "Failed to initialize backend");
         m_backend.reset();
     }
 
@@ -73,7 +73,7 @@ bool Renderer::RenderFrame(const void* pixelData, size_t dataSize,
                                  int32_t width, int32_t height) {
     if (!m_backend || !m_backend->IsInitialized()) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRenderer", "Not initialized");
+            "Renderer", "Not initialized");
         return false;
     }
 
@@ -84,7 +84,7 @@ bool Renderer::RenderFrame(const void* pixelData, size_t dataSize,
 uint64_t Renderer::GetTextureId() const {
     if (!m_backend || !m_backend->IsInitialized()) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRenderer", "Not initialized");
+            "Renderer", "Not initialized");
         return 0;
     }
 
@@ -95,7 +95,7 @@ uint64_t Renderer::GetTextureId() const {
 bool Renderer::Resize(int32_t width, int32_t height) {
     if (!m_backend || !m_backend->IsInitialized()) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRenderer", "Not initialized");
+            "Renderer", "Not initialized");
         return false;
     }
 
@@ -114,17 +114,17 @@ void Renderer::Destroy() {
     }
 
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "ScreenRenderer", "Destroying renderer...");
+        "Renderer", "Destroying renderer...");
 
     // ⭐ 委托给后端销毁
     m_backend->Destroy();
     m_backend.reset();
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "ScreenRenderer", "♻️ Renderer destroyed");
+        "Renderer", "♻️ Renderer destroyed");
 }
 
-bool ScreenRenderer::IsInitialized() const {
+bool Renderer::IsInitialized() const {
     return m_backend && m_backend->IsInitialized();
 }
 

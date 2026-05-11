@@ -246,7 +246,7 @@ const char OPENGL_XCOMPONENT_ID[] = "opengl_xcomponent";
 const char YUV_XCOMPONENT_ID[] = "yuv_xcomponent";
 
 /**
- * 像素格式枚举（ScreenRenderer 使用）
+ * 像素格式枚举（Renderer 使用）
  */
 enum class PixelFormat {
     RGBA = 0,      // RGBA8888 (4字节/像素)

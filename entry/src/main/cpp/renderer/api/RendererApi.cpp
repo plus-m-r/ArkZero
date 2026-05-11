@@ -28,7 +28,7 @@ namespace NativeXComponentSample {
 napi_value CreateRenderer(napi_env env, napi_callback_info info) {
     if ((env == nullptr) || (info == nullptr)) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "CreateRenderer: env or info is null");
+            "RendererApi", "CreateRenderer: env or info is null");
         return nullptr;
     }
 
@@ -36,7 +36,7 @@ napi_value CreateRenderer(napi_env env, napi_callback_info info) {
     napi_value args[3] = { nullptr };
     if (napi_get_cb_info(env, info, &argCnt, args, nullptr, nullptr) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "CreateRenderer: napi_get_cb_info failed");
+            "RendererApi", "CreateRenderer: napi_get_cb_info failed");
         return nullptr;
     }
 
@@ -83,7 +83,7 @@ napi_value CreateRenderer(napi_env env, napi_callback_info info) {
     PixelFormat format = static_cast<PixelFormat>(static_cast<int>(formatValue));
 
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "ScreenRendererApi", "CreateRenderer: width=%{public}f, height=%{public}f, format=%{public}d", 
+        "RendererApi", "CreateRenderer: width=%{public}f, height=%{public}f, format=%{public}d", 
         width, height, static_cast<int>(format));
 
     // 调用管理器创建renderer
@@ -94,7 +94,7 @@ napi_value CreateRenderer(napi_env env, napi_callback_info info) {
     );
 
     if (handle < 0) {
-        napi_throw_error(env, NULL, "Failed to create ScreenRenderer");
+        napi_throw_error(env, NULL, "Failed to create Renderer");
         return nullptr;
     }
 
@@ -104,20 +104,20 @@ napi_value CreateRenderer(napi_env env, napi_callback_info info) {
     napi_value rejecter;
     if (napi_create_promise(env, &promise, &resolver, &rejecter) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "CreateRenderer: napi_create_promise failed");
+            "RendererApi", "CreateRenderer: napi_create_promise failed");
         return nullptr;
     }
 
     napi_value resolveValue;
     if (napi_create_int32(env, handle, &resolveValue) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "CreateRenderer: napi_create_int32 failed");
+            "RendererApi", "CreateRenderer: napi_create_int32 failed");
         return nullptr;
     }
 
     if (napi_resolve_deferred(env, resolver, resolveValue) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "CreateRenderer: napi_resolve_deferred failed");
+            "RendererApi", "CreateRenderer: napi_resolve_deferred failed");
         return nullptr;
     }
 
@@ -130,7 +130,7 @@ napi_value CreateRenderer(napi_env env, napi_callback_info info) {
 napi_value RenderFrame(napi_env env, napi_callback_info info) {
     if ((env == nullptr) || (info == nullptr)) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "RenderFrame: env or info is null");
+            "RendererApi", "RenderFrame: env or info is null");
         return nullptr;
     }
 
@@ -138,7 +138,7 @@ napi_value RenderFrame(napi_env env, napi_callback_info info) {
     napi_value args[4] = { nullptr };
     if (napi_get_cb_info(env, info, &argCnt, args, nullptr, nullptr) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "RenderFrame: napi_get_cb_info failed");
+            "RendererApi", "RenderFrame: napi_get_cb_info failed");
         return nullptr;
     }
 
@@ -176,7 +176,7 @@ napi_value RenderFrame(napi_env env, napi_callback_info info) {
     size_t byteLength = 0;
     if (napi_get_arraybuffer_info(env, args[1], &data, &byteLength) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "RenderFrame: napi_get_arraybuffer_info failed");
+            "RendererApi", "RenderFrame: napi_get_arraybuffer_info failed");
         return nullptr;
     }
 
@@ -203,7 +203,7 @@ napi_value RenderFrame(napi_env env, napi_callback_info info) {
     }
 
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "ScreenRendererApi", 
+        "RendererApi",
         "RenderFrame: handle=%{public}d, width=%{public}f, height=%{public}f, bufferSize=%{public}zu",
         handle, width, height, byteLength);
 
@@ -230,20 +230,20 @@ napi_value RenderFrame(napi_env env, napi_callback_info info) {
     napi_value rejecter;
     if (napi_create_promise(env, &promise, &resolver, &rejecter) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "RenderFrame: napi_create_promise failed");
+            "RendererApi", "RenderFrame: napi_create_promise failed");
         return nullptr;
     }
 
     napi_value resolveValue;
     if (napi_get_undefined(env, &resolveValue) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "RenderFrame: napi_get_undefined failed");
+            "RendererApi", "RenderFrame: napi_get_undefined failed");
         return nullptr;
     }
 
     if (napi_resolve_deferred(env, resolver, resolveValue) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "RenderFrame: napi_resolve_deferred failed");
+            "RendererApi", "RenderFrame: napi_resolve_deferred failed");
         return nullptr;
     }
 
@@ -256,7 +256,7 @@ napi_value RenderFrame(napi_env env, napi_callback_info info) {
 napi_value GetTextureId(napi_env env, napi_callback_info info) {
     if ((env == nullptr) || (info == nullptr)) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "GetTextureId: env or info is null");
+            "RendererApi", "GetTextureId: env or info is null");
         return nullptr;
     }
 
@@ -264,7 +264,7 @@ napi_value GetTextureId(napi_env env, napi_callback_info info) {
     napi_value args[1] = { nullptr };
     if (napi_get_cb_info(env, info, &argCnt, args, nullptr, nullptr) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "GetTextureId: napi_get_cb_info failed");
+            "RendererApi", "GetTextureId: napi_get_cb_info failed");
         return nullptr;
     }
 
@@ -286,7 +286,7 @@ napi_value GetTextureId(napi_env env, napi_callback_info info) {
     }
 
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "ScreenRendererApi", "GetTextureId: handle=%{public}d", handle);
+        "RendererApi", "GetTextureId: handle=%{public}d", handle);
 
     // 获取renderer实例
     Renderer* renderer = RendererManager::GetInstance().GetRenderer(handle);
@@ -301,7 +301,7 @@ napi_value GetTextureId(napi_env env, napi_callback_info info) {
     napi_value result;
     if (napi_create_uint32(env, textureId, &result) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "GetTextureId: napi_create_uint32 failed");
+            "RendererApi", "GetTextureId: napi_create_uint32 failed");
         return nullptr;
     }
 
@@ -314,7 +314,7 @@ napi_value GetTextureId(napi_env env, napi_callback_info info) {
 napi_value ResizeRenderer(napi_env env, napi_callback_info info) {
     if ((env == nullptr) || (info == nullptr)) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "ResizeRenderer: env or info is null");
+            "RendererApi", "ResizeRenderer: env or info is null");
         return nullptr;
     }
 
@@ -322,7 +322,7 @@ napi_value ResizeRenderer(napi_env env, napi_callback_info info) {
     napi_value args[3] = { nullptr };
     if (napi_get_cb_info(env, info, &argCnt, args, nullptr, nullptr) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "ResizeRenderer: napi_get_cb_info failed");
+            "RendererApi", "ResizeRenderer: napi_get_cb_info failed");
         return nullptr;
     }
 
@@ -367,7 +367,7 @@ napi_value ResizeRenderer(napi_env env, napi_callback_info info) {
     }
 
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "ScreenRendererApi", 
+        "RendererApi",
         "ResizeRenderer: handle=%{public}d, width=%{public}f, height=%{public}f", 
         handle, width, height);
 
@@ -393,20 +393,20 @@ napi_value ResizeRenderer(napi_env env, napi_callback_info info) {
     napi_value rejecter;
     if (napi_create_promise(env, &promise, &resolver, &rejecter) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "ResizeRenderer: napi_create_promise failed");
+            "RendererApi", "ResizeRenderer: napi_create_promise failed");
         return nullptr;
     }
 
     napi_value resolveValue;
     if (napi_get_undefined(env, &resolveValue) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "ResizeRenderer: napi_get_undefined failed");
+            "RendererApi", "ResizeRenderer: napi_get_undefined failed");
         return nullptr;
     }
 
     if (napi_resolve_deferred(env, resolver, resolveValue) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "ResizeRenderer: napi_resolve_deferred failed");
+            "RendererApi", "ResizeRenderer: napi_resolve_deferred failed");
         return nullptr;
     }
 
@@ -419,7 +419,7 @@ napi_value ResizeRenderer(napi_env env, napi_callback_info info) {
 napi_value DestroyRenderer(napi_env env, napi_callback_info info) {
     if ((env == nullptr) || (info == nullptr)) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "DestroyRenderer: env or info is null");
+            "RendererApi", "DestroyRenderer: env or info is null");
         return nullptr;
     }
 
@@ -427,7 +427,7 @@ napi_value DestroyRenderer(napi_env env, napi_callback_info info) {
     napi_value args[1] = { nullptr };
     if (napi_get_cb_info(env, info, &argCnt, args, nullptr, nullptr) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "DestroyRenderer: napi_get_cb_info failed");
+            "RendererApi", "DestroyRenderer: napi_get_cb_info failed");
         return nullptr;
     }
 
@@ -449,7 +449,7 @@ napi_value DestroyRenderer(napi_env env, napi_callback_info info) {
     }
 
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "ScreenRendererApi", "DestroyRenderer: handle=%{public}d", handle);
+        "RendererApi", "DestroyRenderer: handle=%{public}d", handle);
 
     // 调用管理器销毁renderer
     bool success = RendererManager::GetInstance().DestroyRenderer(handle);
@@ -465,20 +465,20 @@ napi_value DestroyRenderer(napi_env env, napi_callback_info info) {
     napi_value rejecter;
     if (napi_create_promise(env, &promise, &resolver, &rejecter) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "DestroyRenderer: napi_create_promise failed");
+            "RendererApi", "DestroyRenderer: napi_create_promise failed");
         return nullptr;
     }
 
     napi_value resolveValue;
     if (napi_get_undefined(env, &resolveValue) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "DestroyRenderer: napi_get_undefined failed");
+            "RendererApi", "DestroyRenderer: napi_get_undefined failed");
         return nullptr;
     }
 
     if (napi_resolve_deferred(env, resolver, resolveValue) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "ScreenRendererApi", "DestroyRenderer: napi_resolve_deferred failed");
+            "RendererApi", "DestroyRenderer: napi_resolve_deferred failed");
         return nullptr;
     }
 
