@@ -74,15 +74,14 @@
 
 ```typescript
 /**
- * 屏幕渲染器配置
+ * 像素格式枚举
  */
-export interface ScreenRendererConfig {
-  /** 初始宽度 */
-  width: number;
-  /** 初始高度 */
-  height: number;
-  // ⚠️ 注意：不设置渲染后端默认值
-  // 渲染后端由initialize()自动检测确定
+export enum PixelFormat {
+  RGBA = 0,   // RGBA8888 (4字节/像素)
+  RGB = 1,    // RGB888 (3字节/像素)
+  BGRA = 2,   // BGRA8888 (4字节/像素)
+  NV21 = 3,   // YUV420半平面 (1.5字节/像素)
+  NV12 = 4    // YUV420半平面 (1.5字节/像素)
 }
 ```
 
@@ -104,14 +103,18 @@ export interface ScreenRendererConfig {
  */
 export class ScreenRenderer {
   private nativeHandle: number = 0;
-  private config: ScreenRendererConfig;
+  private width: number;
+  private height: number;
+  private format: PixelFormat;
   private isInitialized: boolean = false;
   
   // 渲染完成回调
   private onFrameRenderedCallback?: (textureId: number) => void;
 
-  constructor(config: ScreenRendererConfig) {
-    this.config = config;
+  constructor(width: number, height: number, format: PixelFormat) {
+    this.width = width;
+    this.height = height;
+    this.format = format;
   }
 
   /**
@@ -131,7 +134,7 @@ export class ScreenRenderer {
    * 
    * 示例：
    * ```typescript
-   * const renderer = new ScreenRenderer({ width: 1920, height: 1080 });
+   * const renderer = new ScreenRenderer(1920, 1080, PixelFormat.RGBA);
    * await renderer.initialize();  // 自动检测并选择最佳后端
    * ```
    */
@@ -143,14 +146,15 @@ export class ScreenRenderer {
     try {
       // 调用Native层初始化
       this.nativeHandle = await nativeScreenRenderer.create(
-        this.config.width,
-        this.config.height
+        this.width,
+        this.height,
+        this.format
       );
 
       this.isInitialized = true;
       
-      hilog.info(DOMAIN, TAG, '✅ ScreenRenderer initialized: %{public}dx%{public}d',
-        this.config.width, this.config.height);
+      hilog.info(DOMAIN, TAG, '✅ ScreenRenderer initialized: %{public}dx%{public}d, format=%{public}d',
+        this.width, this.height, this.format);
         
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -337,13 +341,25 @@ export class ScreenRenderer {
 declare module '@ohos.nativeScreenRenderer' {
   
   /**
+   * 像素格式枚举
+   */
+  enum PixelFormat {
+    RGBA = 0,   // RGBA8888 (4字节/像素)
+    RGB = 1,    // RGB888 (3字节/像素)
+    BGRA = 2,   // BGRA8888 (4字节/像素)
+    NV21 = 3,   // YUV420半平面 (1.5字节/像素)
+    NV12 = 4    // YUV420半平面 (1.5字节/像素)
+  }
+
+  /**
    * 创建渲染器
    * 
    * @param width 宽度
    * @param height 高度
+   * @param format 像素格式（默认RGBA）
    * @returns 渲染器句柄（number）
    */
-  function create(width: number, height: number): Promise<number>;
+  function create(width: number, height: number, format?: PixelFormat): Promise<number>;
 
   /**
    * 渲染帧
@@ -419,8 +435,8 @@ class ControlViewModel {
    * 初始化渲染器
    */
   async initRenderer(width: number, height: number): Promise<void> {
-    // 1. 创建渲染器
-    this.renderer = new ScreenRenderer({ width, height });
+    // 1. 创建渲染器（必须指定像素格式）
+    this.renderer = new ScreenRenderer(width, height, PixelFormat.RGBA);
     await this.renderer.initialize();
     
     // 2. 设置渲染完成回调（自动更新UI）
@@ -470,7 +486,7 @@ class MultiScreenViewModel {
    */
   async initRenderers(): Promise<void> {
     // 1. 主屏幕渲染器（高分辨率）
-    this.mainRenderer = new ScreenRenderer({ width: 1920, height: 1080 });
+    this.mainRenderer = new ScreenRenderer(1920, 1080, PixelFormat.RGBA);
     await this.mainRenderer.initialize();
     
     // 每个renderer设置独立的回调（闭包捕获各自的变量）
@@ -479,7 +495,7 @@ class MultiScreenViewModel {
     });
     
     // 2. 预览窗口渲染器（低分辨率）
-    this.previewRenderer = new ScreenRenderer({ width: 320, height: 180 });
+    this.previewRenderer = new ScreenRenderer(320, 180, PixelFormat.RGBA);
     await this.previewRenderer.initialize();
     
     this.previewRenderer.setOnFrameRendered((textureId) => {

@@ -16,7 +16,7 @@
 #include <hilog/log.h>
 
 #include "common/common.h"
-#include "manager/plugin_manager.h"
+#include "renderer/api/RendererApi.h"
 
 namespace NativeXComponentSample {
 EXTERN_C_START
@@ -27,14 +27,18 @@ static napi_value Init(napi_env env, napi_value exports) {
         return nullptr;
     }
 
-    napi_property_descriptor desc[] = { { "getContext", nullptr, PluginManager::GetContext, nullptr, nullptr, nullptr,
-        napi_default, nullptr } };
+    napi_property_descriptor desc[] = { 
+        { "create", nullptr, CreateRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "renderFrame", nullptr, RenderFrame, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "getTextureId", nullptr, GetTextureId, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "resize", nullptr, ResizeRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "destroy", nullptr, DestroyRenderer, nullptr, nullptr, nullptr, napi_default, nullptr }
+    };
     if (napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "Init", "napi_define_properties failed");
         return nullptr;
     }
 
-    PluginManager::GetInstance()->Export(env, exports);
     return exports;
 }
 EXTERN_C_END

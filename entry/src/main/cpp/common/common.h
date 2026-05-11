@@ -98,6 +98,21 @@ const int EGL_BLUE_SIZE_DEFAULT = 8;
  */
 const int EGL_ALPHA_SIZE_DEFAULT = 8;
 
+/**
+ * Egl depth size default (no depth buffer).
+ */
+const int EGL_DEPTH_SIZE_DEFAULT = 0;
+
+/**
+ * Egl stencil size default (no stencil buffer).
+ */
+const int EGL_STENCIL_SIZE_DEFAULT = 0;
+
+/**
+ * OpenGL ES context version.
+ */
+const int OPENGL_ES_VERSION = 3;
+
 constexpr int32_t NUM_4 = 4;
 /**
  * Vertex shader.
@@ -229,4 +244,16 @@ const char OPENGL_XCOMPONENT_ID[] = "opengl_xcomponent";
  * YUV id.
  */
 const char YUV_XCOMPONENT_ID[] = "yuv_xcomponent";
+
+/**
+ * 像素格式枚举（ScreenRenderer 使用）
+ */
+enum class PixelFormat {
+    RGBA = 0,      // RGBA8888 (4字节/像素)
+    RGB = 1,       // RGB888 (3字节/像素)
+    BGRA = 2,      // BGRA8888 (4字节/像素)
+    NV21 = 3,      // YUV420半平面 (1.5字节/像素)
+    NV12 = 4       // YUV420半平面 (1.5字节/像素)
+};
+
 #endif // NATIVE_XCOMPONENT_COMMON_H
