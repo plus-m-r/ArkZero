@@ -20,6 +20,7 @@
 #include "EGLContextManager.h"
 #include "TextureManager.h"
 #include "PixelFormatConverter.h"
+#include "YUVShaderManager.h"
 #include <cstdint>
 #include <cstddef>
 
@@ -29,9 +30,10 @@ namespace NativeXComponentSample {
  * OpenGL ES 渲染后端（Facade）
  * 
  * 🎯 职责：
- * - 协调 EGLContextManager、TextureManager、PixelFormatConverter
+ * - 协调 EGLContextManager、TextureManager、PixelFormatConverter、YUVShaderManager
  * - 实现 IRenderBackend 接口
  * - 提供高层渲染逻辑
+ * - 自动检测 YUV 格式并使用 GPU Shader 渲染
  * 
  * 设计原则：单一职责 - 作为 Facade 协调各组件，不直接管理底层资源
  */
@@ -50,9 +52,15 @@ public:
     bool IsInitialized() const override { return m_isInitialized; }
 
 private:
-    // ⭐ 组合三个单一职责的组件
+    /**
+     * 检查是否为 YUV 格式
+     */
+    bool IsYUVFormat(PixelFormat format) const;
+
+    // ⭐ 组合四个单一职责的组件
     EGLContextManager m_eglManager;      // EGL 上下文管理
-    TextureManager m_textureManager;     // 纹理管理
+    TextureManager m_textureManager;     // 纹理管理（RGBA/RGB）
+    YUVShaderManager m_yuvShader;        // YUV Shader 渲染（NV21/NV12）
     
     int32_t m_width;
     int32_t m_height;

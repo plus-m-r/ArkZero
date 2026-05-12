@@ -54,21 +54,35 @@ bool GLESBackend::Initialize(void* nativeWindow, int32_t width, int32_t height, 
         return false;
     }
 
-    // ⭐ 2. 创建纹理
-    GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(format);
-    GLenum glFormat = PixelFormatConverter::GetGLFormat(format);
-    
-    if (!m_textureManager.Create(width, height, internalFormat, glFormat)) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to create texture");
-        m_eglManager.Destroy();
-        return false;
+    // ⭐ 2. 根据格式选择渲染路径
+    if (IsYUVFormat(format)) {
+        // YUV 格式：使用 GPU Shader 渲染
+        OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+            "GLESBackend", "Using YUV Shader for format=%d", static_cast<int>(format));
+        
+        if (!m_yuvShader.Initialize()) {
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+                "GLESBackend", "Failed to initialize YUV shader");
+            m_eglManager.Destroy();
+            return false;
+        }
+    } else {
+        // RGBA/RGB 格式：使用传统纹理渲染
+        GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(format);
+        GLenum glFormat = PixelFormatConverter::GetGLFormat(format);
+        
+        if (!m_textureManager.Create(width, height, internalFormat, glFormat)) {
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+                "GLESBackend", "Failed to create texture");
+            m_eglManager.Destroy();
+            return false;
+        }
     }
 
     m_isInitialized = true;
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "GLESBackend", "✅ Initialized, textureId=%u", m_textureManager.GetTextureId());
+        "GLESBackend", "✅ Initialized");
     
     return true;
 }
@@ -110,11 +124,28 @@ bool GLESBackend::RenderFrame(const void* pixelData, size_t dataSize,
         return false;
     }
 
-    // ⭐ 2. 更新纹理（零拷贝）
-    GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
-    if (!m_textureManager.Update(pixelData, width, height, glFormat)) {
+    // ⭐ 2. 根据格式选择渲染路径
+    bool success = false;
+    if (IsYUVFormat(m_format)) {
+        // YUV 格式：使用 GPU Shader 渲染（零 CPU 开销）
+        const uint8_t* data = static_cast<const uint8_t*>(pixelData);
+        const uint8_t* yPlane = data;
+        const uint8_t* uvPlane = data + width * height;
+        
+        if (m_format == PixelFormat::NV21) {
+            success = m_yuvShader.RenderNV21(yPlane, uvPlane, width, height);
+        } else if (m_format == PixelFormat::NV12) {
+            success = m_yuvShader.RenderNV12(yPlane, uvPlane, width, height);
+        }
+    } else {
+        // RGBA/RGB 格式：使用传统纹理渲染
+        GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
+        success = m_textureManager.Update(pixelData, width, height, glFormat);
+    }
+    
+    if (!success) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to update texture");
+            "GLESBackend", "Failed to render frame");
         return false;
     }
 
@@ -174,8 +205,12 @@ void GLESBackend::Destroy() {
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "GLESBackend", "Destroying...");
 
-    // ⭐ 1. 销毁纹理
-    m_textureManager.Destroy();
+    // ⭐ 1. 销毁纹理或 YUV Shader
+    if (IsYUVFormat(m_format)) {
+        m_yuvShader.Destroy();
+    } else {
+        m_textureManager.Destroy();
+    }
 
     // ⭐ 2. 释放 EGL 上下文
     m_eglManager.Destroy();
@@ -184,6 +219,10 @@ void GLESBackend::Destroy() {
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "GLESBackend", "♻️ Destroyed");
+}
+
+bool GLESBackend::IsYUVFormat(PixelFormat format) const {
+    return format == PixelFormat::NV21 || format == PixelFormat::NV12;
 }
 
 } // namespace NativeXComponentSample
