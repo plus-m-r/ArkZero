@@ -13,8 +13,9 @@
  * limitations under the License.
  */
 
-import nativeScreenRenderer, { PixelFormat } from 'nativerender';
-import { hilog } from '@ohos.hilog';
+import nativerender from 'nativerender';
+import { PixelFormat } from 'nativerender';
+import hilog from '@ohos.hilog';
 
 const DOMAIN = 0x0001;
 const TAG = 'ArkZeroRenderer';
@@ -243,7 +244,7 @@ export class ArkZeroRenderer {
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       hilog.error(DOMAIN, TAG, '❌ renderFrame failed: %{public}s', errorMsg);
-      throw error;
+      throw new Error(errorMsg);
     }
   }
 
@@ -270,7 +271,7 @@ export class ArkZeroRenderer {
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       hilog.error(DOMAIN, TAG, '❌ resize failed: %{public}s', errorMsg);
-      throw error;
+      throw new Error(errorMsg);
     }
   }
 
@@ -295,3 +296,6 @@ export class ArkZeroRenderer {
     }
   }
 }
+
+// 导出PixelFormat供外部使用
+export { PixelFormat };

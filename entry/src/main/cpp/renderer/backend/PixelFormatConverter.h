@@ -17,7 +17,7 @@
 #define PIXEL_FORMAT_CONVERTER_H
 
 #include <GLES3/gl3.h>
-#include "../PixelFormat.h"
+#include "../../common/common.h"
 
 namespace NativeXComponentSample {
 

@@ -14,7 +14,7 @@
  */
 
 import { ArkZeroRenderer, PixelFormat } from '../components/rendering/ArkZeroRenderer';
-import { hilog } from '@ohos.hilog';
+import hilog from '@ohos.hilog';
 
 const DOMAIN = 0x0001;
 const TAG = 'SurfaceDemoPage';
@@ -38,6 +38,7 @@ struct SurfaceDemoPage {
   private renderer?: ArkZeroRenderer;
   private pixelBuffer?: ArrayBuffer;
   private animationTimer?: number;
+  private xComponentController: XComponentController = new XComponentController();
 
   aboutToAppear() {
     // 初始化渲染器
@@ -136,11 +137,11 @@ struct SurfaceDemoPage {
       XComponent({
         id: 'surface_renderer',
         type: XComponentType.SURFACE,
-        controller: new XComponentController()
+        controller: this.xComponentController
       })
-        .onLoad((context) => {
+        .onLoad(() => {
           // 获取 surface ID
-          this.surfaceId = context.getXComponentSurfaceId();
+          this.surfaceId = this.xComponentController.getXComponentSurfaceId();
           hilog.info(DOMAIN, TAG, '✅ XComponent loaded, surfaceId: %{public}s', this.surfaceId);
           
           // 初始化渲染器
@@ -152,7 +153,7 @@ struct SurfaceDemoPage {
               // 开始渲染
               this.startRendering();
             })
-            .catch((error) => {
+            .catch((error: Error) => {
               const errorMsg = error instanceof Error ? error.message : String(error);
               hilog.error(DOMAIN, TAG, '❌ Initialization failed: %{public}s', errorMsg);
             });

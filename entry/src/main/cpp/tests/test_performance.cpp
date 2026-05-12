@@ -58,7 +58,7 @@ void TestPerformanceMonitor() {
     auto stats = monitor.GetStats();
     std::cout << "📊 Performance Stats:" << std::endl;
     std::cout << "   FPS: " << stats.fps << std::endl;
-    std::cout << "   FrameTime: " << stats.frameTime << " ms" << std::endl;
+    std::cout << "   FrameTime: " << stats.frameTimeMs << " ms" << std::endl;
     std::cout << "   DropRate: " << stats.dropRate << "%" << std::endl;
     std::cout << "   TotalFrames: " << stats.totalFrames << std::endl;
     std::cout << "   DroppedFrames: " << stats.droppedFrames << std::endl;

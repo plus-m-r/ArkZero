@@ -130,9 +130,8 @@ napi_value CreateRenderer(napi_env env, napi_callback_info info) {
 
     // 创建Promise并resolve
     napi_value promise;
-    napi_value resolver;
-    napi_value rejecter;
-    if (napi_create_promise(env, &promise, &resolver, &rejecter) != napi_ok) {
+    napi_deferred deferred;
+    if (napi_create_promise(env, &deferred, &promise) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
             "RendererApi", "CreateRenderer: napi_create_promise failed");
         return nullptr;
@@ -145,7 +144,7 @@ napi_value CreateRenderer(napi_env env, napi_callback_info info) {
         return nullptr;
     }
 
-    if (napi_resolve_deferred(env, resolver, resolveValue) != napi_ok) {
+    if (napi_resolve_deferred(env, deferred, resolveValue) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
             "RendererApi", "CreateRenderer: napi_resolve_deferred failed");
         return nullptr;
@@ -256,9 +255,8 @@ napi_value RenderFrame(napi_env env, napi_callback_info info) {
 
     // 创建Promise并resolve
     napi_value promise;
-    napi_value resolver;
-    napi_value rejecter;
-    if (napi_create_promise(env, &promise, &resolver, &rejecter) != napi_ok) {
+    napi_deferred deferred;
+    if (napi_create_promise(env, &deferred, &promise) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
             "RendererApi", "RenderFrame: napi_create_promise failed");
         return nullptr;
@@ -271,7 +269,7 @@ napi_value RenderFrame(napi_env env, napi_callback_info info) {
         return nullptr;
     }
 
-    if (napi_resolve_deferred(env, resolver, resolveValue) != napi_ok) {
+    if (napi_resolve_deferred(env, deferred, resolveValue) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
             "RendererApi", "RenderFrame: napi_resolve_deferred failed");
         return nullptr;
@@ -361,9 +359,8 @@ napi_value ResizeRenderer(napi_env env, napi_callback_info info) {
 
     // 创建Promise并resolve
     napi_value promise;
-    napi_value resolver;
-    napi_value rejecter;
-    if (napi_create_promise(env, &promise, &resolver, &rejecter) != napi_ok) {
+    napi_deferred deferred;
+    if (napi_create_promise(env, &deferred, &promise) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
             "RendererApi", "ResizeRenderer: napi_create_promise failed");
         return nullptr;
@@ -376,7 +373,7 @@ napi_value ResizeRenderer(napi_env env, napi_callback_info info) {
         return nullptr;
     }
 
-    if (napi_resolve_deferred(env, resolver, resolveValue) != napi_ok) {
+    if (napi_resolve_deferred(env, deferred, resolveValue) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
             "RendererApi", "ResizeRenderer: napi_resolve_deferred failed");
         return nullptr;
@@ -412,18 +409,11 @@ napi_value GetPerformanceStats(napi_env env, napi_callback_info info) {
     }
 
     // 从管理器获取renderer
-    auto* rendererManager = RendererManager::GetInstance();
-    if (!rendererManager) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "GetPerformanceStats: rendererManager is null");
-        napi_throw_error(env, NULL, "Renderer manager not initialized");
-        return nullptr;
-    }
-
-    auto renderer = rendererManager->GetRenderer(static_cast<int32_t>(handle));
+    auto& rendererManager = RendererManager::GetInstance();
+    auto renderer = rendererManager.GetRenderer(static_cast<int32_t>(handle));
     if (!renderer) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "GetPerformanceStats: invalid handle=%lld", handle);
+            "RendererApi", "GetPerformanceStats: invalid handle=%ld", static_cast<long>(handle));
         napi_throw_error(env, NULL, "Invalid renderer handle");
         return nullptr;
     }
@@ -490,9 +480,8 @@ napi_value DestroyRenderer(napi_env env, napi_callback_info info) {
 
     // 创建Promise并resolve
     napi_value promise;
-    napi_value resolver;
-    napi_value rejecter;
-    if (napi_create_promise(env, &promise, &resolver, &rejecter) != napi_ok) {
+    napi_deferred deferred;
+    if (napi_create_promise(env, &deferred, &promise) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
             "RendererApi", "DestroyRenderer: napi_create_promise failed");
         return nullptr;
@@ -505,7 +494,7 @@ napi_value DestroyRenderer(napi_env env, napi_callback_info info) {
         return nullptr;
     }
 
-    if (napi_resolve_deferred(env, resolver, resolveValue) != napi_ok) {
+    if (napi_resolve_deferred(env, deferred, resolveValue) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
             "RendererApi", "DestroyRenderer: napi_resolve_deferred failed");
         return nullptr;
