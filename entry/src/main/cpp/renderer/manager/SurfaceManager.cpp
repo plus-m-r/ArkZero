@@ -15,7 +15,10 @@
 
 #include "SurfaceManager.h"
 #include <hilog/log.h>
+#include <native_window/external_window.h>  // ⭐ OH_NativeWindow API
 #include "../../common/common.h"
+#include <cstdint>
+#include <sstream>
 
 namespace NativeXComponentSample {
 
@@ -24,57 +27,74 @@ SurfaceManager& SurfaceManager::GetInstance() {
     return instance;
 }
 
-void SurfaceManager::RegisterSurface(const std::string& surfaceId, void* nativeWindow) {
-    if (surfaceId.empty() || !nativeWindow) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "SurfaceManager", "RegisterSurface: invalid parameters");
-        return;
-    }
-    
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_surfaceMap[surfaceId] = nativeWindow;
-    
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "SurfaceManager", "✅ Registered surface: %{public}s", surfaceId.c_str());
-}
-
-void SurfaceManager::UnregisterSurface(const std::string& surfaceId) {
+void* SurfaceManager::CreateNativeWindow(const std::string& surfaceId) {
     if (surfaceId.empty()) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "SurfaceManager", "UnregisterSurface: empty surfaceId");
-        return;
-    }
-    
-    std::lock_guard<std::mutex> lock(m_mutex);
-    auto it = m_surfaceMap.find(surfaceId);
-    if (it != m_surfaceMap.end()) {
-        m_surfaceMap.erase(it);
-        OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-            "SurfaceManager", "♻️ Unregistered surface: %{public}s", surfaceId.c_str());
-    } else {
-        OH_LOG_Print(LOG_APP, LOG_WARN, LOG_PRINT_DOMAIN, 
-            "SurfaceManager", "⚠️ Surface not found: %{public}s", surfaceId.c_str());
-    }
-}
-
-void* SurfaceManager::GetNativeWindow(const std::string& surfaceId) {
-    if (surfaceId.empty()) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "SurfaceManager", "GetNativeWindow: empty surfaceId");
+            "SurfaceManager", "CreateNativeWindow: empty surfaceId");
         return nullptr;
     }
     
-    std::lock_guard<std::mutex> lock(m_mutex);
-    auto it = m_surfaceMap.find(surfaceId);
-    if (it != m_surfaceMap.end()) {
-        OH_LOG_Print(LOG_APP, LOG_DEBUG, LOG_PRINT_DOMAIN, 
-            "SurfaceManager", "Found NativeWindow for surface: %{public}s", surfaceId.c_str());
-        return it->second;
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+        "SurfaceManager", "Creating NativeWindow from surfaceId: %{public}s", surfaceId.c_str());
+    
+    // ⭐ 将 surfaceId 字符串转换为 uint64_t
+    // surfaceId 格式通常为 "surface_xxx"，需要提取数字部分
+    uint64_t surfaceIdNum = 0;
+    try {
+        // 尝试直接转换（如果 surfaceId 是纯数字）
+        surfaceIdNum = std::stoull(surfaceId);
+    } catch (...) {
+        // 如果包含前缀，提取数字部分
+        // 例如："surface_123456" -> 123456
+        size_t pos = surfaceId.find_last_of('_');
+        if (pos != std::string::npos && pos + 1 < surfaceId.length()) {
+            try {
+                surfaceIdNum = std::stoull(surfaceId.substr(pos + 1));
+            } catch (...) {
+                OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+                    "SurfaceManager", "Failed to parse surfaceId: %{public}s", surfaceId.c_str());
+                return nullptr;
+            }
+        } else {
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+                "SurfaceManager", "Invalid surfaceId format: %{public}s", surfaceId.c_str());
+            return nullptr;
+        }
     }
     
-    OH_LOG_Print(LOG_APP, LOG_WARN, LOG_PRINT_DOMAIN, 
-        "SurfaceManager", "⚠️ NativeWindow not found for surface: %{public}s", surfaceId.c_str());
-    return nullptr;
+    OH_LOG_Print(LOG_APP, LOG_DEBUG, LOG_PRINT_DOMAIN, 
+        "SurfaceManager", "Parsed surfaceId number: %{public}llu", surfaceIdNum);
+    
+    // ⭐ 调用 HarmonyOS NDK API 创建 NativeWindow
+    OHNativeWindow* nativeWindow = nullptr;
+    int32_t result = OH_NativeWindow_CreateNativeWindowFromSurfaceId(surfaceIdNum, &nativeWindow);
+    
+    if (result != 0 || !nativeWindow) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+            "SurfaceManager", "❌ Failed to create NativeWindow: result=%{public}d", result);
+        return nullptr;
+    }
+    
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+        "SurfaceManager", "✅ Created NativeWindow: %{public}p", nativeWindow);
+    
+    return reinterpret_cast<void*>(nativeWindow);
+}
+
+void SurfaceManager::DestroyNativeWindow(void* nativeWindow) {
+    if (!nativeWindow) {
+        OH_LOG_Print(LOG_APP, LOG_WARN, LOG_PRINT_DOMAIN, 
+            "SurfaceManager", "DestroyNativeWindow: null pointer");
+        return;
+    }
+    
+    OHNativeWindow* window = reinterpret_cast<OHNativeWindow*>(nativeWindow);
+    
+    // ⭐ 调用 HarmonyOS NDK API 销毁 NativeWindow
+    OH_NativeWindow_DestroyNativeWindow(window);
+    
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+        "SurfaceManager", "♻️ Destroyed NativeWindow: %{public}p", nativeWindow);
 }
 
 } // namespace NativeXComponentSample

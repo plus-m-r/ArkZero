@@ -68,19 +68,20 @@ declare module 'nativerender' {
   /**
    * 注册 XComponent Surface
    * 
-   * ⚠️ **内部 API**：由 ArkZeroRenderer 自动调用，用户无需手动使用
+   * ⚠️ **已废弃**：NativeWindow 现在由 C++ 层自动创建
+   * 此接口保留仅为向后兼容，调用无效
    * 
-   * @param surfaceId XComponent 的 surface ID
-   * @param nativeWindowPtr NativeWindow 指针（作为 number 传递）
+   * @deprecated 使用 createWithSurface 即可，无需手动注册
    */
-  export function registerSurface(surfaceId: string, nativeWindowPtr: number): void;
+  export function registerSurface(surfaceId: string): void;
 
   /**
    * 注销 XComponent Surface
    * 
-   * ⚠️ **内部 API**：由 ArkZeroRenderer 自动调用，用户无需手动使用
+   * ⚠️ **已废弃**：NativeWindow 现在由 C++ 层自动管理
+   * 此接口保留仅为向后兼容，调用无效
    * 
-   * @param surfaceId XComponent 的 surface ID
+   * @deprecated 渲染器销毁时会自动清理资源
    */
   export function unregisterSurface(surfaceId: string): void;
 

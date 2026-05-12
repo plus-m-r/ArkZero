@@ -68,5 +68,13 @@ find_library(
     uv
 )
 
+find_library(
+    # Sets the name of the path variable.
+    libnative-window-lib
+    # Specifies the name of the NDK library that
+    # you want CMake to locate.
+    native_window
+)
+
 target_link_libraries(nativerender PUBLIC
-    ${EGL-lib} ${GLES-lib} ${hilog-lib} ${libace-lib} ${libnapi-lib} ${libuv-lib})
+    ${EGL-lib} ${GLES-lib} ${hilog-lib} ${libace-lib} ${libnapi-lib} ${libuv-lib} ${libnative-window-lib})

@@ -26,24 +26,19 @@ namespace NativeXComponentSample {
  * SurfaceManager - XComponent Surface 管理器
  * 
  * 🎯 职责：
- * - 管理 surfaceId 到 NativeWindow 的映射
+ * - 通过 surfaceId 创建和管理 OHNativeWindow
  * - 提供线程安全的 Surface 访问
+ * - 封装 HarmonyOS NDK 的 OH_NativeWindow API
  * 
  * 📊 设计原则：
- * - NativeWindow 的获取逻辑完全隐藏在 C++ 层
- * - NAPI 层只传递 surfaceId（字符串）和 NativeWindow 指针（number）
+ * - NativeWindow 的创建逻辑完全隐藏在 C++ 层
+ * - ArkTS 层只传递 surfaceId（字符串）
  * - 符合单一职责原则（SRP）
  * 
- * 🔧 使用示例：
+ * 🔧 核心 API：
  * ```cpp
- * // ArkTS 层在 XComponent onLoad 时调用 registerSurface
- * // C++ 层存储映射关系
- * 
- * // 渲染器初始化时获取 NativeWindow
- * void* window = SurfaceManager::GetInstance().GetNativeWindow("surface_123");
- * if (window) {
- *     glesBackend.InitializeWithSurface(window, width, height, format);
- * }
+ * // 通过 surfaceId 直接创建 NativeWindow（HarmonyOS NDK API）
+ * OH_NativeWindow_CreateNativeWindowFromSurfaceId(surfaceId, &nativeWindow)
  * ```
  */
 class SurfaceManager {
@@ -54,24 +49,23 @@ public:
     static SurfaceManager& GetInstance();
     
     /**
-     * 注册 Surface
-     * @param surfaceId XComponent 的 surface ID
+     * 通过 surfaceId 创建并获取 NativeWindow 指针
+     * 
+     * ⭐ 内部调用 OH_NativeWindow_CreateNativeWindowFromSurfaceId()
+     * 
+     * @param surfaceId XComponent 的 surface ID（字符串）
+     * @return NativeWindow 指针，如果创建失败返回 nullptr
+     */
+    void* CreateNativeWindow(const std::string& surfaceId);
+    
+    /**
+     * 销毁 NativeWindow
+     * 
+     * ⚠️ 必须与 CreateNativeWindow 配对使用，避免内存泄漏
+     * 
      * @param nativeWindow NativeWindow 指针
      */
-    void RegisterSurface(const std::string& surfaceId, void* nativeWindow);
-    
-    /**
-     * 注销 Surface
-     * @param surfaceId XComponent 的 surface ID
-     */
-    void UnregisterSurface(const std::string& surfaceId);
-    
-    /**
-     * 获取 NativeWindow 指针
-     * @param surfaceId XComponent 的 surface ID
-     * @return NativeWindow 指针，如果未找到返回 nullptr
-     */
-    void* GetNativeWindow(const std::string& surfaceId);
+    void DestroyNativeWindow(void* nativeWindow);
 
 private:
     SurfaceManager() = default;
@@ -80,10 +74,6 @@ private:
     // 禁止拷贝
     SurfaceManager(const SurfaceManager&) = delete;
     SurfaceManager& operator=(const SurfaceManager&) = delete;
-    
-private:
-    std::mutex m_mutex;
-    std::unordered_map<std::string, void*> m_surfaceMap; // surfaceId -> NativeWindow
 };
 
 } // namespace NativeXComponentSample

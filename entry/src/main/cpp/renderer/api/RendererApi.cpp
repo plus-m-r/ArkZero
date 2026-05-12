@@ -209,17 +209,17 @@ napi_value CreateRendererWithSurface(napi_env env, napi_callback_info info) {
         "RendererApi", "Creating with XComponent Surface: width=%{public}f, height=%{public}f, format=%{public}d", 
         width, height, static_cast<int>(format));
 
-    // ⭐ 从 SurfaceManager 获取 NativeWindow
-    void* nativeWindow = SurfaceManager::GetInstance().GetNativeWindow(std::string(surfaceId));
+    // ⭐ 通过 SurfaceManager 从 surfaceId 创建 NativeWindow
+    void* nativeWindow = SurfaceManager::GetInstance().CreateNativeWindow(std::string(surfaceId));
     if (!nativeWindow) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "❌ NativeWindow not found for surface: %{public}s", surfaceId);
-        napi_throw_error(env, NULL, "Surface not registered. Call RegisterSurface first.");
+            "RendererApi", "❌ Failed to create NativeWindow from surfaceId: %{public}s", surfaceId);
+        napi_throw_error(env, NULL, "Failed to create NativeWindow from surfaceId");
         return nullptr;
     }
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "RendererApi", "✅ Found NativeWindow for surface: %{public}s", surfaceId);
+        "RendererApi", "✅ Created NativeWindow from surfaceId: %{public}s", surfaceId);
     
     // 调用管理器创建带 Surface 的渲染器
     int32_t handle = RendererManager::GetInstance().CreateRendererWithSurface(
@@ -261,111 +261,24 @@ napi_value CreateRendererWithSurface(napi_env env, napi_callback_info info) {
 }
 
 /**
- * registerSurface(surfaceId: string, nativeWindowPtr: number): void
+ * registerSurface(surfaceId: string): void
  * 
- * ⚠️ 内部 API：注册 XComponent Surface
+ * ⚠️ **已废弃**：NativeWindow 现在由 SurfaceManager 自动创建
+ * 此接口保留仅为向后兼容，实际不做任何操作
  */
 napi_value RegisterSurface(napi_env env, napi_callback_info info) {
-    if ((env == nullptr) || (info == nullptr)) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "RegisterSurface: env or info is null");
-        return nullptr;
-    }
-
-    size_t argCnt = 2;
-    napi_value args[2] = { nullptr };
-    if (napi_get_cb_info(env, info, &argCnt, args, nullptr, nullptr) != napi_ok) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "RegisterSurface: napi_get_cb_info failed");
-        return nullptr;
-    }
-
-    if (argCnt != 2) {
-        napi_throw_type_error(env, NULL, "Wrong number of arguments. Expected: surfaceId, nativeWindowPtr");
-        return nullptr;
-    }
-
-    // 获取 surfaceId
-    napi_valuetype valuetype;
-    if (napi_typeof(env, args[0], &valuetype) != napi_ok || valuetype != napi_string) {
-        napi_throw_type_error(env, NULL, "First argument must be a string (surfaceId)");
-        return nullptr;
-    }
-    
-    char surfaceId[256];
-    size_t result;
-    if (napi_get_value_string_utf8(env, args[0], surfaceId, sizeof(surfaceId), &result) != napi_ok) {
-        napi_throw_type_error(env, NULL, "Failed to get surfaceId");
-        return nullptr;
-    }
-    
-    // 获取 nativeWindow 指针（作为 number 传递）
-    if (napi_typeof(env, args[1], &valuetype) != napi_ok || valuetype != napi_number) {
-        napi_throw_type_error(env, NULL, "Second argument must be a number (nativeWindowPtr)");
-        return nullptr;
-    }
-    double ptrValue;
-    if (napi_get_value_double(env, args[1], &ptrValue) != napi_ok) {
-        napi_throw_type_error(env, NULL, "Failed to get nativeWindowPtr");
-        return nullptr;
-    }
-    void* nativeWindow = reinterpret_cast<void*>(static_cast<uintptr_t>(ptrValue));
-    
-    // 注册到 SurfaceManager
-    SurfaceManager::GetInstance().RegisterSurface(std::string(surfaceId), nativeWindow);
-    
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "RendererApi", "✅ Registered surface: %{public}s, NativeWindow=%{public}p", 
-        surfaceId, nativeWindow);
-    
+    // 空实现，仅保留 API 兼容性
     return nullptr;
 }
 
 /**
  * unregisterSurface(surfaceId: string): void
  * 
- * ⚠️ 内部 API：注销 XComponent Surface
+ * ⚠️ **已废弃**：NativeWindow 现在由 SurfaceManager 自动管理
+ * 此接口保留仅为向后兼容，实际不做任何操作
  */
 napi_value UnregisterSurface(napi_env env, napi_callback_info info) {
-    if ((env == nullptr) || (info == nullptr)) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "UnregisterSurface: env or info is null");
-        return nullptr;
-    }
-
-    size_t argCnt = 1;
-    napi_value args[1] = { nullptr };
-    if (napi_get_cb_info(env, info, &argCnt, args, nullptr, nullptr) != napi_ok) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "UnregisterSurface: napi_get_cb_info failed");
-        return nullptr;
-    }
-
-    if (argCnt != 1) {
-        napi_throw_type_error(env, NULL, "Wrong number of arguments. Expected: surfaceId");
-        return nullptr;
-    }
-
-    // 获取 surfaceId
-    napi_valuetype valuetype;
-    if (napi_typeof(env, args[0], &valuetype) != napi_ok || valuetype != napi_string) {
-        napi_throw_type_error(env, NULL, "Argument must be a string (surfaceId)");
-        return nullptr;
-    }
-    
-    char surfaceId[256];
-    size_t result;
-    if (napi_get_value_string_utf8(env, args[0], surfaceId, sizeof(surfaceId), &result) != napi_ok) {
-        napi_throw_type_error(env, NULL, "Failed to get surfaceId");
-        return nullptr;
-    }
-    
-    // 从 SurfaceManager 注销
-    SurfaceManager::GetInstance().UnregisterSurface(std::string(surfaceId));
-    
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "RendererApi", "♻️ Unregistered surface: %{public}s", surfaceId);
-    
+    // 空实现，仅保留 API 兼容性
     return nullptr;
 }
 
