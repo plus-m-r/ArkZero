@@ -178,7 +178,7 @@ export default function RenderQueueTest() {
       const handle: number = await nativerender.createRenderQueue();
       await nativerender.queueStop(handle);
       
-      const cmd: any = await nativerender.queueDequeue(handle);
+      const cmd: RenderCommandData | null = await nativerender.queueDequeue(handle);
       expect(cmd).assertNull();
       
       nativerender.destroyRenderQueue(handle);
