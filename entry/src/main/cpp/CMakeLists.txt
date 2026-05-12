@@ -88,7 +88,7 @@ target_link_libraries(nativerender PUBLIC
 
 # 🧪 性能测试可执行文件（仅用于本地测试）
 add_executable(test_performance
-    test_performance.cpp
+    tests/test_performance.cpp
     renderer/core/PerformanceMonitor.cpp
     renderer/backend/PixelFormatConverter.cpp
 )

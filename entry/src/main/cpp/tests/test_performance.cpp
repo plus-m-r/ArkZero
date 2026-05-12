@@ -21,8 +21,8 @@
 #include <sstream>
 
 // 只包含不依赖 HarmonyOS NDK 的核心组件
-#include "renderer/core/PerformanceMonitor.h"
-#include "renderer/backend/PixelFormatConverter.h"
+#include "../renderer/core/PerformanceMonitor.h"
+#include "../renderer/backend/PixelFormatConverter.h"
 
 using namespace NativeXComponentSample;
 
