@@ -66,6 +66,25 @@ declare module 'nativerender' {
   ): Promise<number>;
 
   /**
+   * 注册 XComponent Surface
+   * 
+   * ⚠️ **内部 API**：由 ArkZeroRenderer 自动调用，用户无需手动使用
+   * 
+   * @param surfaceId XComponent 的 surface ID
+   * @param nativeWindowPtr NativeWindow 指针（作为 number 传递）
+   */
+  export function registerSurface(surfaceId: string, nativeWindowPtr: number): void;
+
+  /**
+   * 注销 XComponent Surface
+   * 
+   * ⚠️ **内部 API**：由 ArkZeroRenderer 自动调用，用户无需手动使用
+   * 
+   * @param surfaceId XComponent 的 surface ID
+   */
+  export function unregisterSurface(surfaceId: string): void;
+
+  /**
    * 渲染帧
    * 
    * @param handle 渲染器句柄
