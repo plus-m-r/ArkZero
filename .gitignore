@@ -101,3 +101,10 @@ coverage/
 # 📱 设备相关
 *.apk
 *.aab
+
+# 🔧 编译器和代码分析工具配置
+.clang-tidy
+.clangd
+
+# 💻 C++ 构建缓存 (entry/.cxx/)
+entry/.cxx/
