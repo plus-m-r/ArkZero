@@ -1,99 +1,47 @@
 class=PerformanceMonitor.ConstructorTests
 test=PM-CTOR-001: Should initialize with zero frames
-Error in PM-CTOR-001: Should initialize with zero frames, expect undefined equals 0
-    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
-    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
-    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:27:33)
-result=Failure
+result=Success
 test=PM-CTOR-002: Should initialize with zero dropped frames
-Error in PM-CTOR-002: Should initialize with zero dropped frames, expect undefined equals 0
-    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
-    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
-    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:35:35)
-result=Failure
+result=Success
 test=PM-CTOR-003: Should initialize with zero FPS
-Error in PM-CTOR-003: Should initialize with zero FPS, expect undefined equals 0
-    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
-    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
-    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:43:25)
-result=Failure
+result=Success
 test=PM-CTOR-004: Should initialize with zero drop rate
-Error in PM-CTOR-004: Should initialize with zero drop rate, expect undefined equals 0
-    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
-    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
-    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:51:30)
-result=Failure
+result=Success
 class=PerformanceMonitor.FrameRecordingTests
 test=PM-BF-001: Should record normal frame
-Error in PM-BF-001: Should record normal frame, expect undefined equals 1
-    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
-    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
-    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:64:33)
-result=Failure
+result=Success
 test=PM-BF-002: Should record dropped frame
-Error in PM-BF-002: Should record dropped frame, expect undefined equals 1
-    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
-    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
-    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:77:33)
-result=Failure
+result=Success
 test=PM-BF-003: Should count multiple frames correctly
-Error in PM-BF-003: Should count multiple frames correctly, expect undefined equals 100
-    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
-    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
-    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:92:33)
-result=Failure
+result=Success
 test=PM-BF-004: Should calculate FPS accurately
-Error in PM-BF-004: Should calculate FPS accurately, undefined is not larger than 55
+Error in PM-BF-004: Should calculate FPS accurately, 34.66510009765625 is not larger than 55
     at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
     at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
     at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:109:25)
 result=Failure
 test=PM-BF-005: Should calculate drop rate accurately
-Error in PM-BF-005: Should calculate drop rate accurately, undefined is not larger than 0.09
-    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
-    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
-    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:129:30)
-result=Failure
+result=Success
 class=PerformanceMonitor.ResetTests
 test=PM-RST-001: Should reset all statistics
-Error in PM-RST-001: Should reset all statistics, expect undefined equals 0
-    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
-    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
-    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:150:33)
-result=Failure
+result=Success
 test=PM-RST-002: Should allow reuse after reset
-Error in PM-RST-002: Should allow reuse after reset, expect undefined equals 20
-    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
-    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
-    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:177:33)
-result=Failure
+result=Success
 class=PerformanceMonitor.AdvancedTests
 test=PM-ADV-001: Should handle rapid frame recording
-Error in PM-ADV-001: Should handle rapid frame recording, expect undefined equals 200
-    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
-    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
-    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:194:33)
-result=Failure
+result=Success
 test=PM-ADV-002: Should calculate average frame time
-Error in PM-ADV-002: Should calculate average frame time, undefined is not larger than 15
+Error in PM-ADV-002: Should calculate average frame time, 24.904916763305664 is not less than 17
     at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
     at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
-    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:210:33)
+    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:211:33)
 result=Failure
 test=PM-ADV-003: Should handle alternating dropped frames
-Error in PM-ADV-003: Should handle alternating dropped frames, expect undefined equals 100
-    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
-    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
-    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:226:33)
-result=Failure
+result=Success
 test=PM-ADV-004: Should maintain stats consistency
 result=Success
 test=PM-ADV-005: Should handle multiple monitor instances
-Error in PM-ADV-005: Should handle multiple monitor instances, expect undefined equals 10
-    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
-    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
-    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:283:34)
-result=Failure
+result=Success
 class=PixelFormat.EnumTests
 test=PF-VAL-001: RGBA should equal 0
 result=Success
@@ -256,4 +204,4 @@ test=AZR-INT-002: Should support multi-instance scenario
 result=Success
 test=AZR-INT-003: Should support lifecycle management
 result=Success
-Tests run: 92, Failure: 15, Error: 0, Pass: 77, Ignore: 0
+Tests run: 92, Failure: 2, Error: 0, Pass: 90, Ignore: 0
