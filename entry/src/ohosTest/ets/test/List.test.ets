@@ -8,6 +8,7 @@ import EGLContextManagerTest from './native/EGLContextManager.test';
 import TextureManagerTest from './native/TextureManager.test';
 import YUVShaderManagerTest from './native/YUVShaderManager.test';
 import GLESBackendTest from './native/GLESBackend.test';
+import TexturePoolTest from './native/TexturePool.test';
 
 // ArkTS 层测试
 import PixelFormatTest from './arkts/PixelFormat.test';
@@ -23,6 +24,7 @@ export default function testsuite() {
   TextureManagerTest();     // ⭐ 再测试纹理管理（依赖 EGL）
   YUVShaderManagerTest();   // ⭐ 最后测试着色器管理（依赖 EGL + 纹理）
   GLESBackendTest();        // ⭐ 测试 OpenGL ES 后端（整合所有组件）
+  TexturePoolTest();        // ⭐ 测试纹理池管理
   
   // ArkTS 层测试
   PixelFormatTest();

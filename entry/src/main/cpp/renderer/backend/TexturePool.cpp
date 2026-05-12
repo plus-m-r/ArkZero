@@ -21,7 +21,7 @@
 namespace NativeXComponentSample {
 
 TexturePool::TexturePool(size_t maxSize)
-    : m_maxSize(maxSize)
+    : m_maxSize(maxSize), m_stats{0, 0}  // ⭐ 显式初始化统计
 {
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "TexturePool", "Created with maxSize=%zu", maxSize);

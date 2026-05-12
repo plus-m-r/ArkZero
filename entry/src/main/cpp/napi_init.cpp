@@ -24,6 +24,7 @@
 #include "tests/egl_context_manager_napi.h"
 #include "tests/yuv_shader_manager_napi.h"
 #include "tests/gles_backend_napi.h"
+#include "tests/texture_pool_napi.h"
 
 namespace NativeXComponentSample {
 EXTERN_C_START
@@ -84,7 +85,16 @@ static napi_value Init(napi_env env, napi_value exports) {
         { "destroyGLESBackend", nullptr, DestroyGLESBackend, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "glesBackendInitialize", nullptr, GLESBackendInitialize, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "glesBackendRenderFrame", nullptr, GLESBackendRenderFrame, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "isGLESBackendInitialized", nullptr, IsGLESBackendInitialized, nullptr, nullptr, nullptr, napi_default, nullptr }
+        { "isGLESBackendInitialized", nullptr, IsGLESBackendInitialized, nullptr, nullptr, nullptr, napi_default, nullptr },
+        // TexturePool 测试接口
+        { "createTexturePool", nullptr, CreateTexturePool, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "destroyTexturePool", nullptr, DestroyTexturePool, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "texturePoolAcquire", nullptr, TexturePoolAcquire, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "texturePoolRelease", nullptr, TexturePoolRelease, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "texturePoolPreallocate", nullptr, TexturePoolPreallocate, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "texturePoolClear", nullptr, TexturePoolClear, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "texturePoolSize", nullptr, TexturePoolSize, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "texturePoolGetStats", nullptr, TexturePoolGetStats, nullptr, nullptr, nullptr, napi_default, nullptr }
     };
     if (napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "Init", "napi_define_properties failed");
