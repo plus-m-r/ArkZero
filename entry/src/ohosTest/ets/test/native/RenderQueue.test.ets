@@ -7,6 +7,19 @@ import nativerender from 'libnativerender.so';
  * 测试 C++ RenderQueue 类通过 NAPI 桥接的功能
  * 覆盖构造、提交、消费、停止等核心功能
  */
+
+// 定义接口类型
+interface QueueInfo {
+  size: number;
+  isRunning: boolean;
+}
+
+interface RenderCommandData {
+  dataSize: number;
+  width: number;
+  height: number;
+}
+
 export default function RenderQueueTest() {
   describe('RenderQueue.InitializationTests', () => {
     
@@ -15,7 +28,7 @@ export default function RenderQueueTest() {
     it('RQ-INIT-001: Should initialize with default size', 0, async () => {
       const handle: number = await nativerender.createRenderQueue();
       
-      const info: any = await nativerender.getQueueInfo(handle);
+      const info: QueueInfo = await nativerender.getQueueInfo(handle);
       expect(info.size).assertEqual(0);
       expect(info.isRunning).assertTrue();
       
@@ -25,7 +38,7 @@ export default function RenderQueueTest() {
     it('RQ-INIT-002: Should initialize with custom max size', 0, async () => {
       const handle: number = await nativerender.createRenderQueue(5);
       
-      const info: any = await nativerender.getQueueInfo(handle);
+      const info: QueueInfo = await nativerender.getQueueInfo(handle);
       expect(info.size).assertEqual(0);
       expect(info.isRunning).assertTrue();
       
@@ -35,7 +48,7 @@ export default function RenderQueueTest() {
     it('RQ-INIT-003: Should start in running state', 0, async () => {
       const handle: number = await nativerender.createRenderQueue();
       
-      const info: any = await nativerender.getQueueInfo(handle);
+      const info: QueueInfo = await nativerender.getQueueInfo(handle);
       expect(info.isRunning).assertTrue();
       
       nativerender.destroyRenderQueue(handle);
@@ -53,7 +66,7 @@ export default function RenderQueueTest() {
       const result: boolean = await nativerender.queueSubmit(handle, buffer, 100, 10, 10);
       expect(result).assertTrue();
       
-      const info: any = await nativerender.getQueueInfo(handle);
+      const info: QueueInfo = await nativerender.getQueueInfo(handle);
       expect(info.size).assertEqual(1);
       
       nativerender.destroyRenderQueue(handle);
@@ -69,7 +82,7 @@ export default function RenderQueueTest() {
         expect(result).assertTrue();
       }
       
-      const info: any = await nativerender.getQueueInfo(handle);
+      const info: QueueInfo = await nativerender.getQueueInfo(handle);
       expect(info.size).assertEqual(3);
       
       nativerender.destroyRenderQueue(handle);
@@ -129,8 +142,8 @@ export default function RenderQueueTest() {
       
       await nativerender.queueSubmit(handle, buffer, 100, 1920, 1080);
       
-      const cmd: any = await nativerender.queueDequeue(handle);
-      expect(cmd).assertNotNull();
+      const cmd: RenderCommandData | null = await nativerender.queueDequeue(handle);
+      expect(cmd !== null).assertTrue();
       expect(cmd.dataSize).assertEqual(100);
       expect(cmd.width).assertEqual(1920);
       expect(cmd.height).assertEqual(1080);
@@ -180,11 +193,11 @@ export default function RenderQueueTest() {
       
       // 消费所有命令
       for (let i: number = 0; i < 5; i++) {
-        const cmd: any = await nativerender.queueDequeue(handle);
-        expect(cmd).assertNotNull();
+        const cmd: RenderCommandData | null = await nativerender.queueDequeue(handle);
+        expect(cmd !== null).assertTrue();
       }
       
-      const info: any = await nativerender.getQueueInfo(handle);
+      const info: QueueInfo = await nativerender.getQueueInfo(handle);
       expect(info.size).assertEqual(0);
       
       nativerender.destroyRenderQueue(handle);
@@ -215,7 +228,7 @@ export default function RenderQueueTest() {
       await nativerender.queueStop(handle);
       await nativerender.queueStop(handle); // 第二次调用不应崩溃
       
-      const info: any = await nativerender.getQueueInfo(handle);
+      const info: QueueInfo = await nativerender.getQueueInfo(handle);
       expect(info.isRunning).assertFalse();
       
       nativerender.destroyRenderQueue(handle);
@@ -254,11 +267,11 @@ export default function RenderQueueTest() {
       
       // 消费者：消费 10 个命令
       for (let i: number = 0; i < 10; i++) {
-        const cmd: any = await nativerender.queueDequeue(handle);
-        expect(cmd).assertNotNull();
+        const cmd: RenderCommandData | null = await nativerender.queueDequeue(handle);
+        expect(cmd !== null).assertTrue();
       }
       
-      const info: any = await nativerender.getQueueInfo(handle);
+      const info: QueueInfo = await nativerender.getQueueInfo(handle);
       expect(info.size).assertEqual(0);
       
       nativerender.destroyRenderQueue(handle);
@@ -277,8 +290,8 @@ export default function RenderQueueTest() {
       
       // 验证都能正确消费
       for (let i: number = 0; i < sizes.length; i++) {
-        const cmd: any = await nativerender.queueDequeue(handle);
-        expect(cmd).assertNotNull();
+        const cmd: RenderCommandData | null = await nativerender.queueDequeue(handle);
+        expect(cmd !== null).assertTrue();
         expect(cmd.dataSize).assertEqual(sizes[i]);
       }
       
@@ -313,8 +326,8 @@ export default function RenderQueueTest() {
       
       // 验证都能正确消费
       for (let i: number = 0; i < resolutions.length; i++) {
-        const cmd: any = await nativerender.queueDequeue(handle);
-        expect(cmd).assertNotNull();
+        const cmd: RenderCommandData | null = await nativerender.queueDequeue(handle);
+        expect(cmd !== null).assertTrue();
         expect(cmd.width).assertEqual(resolutions[i].width);
         expect(cmd.height).assertEqual(resolutions[i].height);
       }
@@ -333,8 +346,8 @@ export default function RenderQueueTest() {
       
       // 验证消费顺序与提交顺序一致
       for (let i: number = 0; i < 5; i++) {
-        const cmd: any = await nativerender.queueDequeue(handle);
-        expect(cmd).assertNotNull();
+        const cmd: RenderCommandData | null = await nativerender.queueDequeue(handle);
+        expect(cmd !== null).assertTrue();
         expect(cmd.width).assertEqual(i + 1);
       }
       
@@ -349,7 +362,7 @@ export default function RenderQueueTest() {
     it('RQ-EDGE-001: Should handle zero max size gracefully', 0, async () => {
       const handle: number = await nativerender.createRenderQueue(0);
       
-      const info: any = await nativerender.getQueueInfo(handle);
+      const info: QueueInfo = await nativerender.getQueueInfo(handle);
       expect(info.isRunning).assertTrue();
       
       nativerender.destroyRenderQueue(handle);
@@ -358,7 +371,7 @@ export default function RenderQueueTest() {
     it('RQ-EDGE-002: Should handle very large max size', 0, async () => {
       const handle: number = await nativerender.createRenderQueue(1000);
       
-      const info: any = await nativerender.getQueueInfo(handle);
+      const info: QueueInfo = await nativerender.getQueueInfo(handle);
       expect(info.isRunning).assertTrue();
       
       nativerender.destroyRenderQueue(handle);
@@ -371,11 +384,11 @@ export default function RenderQueueTest() {
       // 快速提交和消费 50 次
       for (let i: number = 0; i < 50; i++) {
         await nativerender.queueSubmit(handle, buffer, 100, 10, 10);
-        const cmd: any = await nativerender.queueDequeue(handle);
-        expect(cmd).assertNotNull();
+        const cmd: RenderCommandData | null = await nativerender.queueDequeue(handle);
+        expect(cmd !== null).assertTrue();
       }
       
-      const info: any = await nativerender.getQueueInfo(handle);
+      const info: QueueInfo = await nativerender.getQueueInfo(handle);
       expect(info.size).assertEqual(0);
       
       nativerender.destroyRenderQueue(handle);
