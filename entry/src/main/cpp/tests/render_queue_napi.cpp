@@ -163,7 +163,7 @@ napi_value QueueDequeue(napi_env env, napi_callback_info info) {
     
     // 消费命令（非阻塞版本，用于测试）
     RenderCommand cmd;
-    bool success = queue->Dequeue(cmd);
+    bool success = queue->TryDequeue(cmd);
     
     if (!success) {
         // 返回 null
@@ -249,6 +249,54 @@ napi_value GetQueueInfo(napi_env env, napi_callback_info info) {
     napi_value isRunning;
     napi_get_boolean(env, queue->IsRunning(), &isRunning);
     napi_set_named_property(env, result, "isRunning", isRunning);
+    
+    return result;
+}
+
+napi_value QueuePeek(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value args[1] = {nullptr};
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    
+    if (argc < 1) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, 0, "RenderQueueNAPI", "Invalid arguments");
+        return nullptr;
+    }
+    
+    int64_t handle = 0;
+    napi_get_value_int64(env, args[0], &handle);
+    
+    auto* queue = GetQueueFromHandle(handle);
+    if (!queue) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, 0, "RenderQueueNAPI", "Invalid queue handle");
+        return nullptr;
+    }
+    
+    // 窥视命令（不消费）
+    RenderCommand cmd;
+    bool success = queue->Peek(cmd);
+    
+    if (!success) {
+        // 返回 null
+        return nullptr;
+    }
+    
+    // 创建 JavaScript 对象
+    napi_value result;
+    napi_create_object(env, &result);
+    
+    // 设置属性
+    napi_value dataSize;
+    napi_create_int32(env, static_cast<int32_t>(cmd.dataSize), &dataSize);
+    napi_set_named_property(env, result, "dataSize", dataSize);
+    
+    napi_value width;
+    napi_create_int32(env, cmd.width, &width);
+    napi_set_named_property(env, result, "width", width);
+    
+    napi_value height;
+    napi_create_int32(env, cmd.height, &height);
+    napi_set_named_property(env, result, "height", height);
     
     return result;
 }

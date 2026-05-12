@@ -85,6 +85,35 @@ bool RenderQueue::Dequeue(RenderCommand& cmd) {
     return true;
 }
 
+bool RenderQueue::TryDequeue(RenderCommand& cmd) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    
+    // ⭐ 非阻塞：如果队列为空或已停止，立即返回 false
+    if (!m_running || m_queue.empty()) {
+        return false;
+    }
+    
+    // ⭐ FIFO：按顺序消费，不丢弃帧
+    cmd = m_queue.front();
+    m_queue.pop();
+    
+    return true;
+}
+
+bool RenderQueue::Peek(RenderCommand& cmd) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    
+    // ⭐ 非阻塞：如果队列为空，立即返回 false
+    if (m_queue.empty()) {
+        return false;
+    }
+    
+    // ⭐ 不移除命令：只查看
+    cmd = m_queue.front();
+    
+    return true;
+}
+
 void RenderQueue::Stop() {
     {
         std::lock_guard<std::mutex> lock(m_mutex);

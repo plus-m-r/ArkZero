@@ -86,6 +86,17 @@ napi_value QueueStop(napi_env env, napi_callback_info info);
  */
 napi_value GetQueueInfo(napi_env env, napi_callback_info info);
 
+/**
+ * 窥视队列头部命令（不消费）
+ * 
+ * ArkTS调用: queuePeek(handle: number): object | null
+ * 
+ * @param env NAPI环境
+ * @param info NAPI回调信息
+ * @return object - {dataSize, width, height} 或 null
+ */
+napi_value QueuePeek(napi_env env, napi_callback_info info);
+
 } // namespace NativeXComponentSample
 
 #endif // RENDER_QUEUE_NAPI_H

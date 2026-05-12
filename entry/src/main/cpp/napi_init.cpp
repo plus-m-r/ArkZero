@@ -53,7 +53,8 @@ static napi_value Init(napi_env env, napi_value exports) {
         { "queueSubmit", nullptr, QueueSubmit, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "queueDequeue", nullptr, QueueDequeue, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "queueStop", nullptr, QueueStop, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "getQueueInfo", nullptr, GetQueueInfo, nullptr, nullptr, nullptr, napi_default, nullptr }
+        { "getQueueInfo", nullptr, GetQueueInfo, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "queuePeek", nullptr, QueuePeek, nullptr, nullptr, nullptr, napi_default, nullptr }
     };
     if (napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "Init", "napi_define_properties failed");

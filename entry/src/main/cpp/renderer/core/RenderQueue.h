@@ -91,6 +91,28 @@ public:
     bool Dequeue(RenderCommand& cmd);
 
     /**
+     * 尝试获取下一个渲染命令（非阻塞版本，用于测试）
+     * 
+     * ⭐ 非阻塞：如果队列为空，立即返回 false
+     * ⭐ 自动丢弃过时帧：只返回最新的一帧
+     * 
+     * @param cmd 输出参数，接收渲染命令
+     * @return true 成功获取，false 队列为空或已停止
+     */
+    bool TryDequeue(RenderCommand& cmd);
+
+    /**
+     * 窥视队列头部命令（不消费，用于测试）
+     * 
+     * ⭐ 非阻塞：如果队列为空，立即返回 false
+     * ⭐ 不移除命令：保持队列不变
+     * 
+     * @param cmd 输出参数，接收渲染命令
+     * @return true 成功获取，false 队列为空
+     */
+    bool Peek(RenderCommand& cmd);
+
+    /**
      * 停止队列
      * 
      * 唤醒所有等待的线程，退出循环

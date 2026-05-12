@@ -179,7 +179,8 @@ export default function RenderQueueTest() {
       await nativerender.queueStop(handle);
       
       const cmd: RenderCommandData | null = await nativerender.queueDequeue(handle);
-      expect(cmd).assertNull();
+      // NAPI 返回 undefined 而非 null
+      expect(cmd === undefined || cmd === null).assertTrue();
       
       nativerender.destroyRenderQueue(handle);
     });
