@@ -19,18 +19,13 @@
 
 namespace NativeXComponentSample {
 
-namespace {
-    constexpr unsigned int LOG_DOMAIN = 0x0001;
-    constexpr const char* LOG_TAG = "PFCNAPI";
-}
-
 napi_value GetGLInternalFormat(napi_env env, napi_callback_info info) {
     size_t argc = 1;
     napi_value args[1] = {nullptr};
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     
     if (argc < 1) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, LOG_TAG, "Invalid arguments");
+        OH_LOG_Print(LOG_APP, LOG_ERROR, 0, "PFCNAPI", "Invalid arguments");
         return nullptr;
     }
     
@@ -52,7 +47,7 @@ napi_value GetGLFormat(napi_env env, napi_callback_info info) {
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     
     if (argc < 1) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, LOG_TAG, "Invalid arguments");
+        OH_LOG_Print(LOG_APP, LOG_ERROR, 0, "PFCNAPI", "Invalid arguments");
         return nullptr;
     }
     
@@ -74,7 +69,7 @@ napi_value GetBytesPerPixel(napi_env env, napi_callback_info info) {
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     
     if (argc < 1) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_DOMAIN, LOG_TAG, "Invalid arguments");
+        OH_LOG_Print(LOG_APP, LOG_ERROR, 0, "PFCNAPI", "Invalid arguments");
         return nullptr;
     }
     
