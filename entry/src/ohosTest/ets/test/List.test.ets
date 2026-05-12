@@ -4,6 +4,7 @@ import { describe } from '@ohos/hypium';
 import PerformanceMonitorTest from './native/PerformanceMonitor.test';
 import PixelFormatConverterTest from './native/PixelFormatConverter.test';
 import RenderQueueTest from './native/RenderQueue.test';
+import TextureManagerTest from './native/TextureManager.test';
 
 // ArkTS 层测试
 import PixelFormatTest from './arkts/PixelFormat.test';
@@ -15,6 +16,7 @@ export default function testsuite() {
   PerformanceMonitorTest();
   PixelFormatConverterTest();
   RenderQueueTest();
+  TextureManagerTest();
   
   // ArkTS 层测试
   PixelFormatTest();

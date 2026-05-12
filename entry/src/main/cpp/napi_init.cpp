@@ -20,6 +20,7 @@
 #include "tests/performance_monitor_napi.h"
 #include "tests/pixel_format_converter_napi.h"
 #include "tests/render_queue_napi.h"
+#include "tests/texture_manager_napi.h"
 
 namespace NativeXComponentSample {
 EXTERN_C_START
@@ -54,7 +55,15 @@ static napi_value Init(napi_env env, napi_value exports) {
         { "queueDequeue", nullptr, QueueDequeue, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "queueStop", nullptr, QueueStop, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "getQueueInfo", nullptr, GetQueueInfo, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "queuePeek", nullptr, QueuePeek, nullptr, nullptr, nullptr, napi_default, nullptr }
+        { "queuePeek", nullptr, QueuePeek, nullptr, nullptr, nullptr, napi_default, nullptr },
+        // TextureManager 测试接口
+        { "createTextureManager", nullptr, CreateTextureManager, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "destroyTextureManager", nullptr, DestroyTextureManager, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "textureCreate", nullptr, TextureCreate, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "textureUpdate", nullptr, TextureUpdate, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "textureDestroy", nullptr, TextureDestroy, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "getTextureId", nullptr, GetTextureId, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "isTextureCreated", nullptr, IsTextureCreated, nullptr, nullptr, nullptr, napi_default, nullptr }
     };
     if (napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "Init", "napi_define_properties failed");
