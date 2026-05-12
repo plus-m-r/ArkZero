@@ -30,6 +30,7 @@ add_library(nativerender SHARED
     tests/render_queue_napi.cpp
     tests/texture_manager_napi.cpp
     tests/egl_context_manager_napi.cpp
+    tests/yuv_shader_manager_napi.cpp
     napi_init.cpp
 )
 

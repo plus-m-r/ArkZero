@@ -22,6 +22,7 @@
 #include "tests/render_queue_napi.h"
 #include "tests/texture_manager_napi.h"
 #include "tests/egl_context_manager_napi.h"
+#include "tests/yuv_shader_manager_napi.h"
 
 namespace NativeXComponentSample {
 EXTERN_C_START
@@ -69,7 +70,14 @@ static napi_value Init(napi_env env, napi_value exports) {
         { "createEGLContext", nullptr, CreateEGLContext, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "destroyEGLContext", nullptr, DestroyEGLContext, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "eglMakeCurrent", nullptr, EGLMakeCurrent, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "isEGLInitialized", nullptr, IsEGLInitialized, nullptr, nullptr, nullptr, napi_default, nullptr }
+        { "isEGLInitialized", nullptr, IsEGLInitialized, nullptr, nullptr, nullptr, napi_default, nullptr },
+        // YUVShaderManager 测试接口
+        { "createYUVShaderManager", nullptr, CreateYUVShaderManager, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "destroyYUVShaderManager", nullptr, DestroyYUVShaderManager, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "yuvShaderInitialize", nullptr, YUVShaderInitialize, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "yuvShaderRenderNV21", nullptr, YUVShaderRenderNV21, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "yuvShaderRenderNV12", nullptr, YUVShaderRenderNV12, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "isYUVShaderInitialized", nullptr, IsYUVShaderInitialized, nullptr, nullptr, nullptr, napi_default, nullptr }
     };
     if (napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "Init", "napi_define_properties failed");
