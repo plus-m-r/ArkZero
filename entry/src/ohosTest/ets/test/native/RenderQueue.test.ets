@@ -97,7 +97,7 @@ export default function RenderQueueTest() {
         await nativerender.queueSubmit(handle, buffer, 100, 10, 10);
       }
       
-      let info: any = await nativerender.getQueueInfo(handle);
+      let info: QueueInfo = await nativerender.getQueueInfo(handle);
       expect(info.size).assertEqual(3);
       
       // 提交第4个，应该丢弃最旧的
@@ -144,9 +144,11 @@ export default function RenderQueueTest() {
       
       const cmd: RenderCommandData | null = await nativerender.queueDequeue(handle);
       expect(cmd !== null).assertTrue();
-      expect(cmd.dataSize).assertEqual(100);
-      expect(cmd.width).assertEqual(1920);
-      expect(cmd.height).assertEqual(1080);
+      if (cmd !== null) {
+        expect(cmd.dataSize).assertEqual(100);
+        expect(cmd.width).assertEqual(1920);
+        expect(cmd.height).assertEqual(1080);
+      }
       
       nativerender.destroyRenderQueue(handle);
     });
@@ -160,7 +162,7 @@ export default function RenderQueueTest() {
         await nativerender.queueSubmit(handle, buffer, 100, 10, 10);
       }
       
-      let info: any = await nativerender.getQueueInfo(handle);
+      let info: QueueInfo = await nativerender.getQueueInfo(handle);
       expect(info.size).assertEqual(3);
       
       // 消费 1 个
@@ -211,7 +213,7 @@ export default function RenderQueueTest() {
     it('RQ-STP-001: Should set running flag to false', 0, async () => {
       const handle: number = await nativerender.createRenderQueue();
       
-      let info: any = await nativerender.getQueueInfo(handle);
+      let info: QueueInfo = await nativerender.getQueueInfo(handle);
       expect(info.isRunning).assertTrue();
       
       await nativerender.queueStop(handle);
@@ -292,7 +294,9 @@ export default function RenderQueueTest() {
       for (let i: number = 0; i < sizes.length; i++) {
         const cmd: RenderCommandData | null = await nativerender.queueDequeue(handle);
         expect(cmd !== null).assertTrue();
-        expect(cmd.dataSize).assertEqual(sizes[i]);
+        if (cmd !== null) {
+          expect(cmd.dataSize).assertEqual(sizes[i]);
+        }
       }
       
       nativerender.destroyRenderQueue(handle);
@@ -328,8 +332,10 @@ export default function RenderQueueTest() {
       for (let i: number = 0; i < resolutions.length; i++) {
         const cmd: RenderCommandData | null = await nativerender.queueDequeue(handle);
         expect(cmd !== null).assertTrue();
-        expect(cmd.width).assertEqual(resolutions[i].width);
-        expect(cmd.height).assertEqual(resolutions[i].height);
+        if (cmd !== null) {
+          expect(cmd.width).assertEqual(resolutions[i].width);
+          expect(cmd.height).assertEqual(resolutions[i].height);
+        }
       }
       
       nativerender.destroyRenderQueue(handle);
@@ -348,7 +354,9 @@ export default function RenderQueueTest() {
       for (let i: number = 0; i < 5; i++) {
         const cmd: RenderCommandData | null = await nativerender.queueDequeue(handle);
         expect(cmd !== null).assertTrue();
-        expect(cmd.width).assertEqual(i + 1);
+        if (cmd !== null) {
+          expect(cmd.width).assertEqual(i + 1);
+        }
       }
       
       nativerender.destroyRenderQueue(handle);
