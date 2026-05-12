@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-import nativerender from 'nativerender';
-import { PixelFormat } from 'nativerender';
+import nativerender from 'libnativerender.so';
+import { PixelFormat } from 'libnativerender.so';
 import hilog from '@ohos.hilog';
 
 const DOMAIN = 0x0001;
@@ -93,7 +93,7 @@ export class ArkZeroRenderer {
 
     try {
       // ⭐ 调用 Native 层创建渲染器
-      this.nativeHandle = await nativeScreenRenderer.create(
+      this.nativeHandle = await nativerender.create(
         surfaceId,
         this.config.width,
         this.config.height,
@@ -227,7 +227,7 @@ export class ArkZeroRenderer {
 
     try {
       // 调用Native层渲染
-      await nativeScreenRenderer.renderFrame(
+      await nativerender.renderFrame(
         this.nativeHandle,
         pixelData,
         width,
@@ -261,7 +261,7 @@ export class ArkZeroRenderer {
     }
 
     try {
-      await nativeScreenRenderer.resize(this.nativeHandle, width, height);
+      await nativerender.resize(this.nativeHandle, width, height);
       
       this.config.width = width;
       this.config.height = height;
@@ -284,7 +284,7 @@ export class ArkZeroRenderer {
     }
 
     try {
-      nativeScreenRenderer.destroy(this.nativeHandle);
+      nativerender.destroy(this.nativeHandle);
       this.nativeHandle = 0;
       this.isInitialized = false;
       
