@@ -47,6 +47,14 @@ public:
     bool Initialize(void* nativeWindow, int32_t width, int32_t height, bool enableVSync = true);
 
     /**
+     * 创建离屏 EGL 上下文（Pbuffer 模式，用于测试）
+     * @param width 宽度
+     * @param height 高度
+     * @return true 成功，false 失败
+     */
+    bool InitializeOffscreen(int32_t width, int32_t height);
+
+    /**
      * 释放 EGL 资源
      */
     void Destroy();

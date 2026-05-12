@@ -4,6 +4,7 @@ import { describe } from '@ohos/hypium';
 import PerformanceMonitorTest from './native/PerformanceMonitor.test';
 import PixelFormatConverterTest from './native/PixelFormatConverter.test';
 import RenderQueueTest from './native/RenderQueue.test';
+import EGLContextManagerTest from './native/EGLContextManager.test';
 import TextureManagerTest from './native/TextureManager.test';
 
 // ArkTS 层测试
@@ -16,7 +17,8 @@ export default function testsuite() {
   PerformanceMonitorTest();
   PixelFormatConverterTest();
   RenderQueueTest();
-  TextureManagerTest();
+  EGLContextManagerTest();  // ⭐ 先测试 EGL 上下文管理
+  TextureManagerTest();     // ⭐ 再测试纹理管理（依赖 EGL）
   
   // ArkTS 层测试
   PixelFormatTest();
