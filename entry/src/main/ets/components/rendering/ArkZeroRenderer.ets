@@ -298,4 +298,4 @@ export class ArkZeroRenderer {
 }
 
 // 导出PixelFormat供外部使用
-export { PixelFormat };
+export type { PixelFormat };
