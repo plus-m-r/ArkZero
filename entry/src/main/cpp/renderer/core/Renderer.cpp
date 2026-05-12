@@ -155,6 +155,11 @@ const char* Renderer::GetBackendName() const {
     return m_backend ? m_backend->GetBackendName() : "None";
 }
 
+std::string Renderer::GetPerformanceStats() const {
+    auto stats = m_perfMonitor.GetStats();
+    return stats.ToString();
+}
+
 void Renderer::renderLoop() {
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "Renderer", "🚀 Render thread started");
@@ -167,19 +172,33 @@ void Renderer::renderLoop() {
             break;  // 队列已停止
         }
         
+        // ⭐ 记录帧开始
+        m_perfMonitor.BeginFrame();
+        
         // ⭐ 执行实际渲染
+        bool success = false;
         if (m_backend && m_backend->IsInitialized()) {
-            bool success = m_backend->RenderFrame(
+            success = m_backend->RenderFrame(
                 cmd.pixelData, 
                 cmd.dataSize, 
                 cmd.width, 
                 cmd.height
             );
-            
-            if (!success) {
-                OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-                    "Renderer", "Render frame failed");
-            }
+        }
+        
+        // ⭐ 记录帧结束
+        m_perfMonitor.EndFrame(!success);
+        
+        if (!success) {
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+                "Renderer", "Render frame failed");
+        }
+        
+        // 每 60 帧输出一次性能统计
+        if (m_perfMonitor.GetTotalFrames() % 60 == 0) {
+            auto stats = m_perfMonitor.GetStats();
+            OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+                "Renderer", "📊 %s", stats.ToString().c_str());
         }
     }
     

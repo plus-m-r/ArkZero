@@ -20,6 +20,7 @@ add_library(nativerender SHARED
     renderer/backend/GLESBackend.cpp
     renderer/core/Renderer.cpp
     renderer/core/RenderQueue.cpp
+    renderer/core/PerformanceMonitor.cpp
     renderer/manager/RendererManager.cpp
     renderer/manager/SurfaceManager.cpp
     renderer/api/RendererApi.cpp

@@ -86,6 +86,27 @@ declare module 'nativerender' {
   ): Promise<void>;
 
   /**
+   * 获取性能统计
+   * 
+   * @param handle 渲染器句柄
+   * @returns JSON格式的性能数据字符串
+   * 
+   * 📊 **返回字段**：
+   * - fps: 当前帧率（帧/秒）
+   * - frameTime: 单帧平均耗时（毫秒）
+   * - dropRate: 丢帧率（百分比）
+   * - totalFrames: 总渲染帧数
+   * - droppedFrames: 丢弃的帧数
+   * 
+   * 示例：
+   * ```typescript
+   * const stats = nativerender.getPerformanceStats(handle);
+   * console.log('FPS:', JSON.parse(stats).fps);
+   * ```
+   */
+  export function getPerformanceStats(handle: number): string;
+
+  /**
    * 销毁渲染器
    * 
    * @param handle 渲染器句柄

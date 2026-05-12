@@ -386,6 +386,63 @@ napi_value ResizeRenderer(napi_env env, napi_callback_info info) {
 }
 
 /**
+ * getPerformanceStats(handle: number): string
+ */
+napi_value GetPerformanceStats(napi_env env, napi_callback_info info) {
+    if ((env == nullptr) || (info == nullptr)) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+            "RendererApi", "GetPerformanceStats: env or info is null");
+        return nullptr;
+    }
+
+    size_t argCnt = 1;
+    napi_value args[1] = { nullptr };
+    if (napi_get_cb_info(env, info, &argCnt, args, nullptr, nullptr) != napi_ok) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+            "RendererApi", "GetPerformanceStats: napi_get_cb_info failed");
+        return nullptr;
+    }
+
+    // 获取handle参数
+    int64_t handle = 0;
+    if (napi_get_value_int64(env, args[0], &handle) != napi_ok) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+            "RendererApi", "GetPerformanceStats: napi_get_value_int64 failed");
+        return nullptr;
+    }
+
+    // 从管理器获取renderer
+    auto* rendererManager = RendererManager::GetInstance();
+    if (!rendererManager) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+            "RendererApi", "GetPerformanceStats: rendererManager is null");
+        napi_throw_error(env, NULL, "Renderer manager not initialized");
+        return nullptr;
+    }
+
+    auto renderer = rendererManager->GetRenderer(static_cast<int32_t>(handle));
+    if (!renderer) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+            "RendererApi", "GetPerformanceStats: invalid handle=%lld", handle);
+        napi_throw_error(env, NULL, "Invalid renderer handle");
+        return nullptr;
+    }
+
+    // 获取性能统计字符串
+    std::string stats = renderer->GetPerformanceStats();
+
+    // 创建NAPI字符串
+    napi_value result;
+    if (napi_create_string_utf8(env, stats.c_str(), stats.length(), &result) != napi_ok) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+            "RendererApi", "GetPerformanceStats: napi_create_string_utf8 failed");
+        return nullptr;
+    }
+
+    return result;
+}
+
+/**
  * destroy(handle: number): Promise<void>
  */
 napi_value DestroyRenderer(napi_env env, napi_callback_info info) {

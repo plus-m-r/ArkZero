@@ -21,6 +21,7 @@
 #include <thread>
 #include "../backend/IRenderBackend.h"
 #include "RenderQueue.h"
+#include "PerformanceMonitor.h"
 
 namespace NativeXComponentSample {
 
@@ -98,6 +99,12 @@ public:
      */
     const char* GetBackendName() const;
 
+    /**
+     * 获取性能统计
+     * @return 性能数据字符串
+     */
+    std::string GetPerformanceStats() const;
+
 private:
     // 禁止拷贝
     Renderer(const Renderer&) = delete;
@@ -112,6 +119,7 @@ private:
     std::unique_ptr<IRenderBackend> m_backend; // ⭐ 多态后端
     std::unique_ptr<RenderQueue> m_renderQueue; // ⭐ 异步渲染队列
     std::thread m_renderThread;                 // ⭐ 后台渲染线程
+    PerformanceMonitor m_perfMonitor;           // ⭐ 性能监控器
     
     int32_t m_width;
     int32_t m_height;

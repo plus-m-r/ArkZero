@@ -54,6 +54,17 @@ napi_value RenderFrame(napi_env env, napi_callback_info info);
 napi_value ResizeRenderer(napi_env env, napi_callback_info info);
 
 /**
+ * 获取性能统计
+ * 
+ * ArkTS调用: getPerformanceStats(handle: number): string
+ * 
+ * @param env NAPI环境
+ * @param info NAPI回调信息
+ * @return string - 性能数据（JSON格式）
+ */
+napi_value GetPerformanceStats(napi_env env, napi_callback_info info);
+
+/**
  * 销毁渲染器
  * 
  * ArkTS调用: destroy(handle: number): Promise<void>
