@@ -28,10 +28,7 @@ static napi_value Init(napi_env env, napi_value exports) {
     }
 
     napi_property_descriptor desc[] = { 
-        { "create", nullptr, CreateRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "createWithSurface", nullptr, CreateRendererWithSurface, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "registerSurface", nullptr, RegisterSurface, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "unregisterSurface", nullptr, UnregisterSurface, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "renderFrame", nullptr, RenderFrame, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "resize", nullptr, ResizeRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "destroy", nullptr, DestroyRenderer, nullptr, nullptr, nullptr, napi_default, nullptr }

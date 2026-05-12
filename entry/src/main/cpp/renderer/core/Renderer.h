@@ -49,13 +49,6 @@ public:
     ~Renderer();
 
     /**
-     * 初始化渲染器
-     * 自动检测并选择最佳后端
-     * @return true 成功，false 失败
-     */
-    bool Initialize();
-    
-    /**
      * 初始化渲染器（使用 XComponent Surface）
      * @param nativeWindow NativeWindow 指针
      * @return true 成功，false 失败

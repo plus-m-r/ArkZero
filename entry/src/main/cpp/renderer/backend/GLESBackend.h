@@ -35,17 +35,7 @@ class GLESBackend : public IRenderBackend {
 public:
     GLESBackend();
     ~GLESBackend() override;
-
-    bool Initialize(int32_t width, int32_t height, PixelFormat format) override;
     
-    /**
-     * 初始化后端（使用 XComponent Surface）
-     * @param nativeWindow NativeWindow 指针（来自 XComponent）
-     * @param width 宽度
-     * @param height 高度
-     * @param format 像素格式
-     * @return true 成功，false 失败
-     */
     bool InitializeWithSurface(void* nativeWindow, int32_t width, int32_t height, PixelFormat format);
     
     bool RenderFrame(const void* pixelData, size_t dataSize, 

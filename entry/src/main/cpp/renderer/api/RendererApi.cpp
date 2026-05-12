@@ -24,110 +24,6 @@
 namespace NativeXComponentSample {
 
 /**
- * create(width: number, height: number, format: number): Promise<number>
- */
-napi_value CreateRenderer(napi_env env, napi_callback_info info) {
-    if ((env == nullptr) || (info == nullptr)) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "CreateRenderer: env or info is null");
-        return nullptr;
-    }
-
-    size_t argCnt = 3;
-    napi_value args[3] = { nullptr };
-    if (napi_get_cb_info(env, info, &argCnt, args, nullptr, nullptr) != napi_ok) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "CreateRenderer: napi_get_cb_info failed");
-        return nullptr;
-    }
-
-    if (argCnt != 3) {
-        napi_throw_type_error(env, NULL, "Wrong number of arguments. Expected: width, height, format");
-        return nullptr;
-    }
-
-    // 参数验证和提取
-    napi_valuetype valuetype;
-    
-    // 获取width
-    if (napi_typeof(env, args[0], &valuetype) != napi_ok || valuetype != napi_number) {
-        napi_throw_type_error(env, NULL, "First argument must be a number (width)");
-        return nullptr;
-    }
-    double width;
-    if (napi_get_value_double(env, args[0], &width) != napi_ok) {
-        napi_throw_type_error(env, NULL, "Failed to get width value");
-        return nullptr;
-    }
-
-    // 获取height
-    if (napi_typeof(env, args[1], &valuetype) != napi_ok || valuetype != napi_number) {
-        napi_throw_type_error(env, NULL, "Second argument must be a number (height)");
-        return nullptr;
-    }
-    double height;
-    if (napi_get_value_double(env, args[1], &height) != napi_ok) {
-        napi_throw_type_error(env, NULL, "Failed to get height value");
-        return nullptr;
-    }
-
-    // 获取format
-    if (napi_typeof(env, args[2], &valuetype) != napi_ok || valuetype != napi_number) {
-        napi_throw_type_error(env, NULL, "Third argument must be a number (format)");
-        return nullptr;
-    }
-    double formatValue;
-    if (napi_get_value_double(env, args[2], &formatValue) != napi_ok) {
-        napi_throw_type_error(env, NULL, "Failed to get format value");
-        return nullptr;
-    }
-    PixelFormat format = static_cast<PixelFormat>(static_cast<int>(formatValue));
-
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "RendererApi", "CreateRenderer: width=%{public}f, height=%{public}f, format=%{public}d", 
-        width, height, static_cast<int>(format));
-
-    // ⭐ 调用管理器创建renderer（离屏模式，已废弃）
-    OH_LOG_Print(LOG_APP, LOG_WARN, LOG_PRINT_DOMAIN, 
-        "RendererApi", "⚠️ Off-screen mode is deprecated. Use createWithSurface instead.");
-    int32_t handle = RendererManager::GetInstance().CreateRenderer(
-        static_cast<int32_t>(width), 
-        static_cast<int32_t>(height),
-        format
-    );
-
-    if (handle < 0) {
-        napi_throw_error(env, NULL, "Failed to create Renderer");
-        return nullptr;
-    }
-
-    // 创建Promise并resolve
-    napi_value promise;
-    napi_value resolver;
-    napi_value rejecter;
-    if (napi_create_promise(env, &promise, &resolver, &rejecter) != napi_ok) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "CreateRenderer: napi_create_promise failed");
-        return nullptr;
-    }
-
-    napi_value resolveValue;
-    if (napi_create_int32(env, handle, &resolveValue) != napi_ok) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "CreateRenderer: napi_create_int32 failed");
-        return nullptr;
-    }
-
-    if (napi_resolve_deferred(env, resolver, resolveValue) != napi_ok) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "CreateRenderer: napi_resolve_deferred failed");
-        return nullptr;
-    }
-
-    return promise;
-}
-
-/**
  * createWithSurface(surfaceId: string, width: number, height: number, format: number): Promise<number>
  * 
  * ⭐ XComponent Surface 直出模式（推荐）
@@ -258,28 +154,6 @@ napi_value CreateRendererWithSurface(napi_env env, napi_callback_info info) {
     }
 
     return promise;
-}
-
-/**
- * registerSurface(surfaceId: string): void
- * 
- * ⚠️ **已废弃**：NativeWindow 现在由 SurfaceManager 自动创建
- * 此接口保留仅为向后兼容，实际不做任何操作
- */
-napi_value RegisterSurface(napi_env env, napi_callback_info info) {
-    // 空实现，仅保留 API 兼容性
-    return nullptr;
-}
-
-/**
- * unregisterSurface(surfaceId: string): void
- * 
- * ⚠️ **已废弃**：NativeWindow 现在由 SurfaceManager 自动管理
- * 此接口保留仅为向后兼容，实际不做任何操作
- */
-napi_value UnregisterSurface(napi_env env, napi_callback_info info) {
-    // 空实现，仅保留 API 兼容性
-    return nullptr;
 }
 
 /**

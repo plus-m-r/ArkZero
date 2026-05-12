@@ -21,17 +21,6 @@
 namespace NativeXComponentSample {
 
 /**
- * 创建渲染器
- * 
- * ArkTS调用: create(width: number, height: number, format: PixelFormat): Promise<number>
- * 
- * @param env NAPI环境
- * @param info NAPI回调信息
- * @return Promise<number> - 渲染器句柄
- */
-napi_value CreateRenderer(napi_env env, napi_callback_info info);
-
-/**
  * 创建渲染器（使用 XComponent Surface）
  * 
  * ⭐ 推荐方式：Direct Surface Rendering
@@ -43,32 +32,6 @@ napi_value CreateRenderer(napi_env env, napi_callback_info info);
  * @return Promise<number> - 渲染器句柄
  */
 napi_value CreateRendererWithSurface(napi_env env, napi_callback_info info);
-
-/**
- * 注册 XComponent Surface
- * 
- * ⚠️ 内部 API：由 ArkZeroRenderer 在 XComponent onLoad 时自动调用
- * 
- * ArkTS调用: registerSurface(surfaceId: string, nativeWindowPtr: number): void
- * 
- * @param env NAPI环境
- * @param info NAPI回调信息
- * @return void
- */
-napi_value RegisterSurface(napi_env env, napi_callback_info info);
-
-/**
- * 注销 XComponent Surface
- * 
- * ⚠️ 内部 API：由 ArkZeroRenderer 在 XComponent onDestroy 时自动调用
- * 
- * ArkTS调用: unregisterSurface(surfaceId: string): void
- * 
- * @param env NAPI环境
- * @param info NAPI回调信息
- * @return void
- */
-napi_value UnregisterSurface(napi_env env, napi_callback_info info);
 
 /**
  * 渲染帧

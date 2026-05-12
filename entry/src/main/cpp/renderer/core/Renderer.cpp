@@ -37,38 +37,6 @@ Renderer::~Renderer() {
     Destroy();
 }
 
-bool Renderer::Initialize() {
-    if (m_backend && m_backend->IsInitialized()) {
-        OH_LOG_Print(LOG_APP, LOG_WARN, LOG_PRINT_DOMAIN, 
-            "Renderer", "Already initialized");
-        return true;
-    }
-
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "Renderer", "Initializing...");
-
-    // ⭐ 直接创建 OpenGL ES 后端（HarmonyOS 平台默认支持）
-    m_backend = std::make_unique<GLESBackend>();
-    if (!m_backend) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "Renderer", "Failed to create any render backend");
-        return false;
-    }
-
-    // ⭐ 委托给后端初始化
-    bool success = m_backend->Initialize(m_width, m_height, m_format);
-    if (success) {
-        OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-            "Renderer", "✅ Initialized with backend: %s", m_backend->GetBackendName());
-    } else {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "Renderer", "Failed to initialize backend");
-        m_backend.reset();
-    }
-
-    return success;
-}
-
 bool Renderer::InitializeWithSurface(void* nativeWindow) {
     if (m_backend && m_backend->IsInitialized()) {
         OH_LOG_Print(LOG_APP, LOG_WARN, LOG_PRINT_DOMAIN, 

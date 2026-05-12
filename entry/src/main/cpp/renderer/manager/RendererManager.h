@@ -42,15 +42,6 @@ public:
     static RendererManager& GetInstance();
 
     /**
-     * 创建新的Renderer实例
-     * @param width 宽度
-     * @param height 高度
-     * @param format 像素格式
-     * @return handle（用于后续操作），失败返回-1
-     */
-    int32_t CreateRenderer(int32_t width, int32_t height, PixelFormat format);
-    
-    /**
      * 创建新的Renderer实例（使用 XComponent Surface）
      * @param nativeWindow NativeWindow 指针
      * @param width 宽度

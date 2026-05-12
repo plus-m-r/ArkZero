@@ -114,39 +114,6 @@ export class ArkZeroRenderer {
   }
 
   /**
-   * 初始化渲染器（离屏模式，已废弃）
-   * 
-   * ⚠️ **注意**：此方法使用离屏渲染模式，性能较差。
-   * 请使用 initializeWithSurface 获得最佳性能。
-   * 
-   * @returns Promise，初始化完成后resolve
-   */
-  async initialize(): Promise<void> {
-    if (this.isInitialized) {
-      return;
-    }
-
-    try {
-      // 调用Native层初始化
-      this.nativeHandle = await nativeScreenRenderer.create(
-        this.config.width,
-        this.config.height,
-        this.config.format
-      );
-
-      this.isInitialized = true;
-      
-      hilog.info(DOMAIN, TAG, '✅ ArkZeroRenderer initialized: %{public}dx%{public}d',
-        this.config.width, this.config.height);
-        
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      hilog.error(DOMAIN, TAG, '❌ ArkZeroRenderer initialization failed: %{public}s', errorMsg);
-      throw new Error(`Failed to initialize ArkZeroRenderer: ${errorMsg}`);
-    }
-  }
-
-  /**
    * 设置渲染完成回调
    * 
    * @param callback 回调函数，渲染完成后调用

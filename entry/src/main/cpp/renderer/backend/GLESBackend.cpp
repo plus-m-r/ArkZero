@@ -37,43 +37,6 @@ GLESBackend::~GLESBackend() {
     Destroy();
 }
 
-bool GLESBackend::Initialize(int32_t width, int32_t height, PixelFormat format) {
-    if (m_isInitialized) {
-        OH_LOG_Print(LOG_APP, LOG_WARN, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Already initialized");
-        return true;
-    }
-
-    m_width = width;
-    m_height = height;
-    m_format = format;
-
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "GLESBackend", "Initializing OpenGL ES backend: %{public}dx%{public}d", width, height);
-
-    // 初始化EGL上下文
-    if (!InitEGLContext()) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to init EGL context");
-        return false;
-    }
-
-    // 创建OpenGL纹理
-    if (!CreateTexture()) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to create texture");
-        ReleaseEGLContext();
-        return false;
-    }
-
-    m_isInitialized = true;
-    
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "GLESBackend", "✅ OpenGL ES backend initialized, textureId=%{public}u", m_textureId);
-    
-    return true;
-}
-
 bool GLESBackend::InitializeWithSurface(void* nativeWindow, int32_t width, int32_t height, PixelFormat format) {
     if (!nativeWindow) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 

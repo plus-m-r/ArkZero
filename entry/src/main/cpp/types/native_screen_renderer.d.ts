@@ -20,19 +20,6 @@ declare module 'nativerender' {
   }
 
   /**
-   * 创建渲染器
-   * 
-   * @param width 宽度
-   * @param height 高度
-   * @param format 像素格式（必选）
-   * @returns 渲染器句柄（number）
-   * 
-   * ⚠️ 注意：此方法使用离屏渲染模式，已废弃。
-   * 请使用 createWithSurface 获得最佳性能。
-   */
-  export function create(width: number, height: number, format: PixelFormat): Promise<number>;
-
-  /**
    * 创建渲染器（使用 XComponent Surface）
    * 
    * ⭐ **推荐方式**：Direct Surface Rendering
@@ -64,26 +51,6 @@ declare module 'nativerender' {
     height: number,
     format: PixelFormat
   ): Promise<number>;
-
-  /**
-   * 注册 XComponent Surface
-   * 
-   * ⚠️ **已废弃**：NativeWindow 现在由 C++ 层自动创建
-   * 此接口保留仅为向后兼容，调用无效
-   * 
-   * @deprecated 使用 createWithSurface 即可，无需手动注册
-   */
-  export function registerSurface(surfaceId: string): void;
-
-  /**
-   * 注销 XComponent Surface
-   * 
-   * ⚠️ **已废弃**：NativeWindow 现在由 C++ 层自动管理
-   * 此接口保留仅为向后兼容，调用无效
-   * 
-   * @deprecated 渲染器销毁时会自动清理资源
-   */
-  export function unregisterSurface(surfaceId: string): void;
 
   /**
    * 渲染帧

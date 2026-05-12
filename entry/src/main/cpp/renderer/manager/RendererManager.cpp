@@ -46,29 +46,6 @@ RendererManager& RendererManager::GetInstance() {
     return instance;
 }
 
-int32_t RendererManager::CreateRenderer(int32_t width, int32_t height, PixelFormat format) {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "RendererManager", "Creating renderer: %{public}dx%{public}d, format=%{public}d", 
-        width, height, static_cast<int>(format));
-    
-    auto renderer = std::make_unique<Renderer>(width, height, format);
-    if (!renderer->Initialize()) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererManager", "Failed to initialize renderer");
-        return -1;
-    }
-    
-    int32_t handle = m_nextHandle++;
-    m_renderers[handle] = std::move(renderer);
-    
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "RendererManager", "✅ Created renderer: handle=%{public}d", handle);
-    
-    return handle;
-}
-
 int32_t RendererManager::CreateRendererWithSurface(void* nativeWindow, int32_t width, int32_t height, PixelFormat format) {
     std::lock_guard<std::mutex> lock(m_mutex);
     
