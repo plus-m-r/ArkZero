@@ -26,6 +26,7 @@ GLESBackend::GLESBackend()
     , m_height(0)
     , m_format(PixelFormat::RGBA)
     , m_isInitialized(false)
+    , m_enableTexturePool(true)  // ⭐ 默认启用纹理池
 {
 }
 
@@ -68,14 +69,46 @@ bool GLESBackend::Initialize(void* nativeWindow, int32_t width, int32_t height, 
         }
     } else {
         // RGBA/RGB 格式：使用传统纹理渲染
-        GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(format);
-        GLenum glFormat = PixelFormatConverter::GetGLFormat(format);
         
-        if (!m_textureManager.Create(width, height, internalFormat, glFormat)) {
-            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-                "GLESBackend", "Failed to create texture");
-            m_eglManager.Destroy();
-            return false;
+        // ⭐ 如果启用纹理池，创建并预分配
+        if (m_enableTexturePool) {
+            m_texturePool = std::make_unique<TexturePool>(10);  // 最多 10 个纹理
+            
+            // 预分配常用分辨率
+            std::vector<std::pair<int32_t, int32_t>> resolutions = {
+                {1920, 1080},   // 1080p
+                {3840, 2160},   // 4K
+                {1280, 720},    // 720p
+            };
+            
+            GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(format);
+            GLenum glFormat = PixelFormatConverter::GetGLFormat(format);
+            
+            m_texturePool->Preallocate(resolutions, internalFormat, glFormat);
+            
+            // 从池中获取当前尺寸的纹理
+            TextureManager* texture = m_texturePool->Acquire(width, height, internalFormat, glFormat);
+            if (!texture) {
+                OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+                    "GLESBackend", "Failed to acquire texture from pool");
+                m_eglManager.Destroy();
+                return false;
+            }
+            
+            OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+                "GLESBackend", "✅ Using texture pool (hitRate=%.1f%%)", 
+                m_texturePool->GetStats().GetHitRate() * 100);
+        } else {
+            // 不使用纹理池，直接创建
+            GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(format);
+            GLenum glFormat = PixelFormatConverter::GetGLFormat(format);
+            
+            if (!m_textureManager.Create(width, height, internalFormat, glFormat)) {
+                OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+                    "GLESBackend", "Failed to create texture");
+                m_eglManager.Destroy();
+                return false;
+            }
         }
     }
 
@@ -140,7 +173,23 @@ bool GLESBackend::RenderFrame(const void* pixelData, size_t dataSize,
     } else {
         // RGBA/RGB 格式：使用传统纹理渲染
         GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
-        success = m_textureManager.Update(pixelData, width, height, glFormat);
+        
+        // ⭐ 如果启用纹理池，从池中获取纹理
+        if (m_enableTexturePool && m_texturePool) {
+            GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(m_format);
+            TextureManager* texture = m_texturePool->Acquire(width, height, internalFormat, glFormat);
+            
+            if (texture) {
+                success = texture->Update(pixelData, width, height, glFormat);
+            } else {
+                OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+                    "GLESBackend", "Failed to acquire texture from pool");
+                success = false;
+            }
+        } else {
+            // 不使用纹理池
+            success = m_textureManager.Update(pixelData, width, height, glFormat);
+        }
     }
     
     if (!success) {
@@ -177,17 +226,46 @@ bool GLESBackend::Resize(int32_t width, int32_t height) {
         "📐 Resizing: %dx%d -> %dx%d", 
         m_width, m_height, width, height);
 
-    // ⭐ 1. 销毁旧纹理
-    m_textureManager.Destroy();
-
-    // ⭐ 2. 创建新纹理
-    GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(m_format);
-    GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
+    // ⭐ 如果启用纹理池，从池中获取新尺寸的纹理
+    if (m_enableTexturePool && m_texturePool && !IsYUVFormat(m_format)) {
+        GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(m_format);
+        GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
+        
+        TextureManager* texture = m_texturePool->Acquire(width, height, internalFormat, glFormat);
+        
+        if (texture) {
+            OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+                "GLESBackend", "✅ Resized using texture pool (hitRate=%.1f%%)", 
+                m_texturePool->GetStats().GetHitRate() * 100);
+            
+            m_width = width;
+            m_height = height;
+            return true;
+        } else {
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+                "GLESBackend", "Failed to acquire texture from pool");
+            return false;
+        }
+    }
     
-    if (!m_textureManager.Create(width, height, internalFormat, glFormat)) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to create new texture");
-        return false;
+    // ⭐ 不使用纹理池或 YUV 格式，直接创建新纹理
+    if (IsYUVFormat(m_format)) {
+        // YUV Shader 不需要 Resize，Shader 会自动适配
+        m_width = width;
+        m_height = height;
+        return true;
+    } else {
+        // 传统纹理：销毁旧纹理，创建新纹理
+        m_textureManager.Destroy();
+        
+        GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(m_format);
+        GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
+        
+        if (!m_textureManager.Create(width, height, internalFormat, glFormat)) {
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+                "GLESBackend", "Failed to create new texture");
+            return false;
+        }
     }
 
     // 更新尺寸
@@ -205,9 +283,12 @@ void GLESBackend::Destroy() {
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "GLESBackend", "Destroying...");
 
-    // ⭐ 1. 销毁纹理或 YUV Shader
+    // ⭐ 1. 销毁纹理池或 YUV Shader 或传统纹理
     if (IsYUVFormat(m_format)) {
         m_yuvShader.Destroy();
+    } else if (m_enableTexturePool && m_texturePool) {
+        m_texturePool->Clear();
+        m_texturePool.reset();
     } else {
         m_textureManager.Destroy();
     }

@@ -16,6 +16,7 @@ add_library(nativerender SHARED
     renderer/backend/TextureManager.cpp
     renderer/backend/PixelFormatConverter.cpp
     renderer/backend/YUVShaderManager.cpp
+    renderer/backend/TexturePool.cpp
     renderer/backend/GLESBackend.cpp
     renderer/core/Renderer.cpp
     renderer/core/RenderQueue.cpp

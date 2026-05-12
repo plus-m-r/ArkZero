@@ -21,6 +21,7 @@
 #include "TextureManager.h"
 #include "PixelFormatConverter.h"
 #include "YUVShaderManager.h"
+#include "TexturePool.h"
 #include <cstdint>
 #include <cstddef>
 
@@ -57,15 +58,17 @@ private:
      */
     bool IsYUVFormat(PixelFormat format) const;
 
-    // ⭐ 组合四个单一职责的组件
+    // ⭐ 组合五个单一职责的组件
     EGLContextManager m_eglManager;      // EGL 上下文管理
     TextureManager m_textureManager;     // 纹理管理（RGBA/RGB）
     YUVShaderManager m_yuvShader;        // YUV Shader 渲染（NV21/NV12）
+    std::unique_ptr<TexturePool> m_texturePool;  // ⭐ 纹理池（可选）
     
     int32_t m_width;
     int32_t m_height;
     PixelFormat m_format;
     bool m_isInitialized;
+    bool m_enableTexturePool;  // ⭐ 是否启用纹理池
 };
 
 } // namespace NativeXComponentSample
