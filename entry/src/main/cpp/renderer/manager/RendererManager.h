@@ -47,9 +47,10 @@ public:
      * @param width 宽度
      * @param height 高度
      * @param format 像素格式
+     * @param enableAsync 是否启用异步渲染（默认 true）
      * @return handle（用于后续操作），失败返回-1
      */
-    int32_t CreateRenderer(void* nativeWindow, int32_t width, int32_t height, PixelFormat format);
+    int32_t CreateRenderer(void* nativeWindow, int32_t width, int32_t height, PixelFormat format, bool enableAsync = true);
 
     /**
      * 获取Renderer实例

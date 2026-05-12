@@ -18,7 +18,9 @@
 
 #include <cstdint>
 #include <memory>
+#include <thread>
 #include "../backend/IRenderBackend.h"
+#include "RenderQueue.h"
 
 namespace NativeXComponentSample {
 
@@ -28,10 +30,10 @@ namespace NativeXComponentSample {
  * 🎯 职责：
  * - 提供统一的渲染接口
  * - 委托给具体的后端实现
- * - 不包含任何渲染逻辑
+ * - 管理异步渲染线程
  * 
  * 📊 架构：
- * ArkTS → NAPI → Renderer → IRenderBackend → GLES/Vulkan/Software
+ * ArkTS → NAPI → Renderer → RenderQueue → Background Thread → IRenderBackend
  */
 class Renderer {
 public:
@@ -40,8 +42,9 @@ public:
      * @param width 初始宽度
      * @param height 初始高度
      * @param format 像素格式
+     * @param enableAsync 是否启用异步渲染（默认 true）
      */
-    Renderer(int32_t width, int32_t height, PixelFormat format);
+    Renderer(int32_t width, int32_t height, PixelFormat format, bool enableAsync = true);
     
     /**
      * 析构函数
@@ -56,12 +59,16 @@ public:
     bool Initialize(void* nativeWindow);
 
     /**
-     * 渲染帧
+     * 渲染帧（异步模式）
+     * 
+     * ⭐ ArkTS 主线程调用，立即返回（<0.5ms）
+     * ⭐ 数据被提交到队列，由后台线程执行实际渲染
+     * 
      * @param pixelData 像素数据指针
      * @param dataSize 数据大小
      * @param width 宽度
      * @param height 高度
-     * @return true 成功，false 失败
+     * @return true 成功提交，false 失败
      */
     bool RenderFrame(const void* pixelData, size_t dataSize, 
                     int32_t width, int32_t height);
@@ -96,11 +103,20 @@ private:
     Renderer(const Renderer&) = delete;
     Renderer& operator=(const Renderer&) = delete;
 
+    /**
+     * 后台渲染线程循环
+     */
+    void renderLoop();
+
 private:
     std::unique_ptr<IRenderBackend> m_backend; // ⭐ 多态后端
+    std::unique_ptr<RenderQueue> m_renderQueue; // ⭐ 异步渲染队列
+    std::thread m_renderThread;                 // ⭐ 后台渲染线程
+    
     int32_t m_width;
     int32_t m_height;
     PixelFormat m_format;
+    bool m_enableAsync;  // ⭐ 是否启用异步渲染
 };
 
 } // namespace NativeXComponentSample

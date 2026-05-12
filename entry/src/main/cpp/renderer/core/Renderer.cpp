@@ -21,14 +21,15 @@
 
 namespace NativeXComponentSample {
 
-Renderer::Renderer(int32_t width, int32_t height, PixelFormat format)
+Renderer::Renderer(int32_t width, int32_t height, PixelFormat format, bool enableAsync)
     : m_width(width)
     , m_height(height)
     , m_format(format)
+    , m_enableAsync(enableAsync)
 {
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "Renderer", "Constructor: width=%{public}d, height=%{public}d, format=%{public}d", 
-        width, height, static_cast<int>(format));
+        "Renderer", "Constructor: %dx%d, format=%d, async=%s", 
+        width, height, static_cast<int>(format), enableAsync ? "enabled" : "disabled");
 }
 
 Renderer::~Renderer() {
@@ -47,21 +48,32 @@ bool Renderer::Initialize(void* nativeWindow) {
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "Renderer", "Initializing with XComponent Surface...");
 
-    // ⭐ 直接创建 OpenGL ES 后端
+    // ⭐ 1. 创建 OpenGL ES 后端
     auto glesBackend = std::make_unique<GLESBackend>();
     
-    // ⭐ 使用 NativeWindow 初始化
+    // ⭐ 2. 使用 NativeWindow 初始化
     bool success = glesBackend->Initialize(nativeWindow, m_width, m_height, m_format);
-    if (success) {
-        m_backend = std::move(glesBackend);
-        OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-            "Renderer", "✅ Initialized");
-    } else {
+    if (!success) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
             "Renderer", "Failed to initialize backend with surface");
+        return false;
+    }
+    
+    m_backend = std::move(glesBackend);
+
+    // ⭐ 3. 如果启用异步渲染，启动后台线程
+    if (m_enableAsync) {
+        m_renderQueue = std::make_unique<RenderQueue>(3);  // 3 帧缓冲
+        m_renderThread = std::thread(&Renderer::renderLoop, this);
+        
+        OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+            "Renderer", "✅ Async rendering thread started");
     }
 
-    return success;
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+        "Renderer", "✅ Initialized");
+    
+    return true;
 }
 
 bool Renderer::RenderFrame(const void* pixelData, size_t dataSize, 
@@ -72,7 +84,20 @@ bool Renderer::RenderFrame(const void* pixelData, size_t dataSize,
         return false;
     }
 
-    // ⭐ 委托给后端渲染
+    // ⭐ 异步模式：提交到队列，立即返回
+    if (m_enableAsync && m_renderQueue) {
+        RenderCommand cmd(pixelData, dataSize, width, height);
+        bool success = m_renderQueue->Submit(cmd);
+        
+        if (!success) {
+            OH_LOG_Print(LOG_APP, LOG_WARN, LOG_PRINT_DOMAIN, 
+                "Renderer", "Failed to submit render command");
+        }
+        
+        return success;
+    }
+    
+    // ⭐ 同步模式：直接渲染（保留用于调试）
     return m_backend->RenderFrame(pixelData, dataSize, width, height);
 }
 
@@ -100,9 +125,23 @@ void Renderer::Destroy() {
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "Renderer", "Destroying renderer...");
 
-    // ⭐ 委托给后端销毁
+    // ⭐ 1. 停止异步渲染队列和线程
+    if (m_renderQueue) {
+        m_renderQueue->Stop();
+    }
+    
+    if (m_renderThread.joinable()) {
+        m_renderThread.join();
+        OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+            "Renderer", "Render thread joined");
+    }
+
+    // ⭐ 2. 销毁后端
     m_backend->Destroy();
     m_backend.reset();
+    
+    // ⭐ 3. 清理队列
+    m_renderQueue.reset();
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "Renderer", "♻️ Renderer destroyed");
@@ -114,6 +153,38 @@ bool Renderer::IsInitialized() const {
 
 const char* Renderer::GetBackendName() const {
     return m_backend ? m_backend->GetBackendName() : "None";
+}
+
+void Renderer::renderLoop() {
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+        "Renderer", "🚀 Render thread started");
+    
+    while (m_renderQueue && m_renderQueue->IsRunning()) {
+        RenderCommand cmd;
+        
+        // ⭐ 从队列获取渲染命令（阻塞等待）
+        if (!m_renderQueue->Dequeue(cmd)) {
+            break;  // 队列已停止
+        }
+        
+        // ⭐ 执行实际渲染
+        if (m_backend && m_backend->IsInitialized()) {
+            bool success = m_backend->RenderFrame(
+                cmd.pixelData, 
+                cmd.dataSize, 
+                cmd.width, 
+                cmd.height
+            );
+            
+            if (!success) {
+                OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+                    "Renderer", "Render frame failed");
+            }
+        }
+    }
+    
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+        "Renderer", "🛑 Render thread exited");
 }
 
 } // namespace NativeXComponentSample

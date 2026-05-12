@@ -46,14 +46,14 @@ RendererManager& RendererManager::GetInstance() {
     return instance;
 }
 
-int32_t RendererManager::CreateRenderer(void* nativeWindow, int32_t width, int32_t height, PixelFormat format) {
+int32_t RendererManager::CreateRenderer(void* nativeWindow, int32_t width, int32_t height, PixelFormat format, bool enableAsync) {
     std::lock_guard<std::mutex> lock(m_mutex);
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "RendererManager", "Creating renderer: %dx%d, format=%d", 
-        width, height, static_cast<int>(format));
+        "RendererManager", "Creating renderer: %dx%d, format=%d, async=%s", 
+        width, height, static_cast<int>(format), enableAsync ? "enabled" : "disabled");
     
-    auto renderer = std::make_unique<Renderer>(width, height, format);
+    auto renderer = std::make_unique<Renderer>(width, height, format, enableAsync);
     if (!renderer->Initialize(nativeWindow)) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
             "RendererManager", "Failed to initialize renderer");
