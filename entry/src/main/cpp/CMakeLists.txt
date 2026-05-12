@@ -27,6 +27,7 @@ add_library(nativerender SHARED
     # NAPI 桥接
     tests/performance_monitor_napi.cpp
     tests/pixel_format_converter_napi.cpp
+    tests/render_queue_napi.cpp
     napi_init.cpp
 )
 

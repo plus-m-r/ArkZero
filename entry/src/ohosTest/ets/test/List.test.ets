@@ -3,6 +3,7 @@ import { describe } from '@ohos/hypium';
 // C++ 层测试（通过 NAPI 桥接）
 import PerformanceMonitorTest from './native/PerformanceMonitor.test';
 import PixelFormatConverterTest from './native/PixelFormatConverter.test';
+import RenderQueueTest from './native/RenderQueue.test';
 
 // ArkTS 层测试
 import PixelFormatTest from './arkts/PixelFormat.test';
@@ -13,6 +14,7 @@ export default function testsuite() {
   // C++ 层测试
   PerformanceMonitorTest();
   PixelFormatConverterTest();
+  RenderQueueTest();
   
   // ArkTS 层测试
   PixelFormatTest();
