@@ -14,8 +14,18 @@
  */
 
 import nativerender from 'libnativerender.so';
-import { PixelFormat } from 'libnativerender.so';
 import hilog from '@ohos.hilog';
+
+// 重新导出 PixelFormat 枚举
+export const PixelFormat = {
+  RGBA: 0,
+  RGB: 1,
+  BGRA: 2,
+  NV21: 3,
+  NV12: 4
+} as const;
+
+export type PixelFormat = typeof PixelFormat[keyof typeof PixelFormat];
 
 const DOMAIN = 0x0001;
 const TAG = 'ArkZeroRenderer';
@@ -296,6 +306,3 @@ export class ArkZeroRenderer {
     }
   }
 }
-
-// 导出PixelFormat供外部使用
-export type { PixelFormat };
