@@ -37,7 +37,7 @@ Renderer::~Renderer() {
     Destroy();
 }
 
-bool Renderer::InitializeWithSurface(void* nativeWindow) {
+bool Renderer::Initialize(void* nativeWindow) {
     if (m_backend && m_backend->IsInitialized()) {
         OH_LOG_Print(LOG_APP, LOG_WARN, LOG_PRINT_DOMAIN, 
             "Renderer", "Already initialized");
@@ -50,12 +50,12 @@ bool Renderer::InitializeWithSurface(void* nativeWindow) {
     // ⭐ 直接创建 OpenGL ES 后端
     auto glesBackend = std::make_unique<GLESBackend>();
     
-    // ⭐ 使用 XComponent Surface 初始化
-    bool success = glesBackend->InitializeWithSurface(nativeWindow, m_width, m_height, m_format);
+    // ⭐ 使用 NativeWindow 初始化
+    bool success = glesBackend->Initialize(nativeWindow, m_width, m_height, m_format);
     if (success) {
         m_backend = std::move(glesBackend);
         OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-            "Renderer", "✅ Initialized with XComponent Surface");
+            "Renderer", "✅ Initialized");
     } else {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
             "Renderer", "Failed to initialize backend with surface");

@@ -143,11 +143,11 @@ struct SurfaceDemoPage {
           this.surfaceId = context.getXComponentSurfaceId();
           hilog.info(DOMAIN, TAG, '✅ XComponent loaded, surfaceId: %{public}s', this.surfaceId);
           
-          // 初始化渲染器（使用 XComponent Surface）
-          this.renderer!.initializeWithSurface(this.surfaceId)
+          // 初始化渲染器
+          this.renderer!.initialize(this.surfaceId)
             .then(() => {
               this.isInitialized = true;
-              hilog.info(DOMAIN, TAG, '✅ Renderer initialized with XComponent Surface');
+              hilog.info(DOMAIN, TAG, '✅ Renderer initialized');
               
               // 开始渲染
               this.startRendering();

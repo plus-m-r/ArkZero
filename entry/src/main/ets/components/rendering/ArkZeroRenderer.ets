@@ -66,14 +66,12 @@ export class ArkZeroRenderer {
   /**
    * 初始化渲染器（使用 XComponent Surface）
    * 
-   * ⭐ **推荐方式**：Direct Surface Rendering
-   * 
    * @param surfaceId XComponent 的 surface ID
    * @returns Promise，初始化完成后resolve
    * 
    * 🎯 **优势**：
    * - 直接渲染到屏幕，无中间合成步骤
-   * - 延迟 <10ms（相比离屏模式的 20-30ms）
+   * - 延迟 <10ms
    * - 支持 VSync 同步，消除画面撕裂
    * 
    * 示例：
@@ -83,18 +81,18 @@ export class ArkZeroRenderer {
    *   height: 1080,
    *   format: PixelFormat.RGBA 
    * });
-   * await renderer.initializeWithSurface(this.surfaceId);
+   * await renderer.initialize(this.surfaceId);
    * ```
    */
-  async initializeWithSurface(surfaceId: string): Promise<void> {
+  async initialize(surfaceId: string): Promise<void> {
     if (this.isInitialized) {
       hilog.warn(DOMAIN, TAG, '⚠️ ArkZeroRenderer already initialized');
       return;
     }
 
     try {
-      // ⭐ 调用 Native 层创建带 Surface 的渲染器
-      this.nativeHandle = await nativeScreenRenderer.createWithSurface(
+      // ⭐ 调用 Native 层创建渲染器
+      this.nativeHandle = await nativeScreenRenderer.create(
         surfaceId,
         this.config.width,
         this.config.height,
@@ -103,13 +101,13 @@ export class ArkZeroRenderer {
 
       this.isInitialized = true;
       
-      hilog.info(DOMAIN, TAG, '✅ ArkZeroRenderer initialized with XComponent Surface: %{public}dx%{public}d',
+      hilog.info(DOMAIN, TAG, '✅ ArkZeroRenderer initialized: %{public}dx%{public}d',
         this.config.width, this.config.height);
         
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       hilog.error(DOMAIN, TAG, '❌ ArkZeroRenderer initialization failed: %{public}s', errorMsg);
-      throw new Error(`Failed to initialize ArkZeroRenderer with surface: ${errorMsg}`);
+      throw new Error(`Failed to initialize ArkZeroRenderer: ${errorMsg}`);
     }
   }
 

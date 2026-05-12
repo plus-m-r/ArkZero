@@ -49,11 +49,11 @@ public:
     ~Renderer();
 
     /**
-     * 初始化渲染器（使用 XComponent Surface）
-     * @param nativeWindow NativeWindow 指针
+     * 初始化渲染器
+     * @param nativeWindow NativeWindow 指针（来自 XComponent Surface）
      * @return true 成功，false 失败
      */
-    bool InitializeWithSurface(void* nativeWindow);
+    bool Initialize(void* nativeWindow);
 
     /**
      * 渲染帧

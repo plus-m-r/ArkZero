@@ -37,7 +37,7 @@ GLESBackend::~GLESBackend() {
     Destroy();
 }
 
-bool GLESBackend::InitializeWithSurface(void* nativeWindow, int32_t width, int32_t height, PixelFormat format) {
+bool GLESBackend::Initialize(void* nativeWindow, int32_t width, int32_t height, PixelFormat format) {
     if (!nativeWindow) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
             "GLESBackend", "Invalid nativeWindow");
@@ -69,7 +69,7 @@ bool GLESBackend::InitializeWithSurface(void* nativeWindow, int32_t width, int32
     m_isInitialized = true;
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "GLESBackend", "✅ OpenGL ES backend initialized with XComponent Surface, textureId=%{public}u", m_textureId);
+        "GLESBackend", "✅ OpenGL ES backend initialized, textureId=%{public}u", m_textureId);
     
     return true;
 }

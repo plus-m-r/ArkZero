@@ -46,17 +46,17 @@ RendererManager& RendererManager::GetInstance() {
     return instance;
 }
 
-int32_t RendererManager::CreateRendererWithSurface(void* nativeWindow, int32_t width, int32_t height, PixelFormat format) {
+int32_t RendererManager::CreateRenderer(void* nativeWindow, int32_t width, int32_t height, PixelFormat format) {
     std::lock_guard<std::mutex> lock(m_mutex);
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "RendererManager", "Creating renderer with XComponent Surface: %dx%d, format=%d", 
+        "RendererManager", "Creating renderer: %dx%d, format=%d", 
         width, height, static_cast<int>(format));
     
     auto renderer = std::make_unique<Renderer>(width, height, format);
-    if (!renderer->InitializeWithSurface(nativeWindow)) {
+    if (!renderer->Initialize(nativeWindow)) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererManager", "Failed to initialize renderer with surface");
+            "RendererManager", "Failed to initialize renderer");
         return -1;
     }
     
@@ -64,7 +64,7 @@ int32_t RendererManager::CreateRendererWithSurface(void* nativeWindow, int32_t w
     m_renderers[handle] = std::move(renderer);
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "RendererManager", "✅ Created renderer with XComponent Surface: handle=%d", handle);
+        "RendererManager", "✅ Created renderer: handle=%d", handle);
     
     return handle;
 }

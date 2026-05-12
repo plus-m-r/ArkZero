@@ -35,14 +35,14 @@ public:
     virtual ~IRenderBackend() = default;
 
     /**
-     * 初始化后端（使用 XComponent Surface）
-     * @param nativeWindow NativeWindow 指针
+     * 初始化后端
+     * @param nativeWindow NativeWindow 指针（来自 XComponent Surface）
      * @param width 宽度
      * @param height 高度
      * @param format 像素格式
      * @return true 成功，false 失败
      */
-    virtual bool InitializeWithSurface(void* nativeWindow, int32_t width, int32_t height, PixelFormat format) = 0;
+    virtual bool Initialize(void* nativeWindow, int32_t width, int32_t height, PixelFormat format) = 0;
 
     /**
      * 渲染帧

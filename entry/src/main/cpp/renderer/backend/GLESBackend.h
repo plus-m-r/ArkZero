@@ -36,7 +36,7 @@ public:
     GLESBackend();
     ~GLESBackend() override;
     
-    bool InitializeWithSurface(void* nativeWindow, int32_t width, int32_t height, PixelFormat format);
+    bool Initialize(void* nativeWindow, int32_t width, int32_t height, PixelFormat format) override;
     
     bool RenderFrame(const void* pixelData, size_t dataSize, 
                     int32_t width, int32_t height) override;

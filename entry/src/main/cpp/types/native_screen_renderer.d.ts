@@ -20,9 +20,7 @@ declare module 'nativerender' {
   }
 
   /**
-   * 创建渲染器（使用 XComponent Surface）
-   * 
-   * ⭐ **推荐方式**：Direct Surface Rendering
+   * 创建渲染器
    * 
    * @param surfaceId XComponent 的 surface ID
    * @param width 宽度
@@ -32,12 +30,12 @@ declare module 'nativerender' {
    * 
    * 🎯 **优势**：
    * - 直接渲染到屏幕，无中间合成步骤
-   * - 延迟 <10ms（相比离屏模式的 20-30ms）
+   * - 延迟 <10ms
    * - 支持 VSync 同步，消除画面撕裂
    * 
    * 示例：
    * ```typescript
-   * const handle = await nativerender.createWithSurface(
+   * const handle = await nativerender.create(
    *   this.surfaceId,
    *   1920,
    *   1080,
@@ -45,7 +43,7 @@ declare module 'nativerender' {
    * );
    * ```
    */
-  export function createWithSurface(
+  export function create(
     surfaceId: string,
     width: number,
     height: number,

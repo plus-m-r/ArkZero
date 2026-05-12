@@ -21,17 +21,15 @@
 namespace NativeXComponentSample {
 
 /**
- * 创建渲染器（使用 XComponent Surface）
+ * 创建渲染器
  * 
- * ⭐ 推荐方式：Direct Surface Rendering
- * 
- * ArkTS调用: createWithSurface(surfaceId: string, width: number, height: number, format: PixelFormat): Promise<number>
+ * ArkTS调用: create(surfaceId: string, width: number, height: number, format: PixelFormat): Promise<number>
  * 
  * @param env NAPI环境
  * @param info NAPI回调信息
  * @return Promise<number> - 渲染器句柄
  */
-napi_value CreateRendererWithSurface(napi_env env, napi_callback_info info);
+napi_value CreateRenderer(napi_env env, napi_callback_info info);
 
 /**
  * 渲染帧

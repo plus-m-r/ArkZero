@@ -24,14 +24,12 @@
 namespace NativeXComponentSample {
 
 /**
- * createWithSurface(surfaceId: string, width: number, height: number, format: number): Promise<number>
- * 
- * ⭐ XComponent Surface 直出模式（推荐）
+ * create(surfaceId: string, width: number, height: number, format: number): Promise<number>
  */
-napi_value CreateRendererWithSurface(napi_env env, napi_callback_info info) {
+napi_value CreateRenderer(napi_env env, napi_callback_info info) {
     if ((env == nullptr) || (info == nullptr)) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "CreateRendererWithSurface: env or info is null");
+            "RendererApi", "CreateRenderer: env or info is null");
         return nullptr;
     }
 
@@ -39,7 +37,7 @@ napi_value CreateRendererWithSurface(napi_env env, napi_callback_info info) {
     napi_value args[4] = { nullptr };
     if (napi_get_cb_info(env, info, &argCnt, args, nullptr, nullptr) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "CreateRendererWithSurface: napi_get_cb_info failed");
+            "RendererApi", "CreateRenderer: napi_get_cb_info failed");
         return nullptr;
     }
 
@@ -65,7 +63,7 @@ napi_value CreateRendererWithSurface(napi_env env, napi_callback_info info) {
     }
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "RendererApi", "CreateRendererWithSurface: surfaceId=%{public}s", surfaceId);
+        "RendererApi", "CreateRenderer: surfaceId=%{public}s", surfaceId);
     
     // 获取width
     if (napi_typeof(env, args[1], &valuetype) != napi_ok || valuetype != napi_number) {
@@ -117,8 +115,8 @@ napi_value CreateRendererWithSurface(napi_env env, napi_callback_info info) {
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "RendererApi", "✅ Created NativeWindow from surfaceId: %{public}s", surfaceId);
     
-    // 调用管理器创建带 Surface 的渲染器
-    int32_t handle = RendererManager::GetInstance().CreateRendererWithSurface(
+    // 调用管理器创建渲染器
+    int32_t handle = RendererManager::GetInstance().CreateRenderer(
         nativeWindow,
         static_cast<int32_t>(width), 
         static_cast<int32_t>(height),
@@ -136,20 +134,20 @@ napi_value CreateRendererWithSurface(napi_env env, napi_callback_info info) {
     napi_value rejecter;
     if (napi_create_promise(env, &promise, &resolver, &rejecter) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "CreateRendererWithSurface: napi_create_promise failed");
+            "RendererApi", "CreateRenderer: napi_create_promise failed");
         return nullptr;
     }
 
     napi_value resolveValue;
     if (napi_create_int32(env, handle, &resolveValue) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "CreateRendererWithSurface: napi_create_int32 failed");
+            "RendererApi", "CreateRenderer: napi_create_int32 failed");
         return nullptr;
     }
 
     if (napi_resolve_deferred(env, resolver, resolveValue) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "CreateRendererWithSurface: napi_resolve_deferred failed");
+            "RendererApi", "CreateRenderer: napi_resolve_deferred failed");
         return nullptr;
     }
 
