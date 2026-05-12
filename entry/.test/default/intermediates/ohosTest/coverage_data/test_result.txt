@@ -15,11 +15,7 @@ result=Success
 test=PM-BF-003: Should count multiple frames correctly
 result=Success
 test=PM-BF-004: Should calculate FPS accurately
-Error in PM-BF-004: Should calculate FPS accurately, 34.66510009765625 is not larger than 55
-    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
-    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
-    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:109:25)
-result=Failure
+result=Success
 test=PM-BF-005: Should calculate drop rate accurately
 result=Success
 class=PerformanceMonitor.ResetTests
@@ -31,11 +27,7 @@ class=PerformanceMonitor.AdvancedTests
 test=PM-ADV-001: Should handle rapid frame recording
 result=Success
 test=PM-ADV-002: Should calculate average frame time
-Error in PM-ADV-002: Should calculate average frame time, 24.904916763305664 is not less than 17
-    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
-    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
-    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:211:33)
-result=Failure
+result=Success
 test=PM-ADV-003: Should handle alternating dropped frames
 result=Success
 test=PM-ADV-004: Should maintain stats consistency
@@ -204,4 +196,4 @@ test=AZR-INT-002: Should support multi-instance scenario
 result=Success
 test=AZR-INT-003: Should support lifecycle management
 result=Success
-Tests run: 92, Failure: 2, Error: 0, Pass: 90, Ignore: 0
+Tests run: 92, Failure: 0, Error: 0, Pass: 92, Ignore: 0

@@ -24,8 +24,9 @@ add_library(nativerender SHARED
     renderer/manager/RendererManager.cpp
     renderer/manager/SurfaceManager.cpp
     renderer/api/RendererApi.cpp
-    # PerformanceMonitor NAPI 桥接
+    # NAPI 桥接
     tests/performance_monitor_napi.cpp
+    tests/pixel_format_converter_napi.cpp
     napi_init.cpp
 )
 

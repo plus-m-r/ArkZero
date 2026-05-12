@@ -18,6 +18,7 @@
 #include "common/common.h"
 #include "renderer/api/RendererApi.h"
 #include "tests/performance_monitor_napi.h"
+#include "tests/pixel_format_converter_napi.h"
 
 namespace NativeXComponentSample {
 EXTERN_C_START
@@ -40,7 +41,11 @@ static napi_value Init(napi_env env, napi_value exports) {
         { "monitorBeginFrame", nullptr, MonitorBeginFrame, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "monitorEndFrame", nullptr, MonitorEndFrame, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "monitorReset", nullptr, MonitorReset, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "getMonitorStats", nullptr, GetMonitorStats, nullptr, nullptr, nullptr, napi_default, nullptr }
+        { "getMonitorStats", nullptr, GetMonitorStats, nullptr, nullptr, nullptr, napi_default, nullptr },
+        // PixelFormatConverter 测试接口
+        { "getGLInternalFormat", nullptr, GetGLInternalFormat, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "getGLFormat", nullptr, GetGLFormat, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "getBytesPerPixel", nullptr, GetBytesPerPixel, nullptr, nullptr, nullptr, napi_default, nullptr }
     };
     if (napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "Init", "napi_define_properties failed");
