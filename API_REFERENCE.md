@@ -1,8 +1,8 @@
-# HarmonyOS零拷贝渲染组件API设计
+# ArkZero API 参考文档
 
 ## 📋 概述
 
-本文档定义HarmonyOS端自研零拷贝渲染组件（ArkZeroRenderer）的API设计规范，基于 **XComponent Surface** 实现极致高性能的直接GPU渲染。
+本文档是 HarmonyOS 零拷贝渲染组件（ArkZeroRenderer）的完整 API 参考，基于 **XComponent Surface** 实现极致高性能的直接GPU渲染。
 
 ### 核心特性
 
