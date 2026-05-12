@@ -11,7 +11,10 @@ include_directories(
 )
 
 add_library(nativerender SHARED
-    # 分层架构文件
+    # 分层架构文件（单一职责拆分）
+    renderer/backend/EGLContextManager.cpp
+    renderer/backend/TextureManager.cpp
+    renderer/backend/PixelFormatConverter.cpp
     renderer/backend/GLESBackend.cpp
     renderer/core/Renderer.cpp
     renderer/manager/RendererManager.cpp

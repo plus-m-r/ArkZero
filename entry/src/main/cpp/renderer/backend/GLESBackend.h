@@ -17,19 +17,23 @@
 #define GLES_BACKEND_H
 
 #include "IRenderBackend.h"
-#include <EGL/egl.h>
-#include <GLES3/gl3.h>
-#include <string>
+#include "EGLContextManager.h"
+#include "TextureManager.h"
+#include "PixelFormatConverter.h"
+#include <cstdint>
+#include <cstddef>
 
 namespace NativeXComponentSample {
 
 /**
- * OpenGL ES 渲染后端
+ * OpenGL ES 渲染后端（Facade）
  * 
  * 🎯 职责：
- * - 只负责 OpenGL ES 相关的初始化和渲染
- * - 独立的 EGL 上下文管理
- * - 可独立测试和复用
+ * - 协调 EGLContextManager、TextureManager、PixelFormatConverter
+ * - 实现 IRenderBackend 接口
+ * - 提供高层渲染逻辑
+ * 
+ * 设计原则：单一职责 - 作为 Facade 协调各组件，不直接管理底层资源
  */
 class GLESBackend : public IRenderBackend {
 public:
@@ -46,22 +50,13 @@ public:
     bool IsInitialized() const override { return m_isInitialized; }
 
 private:
-    bool InitEGLContext();
-    bool InitEGLContextWithSurface(void* nativeWindow);  // ⭐ 新增
-    void ReleaseEGLContext();
-    bool CreateTexture();
-    void DestroyTexture();
-    GLint GetGLInternalFormat() const;
-    GLenum GetGLFormat() const;
-    int GetBytesPerPixel() const;
-
+    // ⭐ 组合三个单一职责的组件
+    EGLContextManager m_eglManager;      // EGL 上下文管理
+    TextureManager m_textureManager;     // 纹理管理
+    
     int32_t m_width;
     int32_t m_height;
     PixelFormat m_format;
-    uint32_t m_textureId;
-    EGLDisplay m_eglDisplay;
-    EGLContext m_eglContext;
-    EGLSurface m_eglSurface;
     bool m_isInitialized;
 };
 

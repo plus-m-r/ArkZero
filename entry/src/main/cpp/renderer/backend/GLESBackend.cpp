@@ -25,10 +25,6 @@ GLESBackend::GLESBackend()
     : m_width(0)
     , m_height(0)
     , m_format(PixelFormat::RGBA)
-    , m_textureId(0)
-    , m_eglDisplay(EGL_NO_DISPLAY)
-    , m_eglContext(EGL_NO_CONTEXT)
-    , m_eglSurface(EGL_NO_SURFACE)
     , m_isInitialized(false)
 {
 }
@@ -49,27 +45,30 @@ bool GLESBackend::Initialize(void* nativeWindow, int32_t width, int32_t height, 
     m_format = format;
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "GLESBackend", "Initializing with XComponent Surface: %dx%d", width, height);
+        "GLESBackend", "Initializing: %dx%d, format=%d", width, height, static_cast<int>(format));
     
-    // 初始化EGL上下文（使用 Window Surface）
-    if (!InitEGLContextWithSurface(nativeWindow)) {
+    // ⭐ 1. 初始化 EGL 上下文（使用 XComponent Surface）
+    if (!m_eglManager.Initialize(nativeWindow, width, height, true)) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to initialize EGL context with surface");
+            "GLESBackend", "Failed to initialize EGL context");
         return false;
     }
 
-    // 创建OpenGL纹理
-    if (!CreateTexture()) {
+    // ⭐ 2. 创建纹理
+    GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(format);
+    GLenum glFormat = PixelFormatConverter::GetGLFormat(format);
+    
+    if (!m_textureManager.Create(width, height, internalFormat, glFormat)) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
             "GLESBackend", "Failed to create texture");
-        ReleaseEGLContext();
+        m_eglManager.Destroy();
         return false;
     }
 
     m_isInitialized = true;
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "GLESBackend", "✅ OpenGL ES backend initialized, textureId=%{public}u", m_textureId);
+        "GLESBackend", "✅ Initialized, textureId=%u", m_textureManager.GetTextureId());
     
     return true;
 }
@@ -89,48 +88,42 @@ bool GLESBackend::RenderFrame(const void* pixelData, size_t dataSize,
     }
 
     // 验证数据大小
-    int bytesPerPixel = GetBytesPerPixel();
+    int bytesPerPixel = PixelFormatConverter::GetBytesPerPixel(m_format);
     size_t expectedSize = static_cast<size_t>(width) * static_cast<size_t>(height) * bytesPerPixel;
     if (dataSize < expectedSize) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
             "GLESBackend", 
-            "Data size mismatch: expected=%{public}zu, actual=%{public}zu", 
+            "Data size mismatch: expected=%zu, actual=%zu", 
             expectedSize, dataSize);
         return false;
     }
 
     OH_LOG_Print(LOG_APP, LOG_DEBUG, LOG_PRINT_DOMAIN, 
         "GLESBackend", 
-        "🎨 Rendering frame: %{public}dx%{public}d, format=%{public}d", 
+        "🎨 Rendering frame: %dx%d, format=%d", 
         width, height, static_cast<int>(m_format));
 
-    // 使EGL上下文当前化
-    if (!eglMakeCurrent(m_eglDisplay, m_eglSurface, m_eglSurface, m_eglContext)) {
+    // ⭐ 1. 使 EGL 上下文当前化
+    if (!m_eglManager.MakeCurrent()) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to make EGL context current: %{public}x", eglGetError());
+            "GLESBackend", "Failed to make EGL context current");
         return false;
     }
 
-    // 绑定纹理
-    glBindTexture(GL_TEXTURE_2D, m_textureId);
-
-    // ⭐ 零拷贝：直接使用指针上传到GPU（DMA传输）
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
-                    GetGLFormat(), GL_UNSIGNED_BYTE, pixelData);
-
-    // 检查OpenGL错误
-    GLenum error = glGetError();
-    if (error != GL_NO_ERROR) {
+    // ⭐ 2. 更新纹理（零拷贝）
+    GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
+    if (!m_textureManager.Update(pixelData, width, height, glFormat)) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "OpenGL error during render: %{public}x", error);
+            "GLESBackend", "Failed to update texture");
         return false;
     }
 
-    // 解绑纹理
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    // 刷新EGL表面
-    eglSwapBuffers(m_eglDisplay, m_eglSurface);
+    // ⭐ 3. 交换缓冲区（触发 VSync）
+    if (!m_eglManager.SwapBuffers()) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+            "GLESBackend", "Failed to swap buffers");
+        return false;
+    }
 
     return true;
 }
@@ -144,20 +137,23 @@ bool GLESBackend::Resize(int32_t width, int32_t height) {
 
     if (width <= 0 || height <= 0) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Invalid size: %{public}dx%{public}d", width, height);
+            "GLESBackend", "Invalid size: %dx%d", width, height);
         return false;
     }
 
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "GLESBackend", 
-        "📐 Resizing: %{public}dx%{public}d -> %{public}dx%{public}d", 
+        "📐 Resizing: %dx%d -> %dx%d", 
         m_width, m_height, width, height);
 
-    // 删除旧纹理
-    DestroyTexture();
+    // ⭐ 1. 销毁旧纹理
+    m_textureManager.Destroy();
 
-    // 创建新纹理
-    if (!CreateTexture()) {
+    // ⭐ 2. 创建新纹理
+    GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(m_format);
+    GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
+    
+    if (!m_textureManager.Create(width, height, internalFormat, glFormat)) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
             "GLESBackend", "Failed to create new texture");
         return false;
@@ -176,291 +172,18 @@ void GLESBackend::Destroy() {
     }
 
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "GLESBackend", "Destroying OpenGL ES backend...");
+        "GLESBackend", "Destroying...");
 
-    // 销毁OpenGL纹理
-    DestroyTexture();
+    // ⭐ 1. 销毁纹理
+    m_textureManager.Destroy();
 
-    // 释放EGL上下文
-    ReleaseEGLContext();
+    // ⭐ 2. 释放 EGL 上下文
+    m_eglManager.Destroy();
 
     m_isInitialized = false;
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "GLESBackend", "♻️ OpenGL ES backend destroyed");
-}
-
-bool GLESBackend::InitEGLContext() {
-    // 获取默认显示
-    m_eglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    if (m_eglDisplay == EGL_NO_DISPLAY) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to get EGL display: %{public}x", eglGetError());
-        return false;
-    }
-
-    // 初始化EGL
-    EGLint major, minor;
-    if (!eglInitialize(m_eglDisplay, &major, &minor)) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to initialize EGL: %{public}x", eglGetError());
-        m_eglDisplay = EGL_NO_DISPLAY;
-        return false;
-    }
-
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "GLESBackend", "EGL initialized: version=%{public}d.%{public}d", major, minor);
-
-    // 配置EGL
-    const EGLint configAttribs[] = {
-        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT_KHR,
-        EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
-        EGL_BLUE_SIZE, EGL_BLUE_SIZE_DEFAULT,
-        EGL_GREEN_SIZE, EGL_GREEN_SIZE_DEFAULT,
-        EGL_RED_SIZE, EGL_RED_SIZE_DEFAULT,
-        EGL_ALPHA_SIZE, EGL_ALPHA_SIZE_DEFAULT,
-        EGL_DEPTH_SIZE, EGL_DEPTH_SIZE_DEFAULT,
-        EGL_STENCIL_SIZE, EGL_STENCIL_SIZE_DEFAULT,
-        EGL_NONE
-    };
-
-    EGLConfig config;
-    EGLint numConfigs;
-    if (!eglChooseConfig(m_eglDisplay, configAttribs, &config, 1, &numConfigs)) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to choose EGL config: %{public}x", eglGetError());
-        return false;
-    }
-
-    // 创建Pbuffer表面（离屏渲染）
-    const EGLint surfaceAttribs[] = {
-        EGL_WIDTH, m_width,
-        EGL_HEIGHT, m_height,
-        EGL_NONE
-    };
-
-    m_eglSurface = eglCreatePbufferSurface(m_eglDisplay, config, surfaceAttribs);
-    if (m_eglSurface == EGL_NO_SURFACE) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to create EGL surface: %{public}x", eglGetError());
-        return false;
-    }
-
-    // 创建EGL上下文
-    const EGLint contextAttribs[] = {
-        EGL_CONTEXT_CLIENT_VERSION, OPENGL_ES_VERSION,
-        EGL_NONE
-    };
-
-    m_eglContext = eglCreateContext(m_eglDisplay, config, EGL_NO_CONTEXT, contextAttribs);
-    if (m_eglContext == EGL_NO_CONTEXT) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to create EGL context: %{public}x", eglGetError());
-        return false;
-    }
-
-    // 使上下文当前化
-    if (!eglMakeCurrent(m_eglDisplay, m_eglSurface, m_eglSurface, m_eglContext)) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to make context current: %{public}x", eglGetError());
-        return false;
-    }
-
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "GLESBackend", "✅ EGL context created");
-    
-    return true;
-}
-
-bool GLESBackend::InitEGLContextWithSurface(void* nativeWindow) {
-    // 获取默认显示
-    m_eglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    if (m_eglDisplay == EGL_NO_DISPLAY) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to get EGL display: %{public}x", eglGetError());
-        return false;
-    }
-
-    // 初始化EGL
-    EGLint major, minor;
-    if (!eglInitialize(m_eglDisplay, &major, &minor)) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to initialize EGL: %{public}x", eglGetError());
-        m_eglDisplay = EGL_NO_DISPLAY;
-        return false;
-    }
-
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "GLESBackend", "EGL initialized: version=%{public}d.%{public}d", major, minor);
-
-    // 配置EGL（使用 WINDOW_BIT）
-    const EGLint configAttribs[] = {
-        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT_KHR,
-        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,  // ⭐ Window Surface
-        EGL_BLUE_SIZE, EGL_BLUE_SIZE_DEFAULT,
-        EGL_GREEN_SIZE, EGL_GREEN_SIZE_DEFAULT,
-        EGL_RED_SIZE, EGL_RED_SIZE_DEFAULT,
-        EGL_ALPHA_SIZE, EGL_ALPHA_SIZE_DEFAULT,
-        EGL_DEPTH_SIZE, EGL_DEPTH_SIZE_DEFAULT,
-        EGL_STENCIL_SIZE, EGL_STENCIL_SIZE_DEFAULT,
-        EGL_NONE
-    };
-
-    EGLConfig config;
-    EGLint numConfigs;
-    if (!eglChooseConfig(m_eglDisplay, configAttribs, &config, 1, &numConfigs)) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to choose EGL config: %{public}x", eglGetError());
-        return false;
-    }
-
-    // ⭐ 创建 Window Surface（使用 NativeWindow）
-    m_eglSurface = eglCreateWindowSurface(m_eglDisplay, config, 
-                                          (EGLNativeWindowType)nativeWindow, nullptr);
-    if (m_eglSurface == EGL_NO_SURFACE) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to create EGL window surface: %{public}x", eglGetError());
-        return false;
-    }
-
-    // 创建EGL上下文
-    const EGLint contextAttribs[] = {
-        EGL_CONTEXT_CLIENT_VERSION, OPENGL_ES_VERSION,
-        EGL_NONE
-    };
-
-    m_eglContext = eglCreateContext(m_eglDisplay, config, EGL_NO_CONTEXT, contextAttribs);
-    if (m_eglContext == EGL_NO_CONTEXT) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to create EGL context: %{public}x", eglGetError());
-        return false;
-    }
-
-    // 使上下文当前化
-    if (!eglMakeCurrent(m_eglDisplay, m_eglSurface, m_eglSurface, m_eglContext)) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to make context current: %{public}x", eglGetError());
-        return false;
-    }
-    
-    // ⭐ 启用 VSync（关键！）
-    eglSwapInterval(m_eglDisplay, 1);
-
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "GLESBackend", "✅ EGL context created with XComponent Surface (VSync enabled)");
-    
-    return true;
-}
-
-void GLESBackend::ReleaseEGLContext() {
-    if (m_eglDisplay == EGL_NO_DISPLAY) {
-        return;
-    }
-
-    eglMakeCurrent(m_eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-
-    if (m_eglContext != EGL_NO_CONTEXT) {
-        eglDestroyContext(m_eglDisplay, m_eglContext);
-        m_eglContext = EGL_NO_CONTEXT;
-    }
-
-    if (m_eglSurface != EGL_NO_SURFACE) {
-        eglDestroySurface(m_eglDisplay, m_eglSurface);
-        m_eglSurface = EGL_NO_SURFACE;
-    }
-
-    eglTerminate(m_eglDisplay);
-    m_eglDisplay = EGL_NO_DISPLAY;
-}
-
-bool GLESBackend::CreateTexture() {
-    // 生成纹理ID
-    glGenTextures(1, &m_textureId);
-    if (m_textureId == 0) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to generate texture ID");
-        return false;
-    }
-
-    // 绑定纹理
-    glBindTexture(GL_TEXTURE_2D, m_textureId);
-
-    // 设置纹理参数
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    // 分配纹理内存（初始化为黑色）
-    glTexImage2D(GL_TEXTURE_2D, 0, GetGLInternalFormat(), m_width, m_height, 0,
-                 GetGLFormat(), GL_UNSIGNED_BYTE, nullptr);
-
-    // 检查OpenGL错误
-    GLenum error = glGetError();
-    if (error != GL_NO_ERROR) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "OpenGL error during texture creation: %{public}x", error);
-        glDeleteTextures(1, &m_textureId);
-        m_textureId = 0;
-        return false;
-    }
-
-    // 解绑纹理
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "GLESBackend", "Texture created: id=%{public}u, size=%{public}dx%{public}d", 
-        m_textureId, m_width, m_height);
-    
-    return true;
-}
-
-void GLESBackend::DestroyTexture() {
-    if (m_textureId != 0) {
-        glDeleteTextures(1, &m_textureId);
-        m_textureId = 0;
-    }
-}
-
-GLint GLESBackend::GetGLInternalFormat() const {
-    switch (m_format) {
-        case PixelFormat::RGBA:
-        case PixelFormat::BGRA:
-            return GL_RGBA;
-        case PixelFormat::RGB:
-            return GL_RGB;
-        default:
-            return GL_RGBA;
-    }
-}
-
-GLenum GLESBackend::GetGLFormat() const {
-    switch (m_format) {
-        case PixelFormat::RGBA:
-            return GL_RGBA;
-        case PixelFormat::RGB:
-            return GL_RGB;
-        case PixelFormat::BGRA:
-#ifdef GL_BGRA
-            return GL_BGRA;
-#else
-            return GL_RGBA;
-#endif
-        default:
-            return GL_RGBA;
-    }
-}
-
-int GLESBackend::GetBytesPerPixel() const {
-    switch (m_format) {
-        case PixelFormat::RGBA:
-        case PixelFormat::BGRA:
-            return 4;
-        case PixelFormat::RGB:
-            return 3;
-        default:
-            return 4;
-    }
+        "GLESBackend", "♻️ Destroyed");
 }
 
 } // namespace NativeXComponentSample
