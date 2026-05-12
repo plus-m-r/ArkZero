@@ -32,6 +32,19 @@ namespace NativeXComponentSample {
 napi_value CreateRenderer(napi_env env, napi_callback_info info);
 
 /**
+ * 创建渲染器（使用 XComponent Surface）
+ * 
+ * ⭐ 推荐方式：Direct Surface Rendering
+ * 
+ * ArkTS调用: createWithSurface(surfaceId: string, width: number, height: number, format: PixelFormat): Promise<number>
+ * 
+ * @param env NAPI环境
+ * @param info NAPI回调信息
+ * @return Promise<number> - 渲染器句柄
+ */
+napi_value CreateRendererWithSurface(napi_env env, napi_callback_info info);
+
+/**
  * 渲染帧
  * 
  * ArkTS调用: renderFrame(handle: number, pixelData: ArrayBuffer, width: number, height: number): Promise<void>
@@ -41,17 +54,6 @@ napi_value CreateRenderer(napi_env env, napi_callback_info info);
  * @return Promise<void>
  */
 napi_value RenderFrame(napi_env env, napi_callback_info info);
-
-/**
- * 获取纹理ID
- * 
- * ArkTS调用: getTextureId(handle: number): number
- * 
- * @param env NAPI环境
- * @param info NAPI回调信息
- * @return number - 纹理ID
- */
-napi_value GetTextureId(napi_env env, napi_callback_info info);
 
 /**
  * 调整渲染尺寸
