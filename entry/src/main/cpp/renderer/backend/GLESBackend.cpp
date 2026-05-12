@@ -120,6 +120,86 @@ bool GLESBackend::Initialize(void* nativeWindow, int32_t width, int32_t height, 
     return true;
 }
 
+bool GLESBackend::InitializeOffscreen(int32_t width, int32_t height, PixelFormat format) {
+    m_width = width;
+    m_height = height;
+    m_format = format;
+    
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+        "GLESBackend", "Initializing offscreen: %dx%d, format=%d", width, height, static_cast<int>(format));
+    
+    // ⭐ 1. 初始化离屏 EGL 上下文
+    if (!m_eglManager.InitializeOffscreen(width, height)) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+            "GLESBackend", "Failed to initialize offscreen EGL context");
+        return false;
+    }
+
+    // ⭐ 2. 根据格式选择渲染路径
+    if (IsYUVFormat(format)) {
+        // YUV 格式：使用 GPU Shader 渲染
+        OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+            "GLESBackend", "Using YUV Shader for format=%d", static_cast<int>(format));
+        
+        if (!m_yuvShader.Initialize()) {
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+                "GLESBackend", "Failed to initialize YUV shader");
+            m_eglManager.Destroy();
+            return false;
+        }
+    } else {
+        // RGBA/RGB 格式：使用传统纹理渲染
+        
+        // ⭐ 如果启用纹理池，创建并预分配
+        if (m_enableTexturePool) {
+            m_texturePool = std::make_unique<TexturePool>(10);  // 最多 10 个纹理
+            
+            // 预分配常用分辨率
+            std::vector<std::pair<int32_t, int32_t>> resolutions = {
+                {1920, 1080},   // 1080p
+                {3840, 2160},   // 4K
+                {1280, 720},    // 720p
+            };
+            
+            GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(format);
+            GLenum glFormat = PixelFormatConverter::GetGLFormat(format);
+            
+            m_texturePool->Preallocate(resolutions, internalFormat, glFormat);
+            
+            // 从池中获取当前尺寸的纹理
+            TextureManager* texture = m_texturePool->Acquire(width, height, internalFormat, glFormat);
+            if (!texture) {
+                OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+                    "GLESBackend", "Failed to acquire texture from pool");
+                m_eglManager.Destroy();
+                return false;
+            }
+            
+            OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+                "GLESBackend", "✅ Using texture pool (hitRate=%.1f%%)", 
+                m_texturePool->GetStats().GetHitRate() * 100);
+        } else {
+            // 不使用纹理池，直接创建
+            GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(format);
+            GLenum glFormat = PixelFormatConverter::GetGLFormat(format);
+            
+            if (!m_textureManager.Create(width, height, internalFormat, glFormat)) {
+                OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+                    "GLESBackend", "Failed to create texture");
+                m_eglManager.Destroy();
+                return false;
+            }
+        }
+    }
+
+    m_isInitialized = true;
+    
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+        "GLESBackend", "✅ Offscreen initialized");
+    
+    return true;
+}
+
 bool GLESBackend::RenderFrame(const void* pixelData, size_t dataSize, 
                                int32_t width, int32_t height) {
     if (!m_isInitialized) {

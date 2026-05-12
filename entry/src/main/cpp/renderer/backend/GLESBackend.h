@@ -45,6 +45,15 @@ public:
     
     bool Initialize(void* nativeWindow, int32_t width, int32_t height, PixelFormat format) override;
     
+    /**
+     * 初始化离屏渲染后端（用于测试）
+     * @param width 宽度
+     * @param height 高度
+     * @param format 像素格式
+     * @return true 成功，false 失败
+     */
+    bool InitializeOffscreen(int32_t width, int32_t height, PixelFormat format);
+    
     bool RenderFrame(const void* pixelData, size_t dataSize, 
                     int32_t width, int32_t height) override;
     bool Resize(int32_t width, int32_t height) override;
