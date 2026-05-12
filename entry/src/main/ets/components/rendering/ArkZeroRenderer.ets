@@ -16,16 +16,16 @@
 import nativerender from 'libnativerender.so';
 import hilog from '@ohos.hilog';
 
-// 重新导出 PixelFormat 枚举
-export const PixelFormat = {
-  RGBA: 0,
-  RGB: 1,
-  BGRA: 2,
-  NV21: 3,
-  NV12: 4
-} as const;
-
-export type PixelFormat = typeof PixelFormat[keyof typeof PixelFormat];
+/**
+ * 像素格式枚举
+ */
+export enum PixelFormat {
+  RGBA = 0,   // RGBA8888 (4字节/像素)
+  RGB = 1,    // RGB888 (3字节/像素)
+  BGRA = 2,   // BGRA8888 (4字节/像素)
+  NV21 = 3,   // YUV420半平面 (1.5字节/像素)
+  NV12 = 4    // YUV420半平面 (1.5字节/像素)
+}
 
 const DOMAIN = 0x0001;
 const TAG = 'ArkZeroRenderer';
