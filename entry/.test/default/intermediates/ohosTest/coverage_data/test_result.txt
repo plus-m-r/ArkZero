@@ -276,6 +276,47 @@ test=YUV-EDGE-002: Should handle non-square frame
 result=Success
 test=YUV-EDGE-003: Should handle rapid initialization cycles
 result=Success
+class=GLESBackend.ConstructorTests
+test=GB-CTOR-001: Should create backend instance
+result=Success
+test=GB-CTOR-002: Should initialize in uninitialized state
+result=Success
+test=GB-CTOR-003: Should support multiple instances
+result=Success
+class=GLESBackend.InitializationTests
+test=GB-INIT-001: Should initialize with offscreen mode
+result=Success
+test=GB-INIT-002: Should initialize with different resolutions
+result=Success
+test=GB-INIT-003: Should fail with invalid dimensions
+Error in GB-INIT-003: Should fail with invalid dimensions, expect false, actualValue is true
+    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
+    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
+    at anonymous entry_test (entry/src/ohosTest/ets/test/native/GLESBackend.test.ets:128:23)
+result=Failure
+class=GLESBackend.RenderTests
+test=GB-RND-001: Should render small frame
+result=Success
+test=GB-RND-002: Should render 720p frame
+result=Success
+test=GB-RND-003: Should render multiple frames
+result=Success
+test=GB-RND-004: Should fail render before initialization
+result=Success
+class=GLESBackend.IntegrationTests
+test=GB-INT-001: Should complete full lifecycle
+result=Success
+test=GB-INT-002: Should handle different resolutions sequentially
+result=Success
+test=GB-INT-003: Should maintain independent state across instances
+result=Success
+class=GLESBackend.EdgeCaseTests
+test=GB-EDGE-001: Should handle minimal frame size
+result=Success
+test=GB-EDGE-002: Should handle non-square resolution
+result=Success
+test=GB-EDGE-003: Should handle rapid initialization cycles
+result=Success
 class=PixelFormat.EnumTests
 test=PF-VAL-001: RGBA should equal 0
 result=Success
@@ -438,4 +479,4 @@ test=AZR-INT-002: Should support multi-instance scenario
 result=Success
 test=AZR-INT-003: Should support lifecycle management
 result=Success
-Tests run: 198, Failure: 0, Error: 0, Pass: 198, Ignore: 0
+Tests run: 214, Failure: 1, Error: 0, Pass: 213, Ignore: 0

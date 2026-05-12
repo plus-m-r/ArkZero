@@ -15,16 +15,10 @@
 
 #include "gles_backend_napi.h"
 #include "../renderer/backend/GLESBackend.h"
-#include "../renderer/core/PixelFormat.h"
+#include "../common/common.h"
 #include <hilog/log.h>
 #include <vector>
 #include <memory>
-#include <string>
-#include <unordered_map>
-
-// ⭐ 需要包含 OHOS Native Window 头文件
-#include <native_window/native_window.h>
-#include <native_window/native_window_jni.h>
 
 namespace NativeXComponentSample {
 
@@ -40,25 +34,6 @@ namespace {
             return nullptr;
         }
         return g_glesBackends[handle].get();
-    }
-    
-    /**
-     * 从 surfaceId 获取 NativeWindow
-     * 注意：在实际 HarmonyOS 应用中，需要通过 XComponent 回调获取
-     * 这里简化处理，假设测试框架会提供正确的 surfaceId
-     */
-    void* GetNativeWindowFromSurfaceId(const std::string& surfaceId) {
-        // ⚠️ 这是一个简化的实现
-        // 在真实场景中，需要通过 OH_NativeWindow  API 获取
-        // 由于测试环境的限制，这里返回 nullptr
-        // 实际使用时需要在 ArkTS 层通过 XComponent 的 onSurfaceCreated 回调传递
-        
-        OH_LOG_Print(LOG_APP, LOG_WARN, 0, "GLESBackendNAPI", 
-            "GetNativeWindowFromSurfaceId: surfaceId=%s (not implemented in test mode)", 
-            surfaceId.c_str());
-        
-        // 返回 nullptr 表示无法获取（测试环境限制）
-        return nullptr;
     }
 }
 
@@ -107,12 +82,21 @@ napi_value DestroyGLESBackend(napi_env env, napi_callback_info info) {
     return nullptr;
 }
 
+/**
+ * 初始化 GLES 后端（离屏模式，用于测试）
+ * 
+ * ArkTS调用: glesBackendInitialize(handle: number, width: number, height: number, format: number): boolean
+ * 
+ * @param env NAPI环境
+ * @param info NAPI回调信息
+ * @return boolean - 是否成功
+ */
 napi_value GLESBackendInitialize(napi_env env, napi_callback_info info) {
-    size_t argc = 5;
-    napi_value args[5] = {nullptr};
+    size_t argc = 4;
+    napi_value args[4] = {nullptr};
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     
-    if (argc < 5) {
+    if (argc < 4) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, 0, "GLESBackendNAPI", "Invalid arguments");
         return nullptr;
     }
@@ -129,40 +113,23 @@ napi_value GLESBackendInitialize(napi_env env, napi_callback_info info) {
         return falseVal;
     }
     
-    // 获取 surfaceId
-    char surfaceIdStr[256];
-    size_t surfaceIdLen = 0;
-    napi_get_value_string_utf8(env, args[1], surfaceIdStr, sizeof(surfaceIdStr), &surfaceIdLen);
-    std::string surfaceId(surfaceIdStr, surfaceIdLen);
-    
     // 获取参数
     int32_t width = 0;
-    napi_get_value_int32(env, args[2], &width);
+    napi_get_value_int32(env, args[1], &width);
     
     int32_t height = 0;
-    napi_get_value_int32(env, args[3], &height);
+    napi_get_value_int32(env, args[2], &height);
     
     int32_t formatInt = 0;
-    napi_get_value_int32(env, args[4], &formatInt);
+    napi_get_value_int32(env, args[3], &formatInt);
     PixelFormat format = static_cast<PixelFormat>(formatInt);
     
-    // ⚠️ 尝试从 surfaceId 获取 NativeWindow
-    void* nativeWindow = GetNativeWindowFromSurfaceId(surfaceId);
+    OH_LOG_Print(LOG_APP, LOG_INFO, 0, "GLESBackendNAPI", 
+        "Initializing GLESBackend (offscreen): %dx%d, format=%d", 
+        width, height, formatInt);
     
-    if (!nativeWindow) {
-        OH_LOG_Print(LOG_APP, LOG_WARN, 0, "GLESBackendNAPI", 
-            "NativeWindow not available, using offscreen initialization for testing");
-        
-        // ⭐ 在测试环境中，使用离屏模式
-        bool success = backend->InitializeOffscreen(width, height, format);
-        
-        napi_value result;
-        napi_get_boolean(env, success, &result);
-        return result;
-    }
-    
-    // 初始化后端
-    bool success = backend->Initialize(nativeWindow, width, height, format);
+    // ⭐ 使用离屏模式初始化（Pbuffer）
+    bool success = backend->InitializeOffscreen(width, height, format);
     
     napi_value result;
     napi_get_boolean(env, success, &result);

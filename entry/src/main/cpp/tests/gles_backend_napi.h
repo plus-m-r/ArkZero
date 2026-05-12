@@ -43,9 +43,9 @@ napi_value CreateGLESBackend(napi_env env, napi_callback_info info);
 napi_value DestroyGLESBackend(napi_env env, napi_callback_info info);
 
 /**
- * 初始化 GLES 后端（使用 XComponent Surface）
+ * 初始化 GLES 后端（离屏模式，用于测试）
  * 
- * ArkTS调用: glesBackendInitialize(handle: number, surfaceId: string, width: number, height: number, format: number): boolean
+ * ArkTS调用: glesBackendInitialize(handle: number, width: number, height: number, format: number): boolean
  * 
  * @param env NAPI环境
  * @param info NAPI回调信息
