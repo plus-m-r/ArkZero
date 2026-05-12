@@ -1,0 +1,103 @@
+# ============================================
+# ArkZero - Git Ignore Configuration
+# ============================================
+
+# 📦 构建产物和中间文件
+build/
+Build/
+out/
+Out/
+*.o
+*.obj
+*.so
+*.a
+*.lib
+*.dll
+*.exe
+*.dylib
+
+# 🛠️ CMake 相关文件
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+
+# 💻 IDE 配置文件
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# JetBrains IDEs (CLion, IntelliJ)
+.idea/
+*.iml
+
+# Visual Studio
+.vs/
+*.sln
+*.vcxproj*
+*.user
+
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+*.pbxuser
+*.mode1v3
+
+# Eclipse
+.project
+.cproject
+.settings/
+
+# 📝 临时文件和日志
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# 🔧 HarmonyOS DevEco Studio
+.hvigor/
+.hvigor.cache/
+node_modules/
+oh_modules/
+*.hap
+*.app
+*.json5.bak
+
+# 🐍 Python (如果有脚本)
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+.pytest_cache/
+venv/
+env/
+
+# 📊 性能分析和调试
+*.prof
+*.gcno
+*.gcda
+coverage/
+
+# 🗂️ 文档生成（除非明确需要）
+docs/generated/
+api-docs/
+
+# 🔐 敏感信息（永远不要提交）
+*.pem
+*.key
+*.secret
+.env
+config.local.*
+
+# 🎯 测试覆盖率报告
+coverage/
+*.lcov
+
+# 📱 设备相关
+*.apk
+*.aab
