@@ -19,6 +19,7 @@
 #include "IRenderBackend.h"
 #include <EGL/egl.h>
 #include <GLES3/gl3.h>
+#include <string>
 
 namespace NativeXComponentSample {
 
@@ -36,6 +37,17 @@ public:
     ~GLESBackend() override;
 
     bool Initialize(int32_t width, int32_t height, PixelFormat format) override;
+    
+    /**
+     * 初始化后端（使用 XComponent Surface）
+     * @param nativeWindow NativeWindow 指针（来自 XComponent）
+     * @param width 宽度
+     * @param height 高度
+     * @param format 像素格式
+     * @return true 成功，false 失败
+     */
+    bool InitializeWithSurface(void* nativeWindow, int32_t width, int32_t height, PixelFormat format);
+    
     bool RenderFrame(const void* pixelData, size_t dataSize, 
                     int32_t width, int32_t height) override;
     bool Resize(int32_t width, int32_t height) override;
@@ -45,6 +57,7 @@ public:
 
 private:
     bool InitEGLContext();
+    bool InitEGLContextWithSurface(void* nativeWindow);  // ⭐ 新增
     void ReleaseEGLContext();
     bool CreateTexture();
     void DestroyTexture();

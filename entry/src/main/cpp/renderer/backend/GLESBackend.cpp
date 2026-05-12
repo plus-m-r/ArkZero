@@ -74,6 +74,43 @@ bool GLESBackend::Initialize(int32_t width, int32_t height, PixelFormat format) 
     return true;
 }
 
+bool GLESBackend::InitializeWithSurface(void* nativeWindow, int32_t width, int32_t height, PixelFormat format) {
+    if (!nativeWindow) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+            "GLESBackend", "Invalid nativeWindow");
+        return false;
+    }
+    
+    m_width = width;
+    m_height = height;
+    m_format = format;
+    
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+        "GLESBackend", "Initializing with XComponent Surface: %dx%d", width, height);
+    
+    // 初始化EGL上下文（使用 Window Surface）
+    if (!InitEGLContextWithSurface(nativeWindow)) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+            "GLESBackend", "Failed to initialize EGL context with surface");
+        return false;
+    }
+
+    // 创建OpenGL纹理
+    if (!CreateTexture()) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+            "GLESBackend", "Failed to create texture");
+        ReleaseEGLContext();
+        return false;
+    }
+
+    m_isInitialized = true;
+    
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+        "GLESBackend", "✅ OpenGL ES backend initialized with XComponent Surface, textureId=%{public}u", m_textureId);
+    
+    return true;
+}
+
 bool GLESBackend::RenderFrame(const void* pixelData, size_t dataSize, 
                                int32_t width, int32_t height) {
     if (!m_isInitialized) {
@@ -268,6 +305,86 @@ bool GLESBackend::InitEGLContext() {
 
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "GLESBackend", "✅ EGL context created");
+    
+    return true;
+}
+
+bool GLESBackend::InitEGLContextWithSurface(void* nativeWindow) {
+    // 获取默认显示
+    m_eglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (m_eglDisplay == EGL_NO_DISPLAY) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+            "GLESBackend", "Failed to get EGL display: %{public}x", eglGetError());
+        return false;
+    }
+
+    // 初始化EGL
+    EGLint major, minor;
+    if (!eglInitialize(m_eglDisplay, &major, &minor)) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+            "GLESBackend", "Failed to initialize EGL: %{public}x", eglGetError());
+        m_eglDisplay = EGL_NO_DISPLAY;
+        return false;
+    }
+
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+        "GLESBackend", "EGL initialized: version=%{public}d.%{public}d", major, minor);
+
+    // 配置EGL（使用 WINDOW_BIT）
+    const EGLint configAttribs[] = {
+        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT_KHR,
+        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,  // ⭐ Window Surface
+        EGL_BLUE_SIZE, EGL_BLUE_SIZE_DEFAULT,
+        EGL_GREEN_SIZE, EGL_GREEN_SIZE_DEFAULT,
+        EGL_RED_SIZE, EGL_RED_SIZE_DEFAULT,
+        EGL_ALPHA_SIZE, EGL_ALPHA_SIZE_DEFAULT,
+        EGL_DEPTH_SIZE, EGL_DEPTH_SIZE_DEFAULT,
+        EGL_STENCIL_SIZE, EGL_STENCIL_SIZE_DEFAULT,
+        EGL_NONE
+    };
+
+    EGLConfig config;
+    EGLint numConfigs;
+    if (!eglChooseConfig(m_eglDisplay, configAttribs, &config, 1, &numConfigs)) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+            "GLESBackend", "Failed to choose EGL config: %{public}x", eglGetError());
+        return false;
+    }
+
+    // ⭐ 创建 Window Surface（使用 NativeWindow）
+    m_eglSurface = eglCreateWindowSurface(m_eglDisplay, config, 
+                                          (EGLNativeWindowType)nativeWindow, nullptr);
+    if (m_eglSurface == EGL_NO_SURFACE) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+            "GLESBackend", "Failed to create EGL window surface: %{public}x", eglGetError());
+        return false;
+    }
+
+    // 创建EGL上下文
+    const EGLint contextAttribs[] = {
+        EGL_CONTEXT_CLIENT_VERSION, OPENGL_ES_VERSION,
+        EGL_NONE
+    };
+
+    m_eglContext = eglCreateContext(m_eglDisplay, config, EGL_NO_CONTEXT, contextAttribs);
+    if (m_eglContext == EGL_NO_CONTEXT) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+            "GLESBackend", "Failed to create EGL context: %{public}x", eglGetError());
+        return false;
+    }
+
+    // 使上下文当前化
+    if (!eglMakeCurrent(m_eglDisplay, m_eglSurface, m_eglSurface, m_eglContext)) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+            "GLESBackend", "Failed to make context current: %{public}x", eglGetError());
+        return false;
+    }
+    
+    // ⭐ 启用 VSync（关键！）
+    eglSwapInterval(m_eglDisplay, 1);
+
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+        "GLESBackend", "✅ EGL context created with XComponent Surface (VSync enabled)");
     
     return true;
 }
