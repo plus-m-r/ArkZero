@@ -1,6 +1,8 @@
 {
   "license": "",
-  "devDependencies": {},
+  "devDependencies": {
+    "@ohos/hypium": "1.0.24"
+  },
   "author": "",
   "name": "entry",
   "description": "Please describe the basic information.",

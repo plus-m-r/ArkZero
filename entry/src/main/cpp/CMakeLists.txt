@@ -24,6 +24,8 @@ add_library(nativerender SHARED
     renderer/manager/RendererManager.cpp
     renderer/manager/SurfaceManager.cpp
     renderer/api/RendererApi.cpp
+    # PerformanceMonitor NAPI 桥接
+    tests/performance_monitor_napi.cpp
     napi_init.cpp
 )
 
@@ -86,13 +88,5 @@ find_library(
 target_link_libraries(nativerender PUBLIC
     ${EGL-lib} ${GLES-lib} ${hilog-lib} ${libace-lib} ${libnapi-lib} ${libuv-lib} ${libnative-window-lib})
 
-# 🧪 性能测试可执行文件（仅用于本地测试）
-add_executable(test_performance
-    tests/test_performance.cpp
-    renderer/core/PerformanceMonitor.cpp
-    renderer/backend/PixelFormatConverter.cpp
-)
-
-target_link_libraries(test_performance PUBLIC
-    ${hilog-lib}
-)
+# 🧪 注意：C++ 单元测试通过 Hypium + NAPI 桥接在 Instrument Test 中进行
+# 不需要在此处定义 add_executable，所有测试都在 entry/src/ohosTest/ets/test/native/ 目录下

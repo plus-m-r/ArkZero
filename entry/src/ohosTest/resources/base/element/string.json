@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_test_desc",
+      "value": "ArkZero Renderer Test Module"
+    },
+    {
+      "name": "TestAbility_desc",
+      "value": "Test Ability for ArkZero Renderer"
+    },
+    {
+      "name": "TestAbility_label",
+      "value": "ArkZero Test"
+    }
+  ]
+}

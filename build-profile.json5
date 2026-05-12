@@ -1,6 +1,20 @@
 {
   "app": {
-    "signingConfigs": [],
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\20241\\.ohos\\config\\default_ArkZero_DC9Cy03OdQY9hZWIZWwnrFb0A--Kqm1Gfsmxn2iGrLo=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001AA62D1C289EEFC2B5C206BFC347A9EBBFAA4AEA4A99A9E8040830B30C1357402A0C51F3703B3C",
+          "profile": "C:\\Users\\20241\\.ohos\\config\\default_ArkZero_DC9Cy03OdQY9hZWIZWwnrFb0A--Kqm1Gfsmxn2iGrLo=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\20241\\.ohos\\config\\default_ArkZero_DC9Cy03OdQY9hZWIZWwnrFb0A--Kqm1Gfsmxn2iGrLo=.p12",
+          "storePassword": "0000001AEFDC9FA9AB85A8A937777F948872CCF2E19A5CD745049CA53C3B400BE961D9F4EE7FD92A2CE2"
+        }
+      }
+    ],
     "products": [
       {
         "name": "default",

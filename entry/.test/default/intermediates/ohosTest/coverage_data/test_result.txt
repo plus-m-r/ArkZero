@@ -1,0 +1,259 @@
+class=PerformanceMonitor.ConstructorTests
+test=PM-CTOR-001: Should initialize with zero frames
+Error in PM-CTOR-001: Should initialize with zero frames, expect undefined equals 0
+    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
+    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
+    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:27:33)
+result=Failure
+test=PM-CTOR-002: Should initialize with zero dropped frames
+Error in PM-CTOR-002: Should initialize with zero dropped frames, expect undefined equals 0
+    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
+    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
+    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:35:35)
+result=Failure
+test=PM-CTOR-003: Should initialize with zero FPS
+Error in PM-CTOR-003: Should initialize with zero FPS, expect undefined equals 0
+    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
+    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
+    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:43:25)
+result=Failure
+test=PM-CTOR-004: Should initialize with zero drop rate
+Error in PM-CTOR-004: Should initialize with zero drop rate, expect undefined equals 0
+    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
+    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
+    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:51:30)
+result=Failure
+class=PerformanceMonitor.FrameRecordingTests
+test=PM-BF-001: Should record normal frame
+Error in PM-BF-001: Should record normal frame, expect undefined equals 1
+    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
+    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
+    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:64:33)
+result=Failure
+test=PM-BF-002: Should record dropped frame
+Error in PM-BF-002: Should record dropped frame, expect undefined equals 1
+    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
+    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
+    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:77:33)
+result=Failure
+test=PM-BF-003: Should count multiple frames correctly
+Error in PM-BF-003: Should count multiple frames correctly, expect undefined equals 100
+    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
+    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
+    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:92:33)
+result=Failure
+test=PM-BF-004: Should calculate FPS accurately
+Error in PM-BF-004: Should calculate FPS accurately, undefined is not larger than 55
+    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
+    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
+    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:109:25)
+result=Failure
+test=PM-BF-005: Should calculate drop rate accurately
+Error in PM-BF-005: Should calculate drop rate accurately, undefined is not larger than 0.09
+    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
+    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
+    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:129:30)
+result=Failure
+class=PerformanceMonitor.ResetTests
+test=PM-RST-001: Should reset all statistics
+Error in PM-RST-001: Should reset all statistics, expect undefined equals 0
+    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
+    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
+    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:150:33)
+result=Failure
+test=PM-RST-002: Should allow reuse after reset
+Error in PM-RST-002: Should allow reuse after reset, expect undefined equals 20
+    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
+    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
+    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:177:33)
+result=Failure
+class=PerformanceMonitor.AdvancedTests
+test=PM-ADV-001: Should handle rapid frame recording
+Error in PM-ADV-001: Should handle rapid frame recording, expect undefined equals 200
+    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
+    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
+    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:194:33)
+result=Failure
+test=PM-ADV-002: Should calculate average frame time
+Error in PM-ADV-002: Should calculate average frame time, undefined is not larger than 15
+    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
+    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
+    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:210:33)
+result=Failure
+test=PM-ADV-003: Should handle alternating dropped frames
+Error in PM-ADV-003: Should handle alternating dropped frames, expect undefined equals 100
+    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
+    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
+    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:226:33)
+result=Failure
+test=PM-ADV-004: Should maintain stats consistency
+result=Success
+test=PM-ADV-005: Should handle multiple monitor instances
+Error in PM-ADV-005: Should handle multiple monitor instances, expect undefined equals 10
+    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
+    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
+    at anonymous entry_test (entry/src/ohosTest/ets/test/native/PerformanceMonitor.test.ets:283:34)
+result=Failure
+class=PixelFormat.EnumTests
+test=PF-VAL-001: RGBA should equal 0
+result=Success
+test=PF-VAL-002: RGB should equal 1
+result=Success
+test=PF-VAL-003: BGRA should equal 2
+result=Success
+test=PF-VAL-004: NV21 should equal 3
+result=Success
+test=PF-VAL-005: NV12 should equal 4
+result=Success
+test=PF-COMP-001: Should have exactly 5 members
+result=Success
+test=PF-COMP-002: Should contain all expected formats
+result=Success
+test=PF-UNIQ-001: All enum values should be unique
+result=Success
+test=PF-BPP-001: RGBA should be 4 bytes per pixel
+result=Success
+test=PF-BPP-002: RGB should be 3 bytes per pixel
+result=Success
+test=PF-BPP-003: BGRA should be 4 bytes per pixel
+result=Success
+test=PF-BPP-004: NV21 should be YUV format (1.5 bytes average)
+result=Success
+test=PF-BPP-005: NV12 should be YUV format (1.5 bytes average)
+result=Success
+test=PF-CAT-001: RGBA and BGRA should both be 4-byte formats
+result=Success
+test=PF-CAT-002: NV21 and NV12 should be different formats
+result=Success
+test=PF-CAT-003: RGB should be the only 3-byte format
+result=Success
+test=PF-BOUND-001: First format value should be 0
+result=Success
+test=PF-BOUND-002: Last format value should be 4
+result=Success
+test=PF-BOUND-003: Values should be sequential
+result=Success
+test=PF-TYPE-001: Enum values should be numbers
+result=Success
+test=PF-TYPE-002: Enum values should be integers
+result=Success
+test=PF-TYPE-003: Enum values should be non-negative
+result=Success
+class=ArkZeroRendererConfig.InterfaceTests
+test=AZRC-REQ-001: Config should have width field
+result=Success
+test=AZRC-REQ-002: Config should have height field
+result=Success
+test=AZRC-REQ-003: Config should have format field
+result=Success
+test=AZRC-REQ-004: surfaceId should be optional
+result=Success
+test=AZRC-TYPE-001: width should be number type
+result=Success
+test=AZRC-TYPE-002: height should be number type
+result=Success
+test=AZRC-TYPE-003: format should be number type (enum)
+result=Success
+test=AZRC-TYPE-004: surfaceId should be string type when provided
+result=Success
+test=AZRC-RANGE-001: width should be positive
+result=Success
+test=AZRC-RANGE-002: height should be positive
+result=Success
+test=AZRC-RANGE-003: Common resolutions should be valid
+result=Success
+test=AZRC-FMT-001: All PixelFormat values should be valid
+result=Success
+test=AZRC-FMT-002: RGBA format should be most common
+result=Success
+test=AZRC-COMP-001: Minimal config should have 3 required fields
+result=Success
+test=AZRC-COMP-002: Full config should have 4 fields
+result=Success
+test=AZRC-COMP-003: Config should not have extra fields
+result=Success
+test=AZRC-SCEN-001: HD RGBA config
+result=Success
+test=AZRC-SCEN-002: Full HD BGRA config with surfaceId
+result=Success
+test=AZRC-SCEN-003: 4K NV21 config for video rendering
+result=Success
+test=AZRC-SCEN-004: Square RGB config for avatar rendering
+result=Success
+test=AZRC-EDGE-001: Minimum resolution (1x1)
+result=Success
+test=AZRC-EDGE-002: Very large resolution (8K)
+result=Success
+test=AZRC-EDGE-003: Empty surfaceId string
+result=Success
+test=AZRC-CONS-001: Same config should produce same values
+result=Success
+test=AZRC-CONS-002: Different configs should have different values
+result=Success
+class=ArkZeroRenderer.ConstructorTests
+test=AZR-CTOR-001: Should create instance with valid config
+result=Success
+test=AZR-CTOR-002: Should store config correctly
+result=Success
+test=AZR-CTOR-003: Should accept all pixel formats
+result=Success
+test=AZR-CTOR-004: Should accept optional surfaceId
+result=Success
+test=AZR-CTOR-005: Should work without surfaceId
+result=Success
+class=ArkZeroRenderer.InitializationTests
+test=AZR-INIT-001: Should reject invalid width
+result=Success
+test=AZR-INIT-002: Should reject invalid height
+result=Success
+test=AZR-INIT-003: Should handle empty surfaceId
+result=Success
+test=AZR-INIT-004: Should prevent double initialization
+result=Success
+class=ArkZeroRenderer.RenderFrameTests
+test=AZR-RF-001: Should reject render before initialization
+result=Success
+test=AZR-RF-002: Should accept valid ArrayBuffer
+result=Success
+test=AZR-RF-003: Should handle different resolutions
+result=Success
+test=AZR-RF-004: Should validate buffer size matches dimensions
+result=Success
+class=ArkZeroRenderer.CallbackTests
+test=AZR-CB-001: Should set callback successfully
+result=Success
+test=AZR-CB-002: Should allow callback replacement
+result=Success
+test=AZR-CB-003: Should handle undefined callback
+result=Success
+class=ArkZeroRenderer.ResizeTests
+test=AZR-RS-001: Should reject resize before initialization
+result=Success
+test=AZR-RS-002: Should accept valid dimensions
+result=Success
+test=AZR-RS-003: Should reject zero dimensions
+result=Success
+class=ArkZeroRenderer.DisposeTests
+test=AZR-DP-001: Should dispose without error
+result=Success
+test=AZR-DP-002: Should allow multiple dispose calls
+result=Success
+test=AZR-DP-003: Should cleanup resources properly
+result=Success
+class=ArkZeroRenderer.ErrorHandlingTests
+test=AZR-ERR-001: Should handle null config gracefully
+result=Success
+test=AZR-ERR-002: Should handle negative dimensions
+result=Success
+test=AZR-ERR-003: Should handle very large dimensions
+result=Success
+test=AZR-ERR-004: Should handle tiny dimensions
+result=Success
+class=ArkZeroRenderer.IntegrationTests
+test=AZR-INT-001: Should support typical usage pattern
+result=Success
+test=AZR-INT-002: Should support multi-instance scenario
+result=Success
+test=AZR-INT-003: Should support lifecycle management
+result=Success
+Tests run: 92, Failure: 15, Error: 0, Pass: 77, Ignore: 0
