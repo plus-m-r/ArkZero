@@ -13,6 +13,8 @@
  * limitations under the License.
  */
 
+import router from '@ohos.router';
+
 @Entry
 @Component
 struct Index {
@@ -26,6 +28,15 @@ struct Index {
       Text('Ready for XComponent Surface Integration')
         .fontSize(16)
         .margin({ top: 10 })
+      
+      Button('启动 Surface 渲染测试')
+        .fontSize(16)
+        .margin({ top: 30 })
+        .onClick(() => {
+          router.pushUrl({
+            url: 'pages/SurfaceDemoPage'
+          });
+        })
     }
     .width('100%')
     .height('100%')
