@@ -1,0 +1,4 @@
+{
+  "name": "libnativerender.so",
+  "types": "./Index.d.ts"
+}
