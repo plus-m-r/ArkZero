@@ -26,6 +26,7 @@
 #include "tests/gles_backend_napi.h"
 #include "tests/texture_pool_napi.h"
 #include "tests/renderer_napi.h"
+#include "tests/renderer_manager_napi.h"
 
 namespace NativeXComponentSample {
 EXTERN_C_START
@@ -104,7 +105,11 @@ static napi_value Init(napi_env env, napi_value exports) {
         { "rendererResize", nullptr, RendererResize, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "isRendererInitialized", nullptr, IsRendererInitialized, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "getRendererBackendName", nullptr, GetRendererBackendName, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "getRendererPerformanceStats", nullptr, GetRendererPerformanceStats, nullptr, nullptr, nullptr, napi_default, nullptr }
+        { "getRendererPerformanceStats", nullptr, GetRendererPerformanceStats, nullptr, nullptr, nullptr, napi_default, nullptr },
+        // RendererManager 测试接口
+        { "managerCreateOffscreenRenderer", nullptr, ManagerCreateOffscreenRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "managerDestroyRenderer", nullptr, ManagerDestroyRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "managerGetRendererCount", nullptr, ManagerGetRendererCount, nullptr, nullptr, nullptr, napi_default, nullptr }
     };
     if (napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "Init", "napi_define_properties failed");

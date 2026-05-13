@@ -10,6 +10,7 @@ import YUVShaderManagerTest from './native/YUVShaderManager.test';
 import GLESBackendTest from './native/GLESBackend.test';
 import TexturePoolTest from './native/TexturePool.test';
 import RendererTest from './native/Renderer.test';
+import RendererManagerTest from './native/RendererManager.test';
 
 // ArkTS 层测试
 import PixelFormatTest from './arkts/PixelFormat.test';
@@ -27,6 +28,7 @@ export default function testsuite() {
   GLESBackendTest();        // ⭐ 测试 OpenGL ES 后端（整合所有组件）
   TexturePoolTest();        // ⭐ 测试纹理池管理
   RendererTest();           // ⭐ 核心渲染器（整合所有组件）
+  RendererManagerTest();    // ⭐ 渲染器管理器（生命周期管理）
   
   // ArkTS 层测试
   PixelFormatTest();

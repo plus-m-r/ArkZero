@@ -34,6 +34,7 @@ add_library(nativerender SHARED
     tests/gles_backend_napi.cpp
     tests/texture_pool_napi.cpp
     tests/renderer_napi.cpp
+    tests/renderer_manager_napi.cpp
     napi_init.cpp
 )
 
