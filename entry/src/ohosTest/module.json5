@@ -21,6 +21,16 @@
         "exported": true,
         "startWindowIcon": "$media:icon",
         "startWindowBackground": "$color:start_window_background"
+      },
+      {
+        "name": "IntegrationTestAbility",
+        "srcEntry": "./ets/testability/IntegrationTestAbility.ets",
+        "description": "$string:TestAbility_desc",
+        "icon": "$media:icon",
+        "label": "$string:TestAbility_label",
+        "exported": true,
+        "startWindowIcon": "$media:icon",
+        "startWindowBackground": "$color:start_window_background"
       }
     ]
   }

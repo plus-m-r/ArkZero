@@ -1,7 +1,5 @@
 import { describe, it, expect } from '@ohos/hypium';
 import nativerender from 'libnativerender.so';
-import window from '@ohos.window';
-import XComponent from '@ohos.multimedia.xcomponent';
 
 /**
  * 端到端完整渲染流程集成测试
