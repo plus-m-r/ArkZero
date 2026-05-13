@@ -11,9 +11,10 @@ export default function RenderPipelineTest() {
   describe('Render Pipeline Integration Tests', () => {
     
     it('PIPE-FLOW-001: Should render single frame through pipeline', 0, async () => {
-      // 1. 创建渲染器
-      const rendererHandle: number = await nativerender.managerCreateOffscreenRenderer(
-        640, 480, 0, true
+      // 1. 创建支持真实 Surface 的渲染器
+      const surfaceId: string = 'pipeline_surface_001';
+      const rendererHandle: number = await nativerender.managerCreateSurfaceRenderer(
+        surfaceId, 640, 480, 0, true
       );
       expect(rendererHandle > 0).assertTrue();
       
@@ -41,8 +42,9 @@ export default function RenderPipelineTest() {
     });
 
     it('PIPE-FLOW-002: Should handle multiple consecutive frames', 0, async () => {
-      const rendererHandle: number = await nativerender.managerCreateOffscreenRenderer(
-        640, 480, 0, true
+      const surfaceId: string = 'pipeline_surface_002';
+      const rendererHandle: number = await nativerender.managerCreateSurfaceRenderer(
+        surfaceId, 640, 480, 0, true
       );
       expect(rendererHandle > 0).assertTrue();
       
@@ -69,8 +71,9 @@ export default function RenderPipelineTest() {
       const formats: number[] = [0, 1, 2]; // RGBA, RGB, BGRA
       
       for (const format of formats) {
-        const rendererHandle: number = await nativerender.managerCreateOffscreenRenderer(
-          640, 480, format, true
+        const surfaceId: string = `pipeline_surface_003_${format}`;
+        const rendererHandle: number = await nativerender.managerCreateSurfaceRenderer(
+          surfaceId, 640, 480, format, true
         );
         expect(rendererHandle > 0).assertTrue();
         

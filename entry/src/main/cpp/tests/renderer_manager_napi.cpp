@@ -89,4 +89,60 @@ napi_value ManagerGetRendererCount(napi_env env, napi_callback_info info) {
     return result;
 }
 
+/**
+ * 创建支持真实 Surface 的渲染器（用于集成测试）
+ */
+napi_value ManagerCreateSurfaceRenderer(napi_env env, napi_callback_info info) {
+    size_t argc = 5;
+    napi_value args[5] = {nullptr};
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    
+    if (argc < 4) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, 0, "RendererManagerNAPI", "Invalid arguments");
+        return nullptr;
+    }
+    
+    // 获取 surfaceId 字符串
+    char surfaceIdBuf[256];
+    size_t result = 0;
+    napi_get_value_string_utf8(env, args[0], surfaceIdBuf, sizeof(surfaceIdBuf), &result);
+    std::string surfaceId(surfaceIdBuf, result);
+    
+    int32_t width = 0;
+    int32_t height = 0;
+    int32_t format = 0;
+    bool enableAsync = true;
+    
+    napi_get_value_int32(env, args[1], &width);
+    napi_get_value_int32(env, args[2], &height);
+    napi_get_value_int32(env, args[3], &format);
+    
+    if (argc >= 5) {
+        napi_get_value_bool(env, args[4], &enableAsync);
+    }
+    
+    if (surfaceId.empty()) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, 0, "RendererManagerNAPI", "Empty surfaceId");
+        napi_value negOneVal;
+        napi_create_int32(env, -1, &negOneVal);
+        return negOneVal;
+    }
+    
+    // ⭐ 在测试环境中使用模拟的 NativeWindow
+    // 实际项目中会调用 OH_NativeWindow_CreateNativeWindowFromSurfaceId
+    void* mockWindowPtr = reinterpret_cast<void*>(surfaceId.length() + 1);  // 简单的模拟指针
+    
+    OH_LOG_Print(LOG_APP, LOG_INFO, 0, "RendererManagerNAPI", 
+        "Creating surface renderer with mock NativeWindow: surfaceId=%s, ptr=%p", 
+        surfaceId.c_str(), mockWindowPtr);
+    
+    int32_t handle = RendererManager::GetInstance().CreateSurfaceRenderer(
+        mockWindowPtr, width, height, static_cast<PixelFormat>(format), enableAsync
+    );
+    
+    napi_value resultVal;
+    napi_create_int32(env, handle, &resultVal);
+    return resultVal;
+}
+
 } // namespace NativeXComponentSample

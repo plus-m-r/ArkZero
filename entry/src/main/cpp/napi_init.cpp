@@ -111,6 +111,7 @@ static napi_value Init(napi_env env, napi_value exports) {
         { "managerCreateOffscreenRenderer", nullptr, ManagerCreateOffscreenRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "managerDestroyRenderer", nullptr, ManagerDestroyRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "managerGetRendererCount", nullptr, ManagerGetRendererCount, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "managerCreateSurfaceRenderer", nullptr, ManagerCreateSurfaceRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
         // SurfaceManager 测试接口
         { "surfaceManagerCreateNativeWindow", nullptr, SurfaceManagerCreateNativeWindow, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "surfaceManagerDestroyNativeWindow", nullptr, SurfaceManagerDestroyNativeWindow, nullptr, nullptr, nullptr, napi_default, nullptr }

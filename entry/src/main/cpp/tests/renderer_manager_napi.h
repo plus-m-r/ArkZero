@@ -53,6 +53,17 @@ napi_value ManagerDestroyRenderer(napi_env env, napi_callback_info info);
  */
 napi_value ManagerGetRendererCount(napi_env env, napi_callback_info info);
 
+/**
+ * 创建支持真实 Surface 的渲染器（用于集成测试）
+ * 
+ * ArkTS调用: managerCreateSurfaceRenderer(surfaceId: string, width: number, height: number, format: number, enableAsync?: boolean): number
+ * 
+ * @param env NAPI环境
+ * @param info NAPI回调信息
+ * @return number - 渲染器句柄
+ */
+napi_value ManagerCreateSurfaceRenderer(napi_env env, napi_callback_info info);
+
 } // namespace NativeXComponentSample
 
 #endif // RENDERER_MANAGER_NAPI_H

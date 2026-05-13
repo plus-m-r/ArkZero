@@ -63,6 +63,17 @@ public:
     int32_t CreateOffscreenRenderer(int32_t width, int32_t height, PixelFormat format, bool enableAsync = true);
 
     /**
+     * 创建支持真实 Surface 的 Renderer 实例（用于集成测试）
+     * @param nativeWindow NativeWindow 指针（从 XComponent Surface ID 获取）
+     * @param width 宽度
+     * @param height 高度
+     * @param format 像素格式
+     * @param enableAsync 是否启用异步渲染（默认 true）
+     * @return handle（用于后续操作），失败返回-1
+     */
+    int32_t CreateSurfaceRenderer(void* nativeWindow, int32_t width, int32_t height, PixelFormat format, bool enableAsync = true);
+
+    /**
      * 获取Renderer实例
      * @param handle 句柄
      * @return 指针，如果不存在返回nullptr

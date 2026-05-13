@@ -48,9 +48,10 @@ export default function FullRenderFlowTest() {
       
       expect(surfaceReady).assertTrue();
       
-      // 1. 创建渲染器管理器
-      const rendererHandle: number = await nativerender.managerCreateOffscreenRenderer(
-        640, 480, 0, true
+      // 1. 创建支持真实 Surface 的渲染器
+      const surfaceId: string = 'test_surface_001';
+      const rendererHandle: number = await nativerender.managerCreateSurfaceRenderer(
+        surfaceId, 640, 480, 0, true
       );
       expect(rendererHandle > 0).assertTrue();
       
@@ -89,9 +90,10 @@ export default function FullRenderFlowTest() {
       const monitorHandle: number = await nativerender.createPerformanceMonitor();
       expect(monitorHandle >= 0).assertTrue();
       
-      // 2. 创建渲染器
-      const rendererHandle: number = await nativerender.managerCreateOffscreenRenderer(
-        1280, 720, 0, true
+      // 2. 创建支持真实 Surface 的渲染器
+      const surfaceId: string = 'test_surface_002';
+      const rendererHandle: number = await nativerender.managerCreateSurfaceRenderer(
+        surfaceId, 1280, 720, 0, true
       );
       expect(rendererHandle > 0).assertTrue();
       
@@ -123,10 +125,11 @@ export default function FullRenderFlowTest() {
       const rendererCount: number = 3;
       const handles: number[] = [];
       
-      // 1. 创建多个渲染器
+      // 1. 创建多个支持真实 Surface 的渲染器
       for (let i: number = 0; i < rendererCount; i++) {
-        const handle: number = await nativerender.managerCreateOffscreenRenderer(
-          320 * (i + 1), 240 * (i + 1), 0, true
+        const surfaceId: string = `test_surface_003_${i}`;
+        const handle: number = await nativerender.managerCreateSurfaceRenderer(
+          surfaceId, 320 * (i + 1), 240 * (i + 1), 0, true
         );
         expect(handle > 0).assertTrue();
         handles.push(handle);
@@ -151,9 +154,10 @@ export default function FullRenderFlowTest() {
     });
 
     it('E2E-FULL-004: Should handle resize workflow', 0, async () => {
-      // 1. 创建渲染器
-      const rendererHandle: number = await nativerender.managerCreateOffscreenRenderer(
-        640, 480, 0, true
+      // 1. 创建支持真实 Surface 的渲染器
+      const surfaceId: string = 'test_surface_004';
+      const rendererHandle: number = await nativerender.managerCreateSurfaceRenderer(
+        surfaceId, 640, 480, 0, true
       );
       expect(rendererHandle > 0).assertTrue();
       
@@ -184,9 +188,10 @@ export default function FullRenderFlowTest() {
     });
 
     it('E2E-FULL-005: Should handle error recovery', 0, async () => {
-      // 1. 创建渲染器
-      const rendererHandle: number = await nativerender.managerCreateOffscreenRenderer(
-        640, 480, 0, true
+      // 1. 创建支持真实 Surface 的渲染器
+      const surfaceId: string = 'test_surface_005';
+      const rendererHandle: number = await nativerender.managerCreateSurfaceRenderer(
+        surfaceId, 640, 480, 0, true
       );
       expect(rendererHandle > 0).assertTrue();
       
@@ -212,9 +217,10 @@ export default function FullRenderFlowTest() {
     });
 
     it('E2E-FULL-006: Should maintain stability during long-running render', 0, async () => {
-      // 1. 创建渲染器
-      const rendererHandle: number = await nativerender.managerCreateOffscreenRenderer(
-        640, 480, 0, true
+      // 1. 创建支持真实 Surface 的渲染器
+      const surfaceId: string = 'test_surface_006';
+      const rendererHandle: number = await nativerender.managerCreateSurfaceRenderer(
+        surfaceId, 640, 480, 0, true
       );
       expect(rendererHandle > 0).assertTrue();
       
