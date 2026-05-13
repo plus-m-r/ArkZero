@@ -60,6 +60,14 @@ public:
     bool Initialize(void* nativeWindow);
 
     /**
+     * 初始化渲染器（离屏模式，用于测试）
+     * @param width 宽度
+     * @param height 高度
+     * @return true 成功，false 失败
+     */
+    bool InitializeOffscreen(int32_t width, int32_t height);
+
+    /**
      * 渲染帧（异步模式）
      * 
      * ⭐ ArkTS 主线程调用，立即返回（<0.5ms）

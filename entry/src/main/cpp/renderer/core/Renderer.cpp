@@ -76,6 +76,44 @@ bool Renderer::Initialize(void* nativeWindow) {
     return true;
 }
 
+bool Renderer::InitializeOffscreen(int32_t width, int32_t height) {
+    if (m_backend && m_backend->IsInitialized()) {
+        OH_LOG_Print(LOG_APP, LOG_WARN, LOG_PRINT_DOMAIN, 
+            "Renderer", "Already initialized");
+        return true;
+    }
+
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+        "Renderer", "Initializing offscreen renderer: %dx%d", width, height);
+
+    // ⭐ 1. 创建 OpenGL ES 后端
+    auto glesBackend = std::make_unique<GLESBackend>();
+    
+    // ⭐ 2. 使用离屏模式初始化
+    bool success = glesBackend->InitializeOffscreen(width, height, m_format);
+    if (!success) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+            "Renderer", "Failed to initialize backend offscreen");
+        return false;
+    }
+    
+    m_backend = std::move(glesBackend);
+
+    // ⭐ 3. 如果启用异步渲染，启动后台线程
+    if (m_enableAsync) {
+        m_renderQueue = std::make_unique<RenderQueue>(3);  // 3 帧缓冲
+        m_renderThread = std::thread(&Renderer::renderLoop, this);
+        
+        OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+            "Renderer", "✅ Async rendering thread started (offscreen)");
+    }
+
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+        "Renderer", "✅ Offscreen renderer initialized");
+    
+    return true;
+}
+
 bool Renderer::RenderFrame(const void* pixelData, size_t dataSize, 
                                  int32_t width, int32_t height) {
     if (!m_backend || !m_backend->IsInitialized()) {

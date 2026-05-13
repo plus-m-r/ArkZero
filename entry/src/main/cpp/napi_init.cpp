@@ -25,6 +25,7 @@
 #include "tests/yuv_shader_manager_napi.h"
 #include "tests/gles_backend_napi.h"
 #include "tests/texture_pool_napi.h"
+#include "tests/renderer_napi.h"
 
 namespace NativeXComponentSample {
 EXTERN_C_START
@@ -94,7 +95,16 @@ static napi_value Init(napi_env env, napi_value exports) {
         { "texturePoolPreallocate", nullptr, TexturePoolPreallocate, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "texturePoolClear", nullptr, TexturePoolClear, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "texturePoolSize", nullptr, TexturePoolSize, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "texturePoolGetStats", nullptr, TexturePoolGetStats, nullptr, nullptr, nullptr, napi_default, nullptr }
+        { "texturePoolGetStats", nullptr, TexturePoolGetStats, nullptr, nullptr, nullptr, napi_default, nullptr },
+        // Renderer 测试接口
+        { "createTestRenderer", nullptr, CreateTestRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "destroyTestRenderer", nullptr, DestroyTestRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "rendererInitialize", nullptr, RendererInitialize, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "rendererRenderFrame", nullptr, RendererRenderFrame, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "rendererResize", nullptr, RendererResize, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "isRendererInitialized", nullptr, IsRendererInitialized, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "getRendererBackendName", nullptr, GetRendererBackendName, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "getRendererPerformanceStats", nullptr, GetRendererPerformanceStats, nullptr, nullptr, nullptr, napi_default, nullptr }
     };
     if (napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "Init", "napi_define_properties failed");

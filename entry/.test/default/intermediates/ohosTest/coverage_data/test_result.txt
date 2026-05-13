@@ -329,11 +329,7 @@ test=TP-ACQ-003: Should handle zero dimensions
 result=Success
 class=TexturePool.StatsTests
 test=TP-STATS-001: Should return initial stats
-Error in TP-STATS-001: Should return initial stats, expect 32496501618079092 equals 0
-    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
-    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
-    at anonymous entry_test (entry/src/ohosTest/ets/test/native/TexturePool.test.ets:133:30)
-result=Failure
+result=Success
 test=TP-STATS-002: Should track hits and misses
 result=Success
 test=TP-STATS-003: Should calculate hit rate correctly
@@ -519,4 +515,4 @@ test=AZR-INT-002: Should support multi-instance scenario
 result=Success
 test=AZR-INT-003: Should support lifecycle management
 result=Success
-Tests run: 231, Failure: 1, Error: 0, Pass: 230, Ignore: 0
+Tests run: 231, Failure: 0, Error: 0, Pass: 231, Ignore: 0
