@@ -1,5 +1,6 @@
 import { describe, it, expect } from '@ohos/hypium';
 import nativerender from 'libnativerender.so';
+import SurfaceIdManager from '../common/SurfaceIdManager';
 
 /**
  * 端到端完整渲染流程集成测试
@@ -13,22 +14,21 @@ import nativerender from 'libnativerender.so';
  */
 class XComponentSurfaceHelper {
   private surfaceId: string = '';
-  private nativeWindowPtr: number = 0;
   
   /**
    * 等待 XComponent Surface 创建
-   * 注意：在实际测试中，需要配合测试页面使用
+   * ⭐ 从全局 SurfaceIdManager 获取真实的 Surface ID
    */
   async waitForSurface(timeout: number = 5000): Promise<boolean> {
-    // 模拟等待 Surface 创建
-    // 在实际实现中，应该通过测试页面的回调获取
-    return new Promise<boolean>((resolve) => {
-      setTimeout(() => {
-        // 这里返回 true 表示 Surface 已就绪
-        // 实际实现需要从 XComponent onSurfaceCreated 回调获取
-        resolve(true);
-      }, timeout);
-    });
+    try {
+      const surfaceId: string = await SurfaceIdManager.getInstance().waitForSurface(timeout);
+      this.surfaceId = surfaceId;
+      console.info(`[XComponentSurfaceHelper] ✅ Got real Surface ID: ${surfaceId}`);
+      return true;
+    } catch (error) {
+      console.error(`[XComponentSurfaceHelper] ❌ Failed to get Surface ID: ${JSON.stringify(error)}`);
+      return false;
+    }
   }
   
   getSurfaceId(): string {
@@ -42,16 +42,18 @@ export default function FullRenderFlowTest() {
     // ===== 标准渲染流程测试 =====
     
     it('E2E-FULL-001: Should complete standard render flow with real XComponent', 0, async () => {
-      // ⭐ 使用真实的 XComponent Surface（非离屏）
+      // ⭐ 等待真实的 XComponent Surface
       const surfaceHelper = new XComponentSurfaceHelper();
-      const surfaceReady = await surfaceHelper.waitForSurface(3000);
+      const surfaceReady = await surfaceHelper.waitForSurface(5000);
       
       expect(surfaceReady).assertTrue();
       
+      const realSurfaceId: string = surfaceHelper.getSurfaceId();
+      console.info(`[E2E-FULL-001] Using real Surface ID: ${realSurfaceId}`);
+      
       // 1. 创建支持真实 Surface 的渲染器
-      const surfaceId: string = 'test_surface_001';
       const rendererHandle: number = await nativerender.managerCreateSurfaceRenderer(
-        surfaceId, 640, 480, 0, true
+        realSurfaceId, 640, 480, 0, true
       );
       expect(rendererHandle > 0).assertTrue();
       
@@ -86,14 +88,19 @@ export default function FullRenderFlowTest() {
     });
 
     it('E2E-FULL-002: Should render with performance monitoring', 0, async () => {
+      // ⭐ 等待真实的 XComponent Surface
+      const surfaceHelper = new XComponentSurfaceHelper();
+      const surfaceReady = await surfaceHelper.waitForSurface(5000);
+      expect(surfaceReady).assertTrue();
+      const realSurfaceId: string = surfaceHelper.getSurfaceId();
+      
       // 1. 创建性能监控器
       const monitorHandle: number = await nativerender.createPerformanceMonitor();
       expect(monitorHandle >= 0).assertTrue();
       
       // 2. 创建支持真实 Surface 的渲染器
-      const surfaceId: string = 'test_surface_002';
       const rendererHandle: number = await nativerender.managerCreateSurfaceRenderer(
-        surfaceId, 1280, 720, 0, true
+        realSurfaceId, 1280, 720, 0, true
       );
       expect(rendererHandle > 0).assertTrue();
       
@@ -122,14 +129,19 @@ export default function FullRenderFlowTest() {
     });
 
     it('E2E-FULL-003: Should handle multiple renderers concurrently', 0, async () => {
+      // ⭐ 等待真实的 XComponent Surface
+      const surfaceHelper = new XComponentSurfaceHelper();
+      const surfaceReady = await surfaceHelper.waitForSurface(5000);
+      expect(surfaceReady).assertTrue();
+      const realSurfaceId: string = surfaceHelper.getSurfaceId();
+      
       const rendererCount: number = 3;
       const handles: number[] = [];
       
-      // 1. 创建多个支持真实 Surface 的渲染器
+      // 1. 创建多个支持真实 Surface 的渲染器（使用同一个 Surface ID）
       for (let i: number = 0; i < rendererCount; i++) {
-        const surfaceId: string = `test_surface_003_${i}`;
         const handle: number = await nativerender.managerCreateSurfaceRenderer(
-          surfaceId, 320 * (i + 1), 240 * (i + 1), 0, true
+          realSurfaceId, 320 * (i + 1), 240 * (i + 1), 0, true
         );
         expect(handle > 0).assertTrue();
         handles.push(handle);
@@ -154,10 +166,15 @@ export default function FullRenderFlowTest() {
     });
 
     it('E2E-FULL-004: Should handle resize workflow', 0, async () => {
+      // ⭐ 等待真实的 XComponent Surface
+      const surfaceHelper = new XComponentSurfaceHelper();
+      const surfaceReady = await surfaceHelper.waitForSurface(5000);
+      expect(surfaceReady).assertTrue();
+      const realSurfaceId: string = surfaceHelper.getSurfaceId();
+      
       // 1. 创建支持真实 Surface 的渲染器
-      const surfaceId: string = 'test_surface_004';
       const rendererHandle: number = await nativerender.managerCreateSurfaceRenderer(
-        surfaceId, 640, 480, 0, true
+        realSurfaceId, 640, 480, 0, true
       );
       expect(rendererHandle > 0).assertTrue();
       
@@ -188,10 +205,15 @@ export default function FullRenderFlowTest() {
     });
 
     it('E2E-FULL-005: Should handle error recovery', 0, async () => {
+      // ⭐ 等待真实的 XComponent Surface
+      const surfaceHelper = new XComponentSurfaceHelper();
+      const surfaceReady = await surfaceHelper.waitForSurface(5000);
+      expect(surfaceReady).assertTrue();
+      const realSurfaceId: string = surfaceHelper.getSurfaceId();
+      
       // 1. 创建支持真实 Surface 的渲染器
-      const surfaceId: string = 'test_surface_005';
       const rendererHandle: number = await nativerender.managerCreateSurfaceRenderer(
-        surfaceId, 640, 480, 0, true
+        realSurfaceId, 640, 480, 0, true
       );
       expect(rendererHandle > 0).assertTrue();
       
@@ -217,10 +239,15 @@ export default function FullRenderFlowTest() {
     });
 
     it('E2E-FULL-006: Should maintain stability during long-running render', 0, async () => {
+      // ⭐ 等待真实的 XComponent Surface
+      const surfaceHelper = new XComponentSurfaceHelper();
+      const surfaceReady = await surfaceHelper.waitForSurface(5000);
+      expect(surfaceReady).assertTrue();
+      const realSurfaceId: string = surfaceHelper.getSurfaceId();
+      
       // 1. 创建支持真实 Surface 的渲染器
-      const surfaceId: string = 'test_surface_006';
       const rendererHandle: number = await nativerender.managerCreateSurfaceRenderer(
-        surfaceId, 640, 480, 0, true
+        realSurfaceId, 640, 480, 0, true
       );
       expect(rendererHandle > 0).assertTrue();
       

@@ -3,6 +3,7 @@ import { Hypium } from '@ohos/hypium';
 import testsuite from '../../test/List.test';
 import integrationTests from '../../test/integration/List.integration.test';
 import nativerender from 'libnativerender.so';
+import SurfaceIdManager from '../../test/integration/common/SurfaceIdManager';
 
 /**
  * 集成测试执行页面 - 使用真实 XComponent Surface
@@ -26,19 +27,23 @@ struct IntegrationTestPage {
   
   /**
    * XComponent Surface 创建回调
-   * ⭐ 在这里获取真实的 Surface ID
+   * ⭐ 在这里获取真实的 Surface ID 并通知测试框架
    */
   onXComponentSurfaceCreated(): void {
     const surfaceId: string = this.xComponentController.getXComponentSurfaceId();
     console.info(`[INTEGRATION_TEST] XComponent Surface created: ${surfaceId}`);
     this.surfaceId = surfaceId;
     this.isSurfaceReady = true;
+    
+    // ⭐ 关键：将 Surface ID 设置到全局管理器
+    SurfaceIdManager.getInstance().setSurfaceId(surfaceId);
+    
     this.testStatus = 'XComponent Surface 已就绪，开始执行集成测试...';
     
-    // 延迟执行测试，确保 Surface 完全初始化
+    // 延迟执行测试，确保 Surface 完全初始化（增加到 2 秒）
     setTimeout(() => {
       this.runIntegrationTests();
-    }, 1000);
+    }, 2000);
   }
   
   /**

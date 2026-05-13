@@ -1,5 +1,6 @@
 import { describe, it, expect } from '@ohos/hypium';
 import nativerender from 'libnativerender.so';
+import SurfaceIdManager from '../common/SurfaceIdManager';
 
 /**
  * 渲染管线集成测试
@@ -7,14 +8,42 @@ import nativerender from 'libnativerender.so';
  * 验证从像素数据到屏幕显示的完整渲染流程
  */
 
+/**
+ * 辅助类：管理 XComponent Surface 生命周期
+ */
+class XComponentSurfaceHelper {
+  private surfaceId: string = '';
+  
+  async waitForSurface(timeout: number = 5000): Promise<boolean> {
+    try {
+      const surfaceId: string = await SurfaceIdManager.getInstance().waitForSurface(timeout);
+      this.surfaceId = surfaceId;
+      console.info(`[XComponentSurfaceHelper] ✅ Got real Surface ID: ${surfaceId}`);
+      return true;
+    } catch (error) {
+      console.error(`[XComponentSurfaceHelper] ❌ Failed to get Surface ID: ${JSON.stringify(error)}`);
+      return false;
+    }
+  }
+  
+  getSurfaceId(): string {
+    return this.surfaceId;
+  }
+}
+
 export default function RenderPipelineTest() {
   describe('Render Pipeline Integration Tests', () => {
     
     it('PIPE-FLOW-001: Should render single frame through pipeline', 0, async () => {
+      // ⭐ 等待真实的 XComponent Surface
+      const surfaceHelper = new XComponentSurfaceHelper();
+      const surfaceReady = await surfaceHelper.waitForSurface(5000);
+      expect(surfaceReady).assertTrue();
+      const realSurfaceId: string = surfaceHelper.getSurfaceId();
+      
       // 1. 创建支持真实 Surface 的渲染器
-      const surfaceId: string = 'pipeline_surface_001';
       const rendererHandle: number = await nativerender.managerCreateSurfaceRenderer(
-        surfaceId, 640, 480, 0, true
+        realSurfaceId, 640, 480, 0, true
       );
       expect(rendererHandle > 0).assertTrue();
       
@@ -42,9 +71,14 @@ export default function RenderPipelineTest() {
     });
 
     it('PIPE-FLOW-002: Should handle multiple consecutive frames', 0, async () => {
-      const surfaceId: string = 'pipeline_surface_002';
+      // ⭐ 等待真实的 XComponent Surface
+      const surfaceHelper = new XComponentSurfaceHelper();
+      const surfaceReady = await surfaceHelper.waitForSurface(5000);
+      expect(surfaceReady).assertTrue();
+      const realSurfaceId: string = surfaceHelper.getSurfaceId();
+      
       const rendererHandle: number = await nativerender.managerCreateSurfaceRenderer(
-        surfaceId, 640, 480, 0, true
+        realSurfaceId, 640, 480, 0, true
       );
       expect(rendererHandle > 0).assertTrue();
       
@@ -68,12 +102,17 @@ export default function RenderPipelineTest() {
     });
 
     it('PIPE-FLOW-003: Should handle different pixel formats', 0, async () => {
+      // ⭐ 等待真实的 XComponent Surface
+      const surfaceHelper = new XComponentSurfaceHelper();
+      const surfaceReady = await surfaceHelper.waitForSurface(5000);
+      expect(surfaceReady).assertTrue();
+      const realSurfaceId: string = surfaceHelper.getSurfaceId();
+      
       const formats: number[] = [0, 1, 2]; // RGBA, RGB, BGRA
       
       for (const format of formats) {
-        const surfaceId: string = `pipeline_surface_003_${format}`;
         const rendererHandle: number = await nativerender.managerCreateSurfaceRenderer(
-          surfaceId, 640, 480, format, true
+          realSurfaceId, 640, 480, format, true
         );
         expect(rendererHandle > 0).assertTrue();
         
