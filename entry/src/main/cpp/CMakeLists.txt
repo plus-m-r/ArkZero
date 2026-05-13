@@ -35,6 +35,7 @@ add_library(nativerender SHARED
     tests/texture_pool_napi.cpp
     tests/renderer_napi.cpp
     tests/renderer_manager_napi.cpp
+    tests/surface_manager_napi.cpp
     napi_init.cpp
 )
 

@@ -11,6 +11,7 @@ import GLESBackendTest from './native/GLESBackend.test';
 import TexturePoolTest from './native/TexturePool.test';
 import RendererTest from './native/Renderer.test';
 import RendererManagerTest from './native/RendererManager.test';
+import SurfaceManagerTest from './native/SurfaceManager.test';
 
 // ArkTS 层测试
 import PixelFormatTest from './arkts/PixelFormat.test';
@@ -29,6 +30,7 @@ export default function testsuite() {
   TexturePoolTest();        // ⭐ 测试纹理池管理
   RendererTest();           // ⭐ 核心渲染器（整合所有组件）
   RendererManagerTest();    // ⭐ 渲染器管理器（生命周期管理）
+  SurfaceManagerTest();     // ⭐ 表面管理器（NativeWindow 管理）
   
   // ArkTS 层测试
   PixelFormatTest();

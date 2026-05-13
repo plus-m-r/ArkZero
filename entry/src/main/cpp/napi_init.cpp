@@ -27,6 +27,7 @@
 #include "tests/texture_pool_napi.h"
 #include "tests/renderer_napi.h"
 #include "tests/renderer_manager_napi.h"
+#include "tests/surface_manager_napi.h"
 
 namespace NativeXComponentSample {
 EXTERN_C_START
@@ -109,7 +110,10 @@ static napi_value Init(napi_env env, napi_value exports) {
         // RendererManager 测试接口
         { "managerCreateOffscreenRenderer", nullptr, ManagerCreateOffscreenRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "managerDestroyRenderer", nullptr, ManagerDestroyRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "managerGetRendererCount", nullptr, ManagerGetRendererCount, nullptr, nullptr, nullptr, napi_default, nullptr }
+        { "managerGetRendererCount", nullptr, ManagerGetRendererCount, nullptr, nullptr, nullptr, napi_default, nullptr },
+        // SurfaceManager 测试接口
+        { "surfaceManagerCreateNativeWindow", nullptr, SurfaceManagerCreateNativeWindow, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "surfaceManagerDestroyNativeWindow", nullptr, SurfaceManagerDestroyNativeWindow, nullptr, nullptr, nullptr, napi_default, nullptr }
     };
     if (napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "Init", "napi_define_properties failed");
