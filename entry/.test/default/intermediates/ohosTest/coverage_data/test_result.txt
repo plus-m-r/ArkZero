@@ -447,11 +447,7 @@ test=SM-INT-003: Should handle rapid create-destroy cycles
 result=Success
 class=SurfaceManager.BoundaryTests
 test=SM-EDGE-001: Should handle empty surfaceId
-Error in SM-EDGE-001: Should handle empty surfaceId, expect true, actualValue is false
-    at AssertException @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:72:9)
-    at anonymous @ohos/hypium (oh_modules/.ohpm/@ohos+hypium@1.0.24/oh_modules/@ohos/hypium/src/main/service.js:1107:37)
-    at anonymous entry_test (entry/src/ohosTest/ets/test/native/SurfaceManager.test.ets:152:45)
-result=Failure
+result=Success
 test=SM-EDGE-002: Should handle very long surfaceId
 result=Success
 test=SM-EDGE-003: Should handle special characters in surfaceId
@@ -618,4 +614,4 @@ test=AZR-INT-002: Should support multi-instance scenario
 result=Success
 test=AZR-INT-003: Should support lifecycle management
 result=Success
-Tests run: 273, Failure: 1, Error: 0, Pass: 272, Ignore: 0
+Tests run: 273, Failure: 0, Error: 0, Pass: 273, Ignore: 0
