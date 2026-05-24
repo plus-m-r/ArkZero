@@ -22,8 +22,13 @@
 #include "PixelFormatConverter.h"
 #include "YUVShaderManager.h"
 #include "TexturePool.h"
+// ⭐ 设计模式：策略模式
+#include "strategy/ITextureStrategy.h"
+#include "strategy/PoolTextureStrategy.h"
+#include "strategy/DirectTextureStrategy.h"
 #include <cstdint>
 #include <cstddef>
+#include <memory>
 
 namespace NativeXComponentSample {
 
@@ -61,6 +66,17 @@ public:
     const char* GetBackendName() const override { return "OpenGL ES"; }
     bool IsInitialized() const override { return m_isInitialized; }
 
+    /**
+     * ⭐ 设置纹理管理策略
+     * @param strategyType 策略类型："pool" 或 "direct"
+     */
+    void SetTextureStrategy(const char* strategyType);
+    
+    /**
+     * ⭐ 获取当前策略名称
+     */
+    const char* GetCurrentStrategyName() const;
+
 private:
     /**
      * 检查是否为 YUV 格式
@@ -71,13 +87,16 @@ private:
     EGLContextManager m_eglManager;      // EGL 上下文管理
     TextureManager m_textureManager;     // 纹理管理（RGBA/RGB）
     YUVShaderManager m_yuvShader;        // YUV Shader 渲染（NV21/NV12）
-    std::unique_ptr<TexturePool> m_texturePool;  // ⭐ 纹理池（可选）
+    
+    // ⭐ 设计模式：策略模式 - 纹理管理策略
+    std::unique_ptr<ITextureStrategy> m_textureStrategy;  // 当前使用的策略
+    
+    void* m_nativeWindow = nullptr;  // ⭐ 保存 NativeWindow 引用，用于 Surface 恢复
     
     int32_t m_width;
     int32_t m_height;
     PixelFormat m_format;
     bool m_isInitialized;
-    bool m_enableTexturePool;  // ⭐ 是否启用纹理池
 };
 
 } // namespace NativeXComponentSample

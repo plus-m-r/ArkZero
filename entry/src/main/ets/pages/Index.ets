@@ -37,6 +37,16 @@ struct Index {
             url: 'pages/SurfaceDemoPage'
           });
         })
+      
+      Button('🧪 运行集成测试')
+        .fontSize(16)
+        .backgroundColor('#4CAF50')
+        .margin({ top: 15 })
+        .onClick(() => {
+          router.pushUrl({
+            url: 'integration/pages/IntegrationTestPage'
+          });
+        })
     }
     .width('100%')
     .height('100%')

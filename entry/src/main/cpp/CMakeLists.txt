@@ -18,24 +18,32 @@ add_library(nativerender SHARED
     renderer/backend/YUVShaderManager.cpp
     renderer/backend/TexturePool.cpp
     renderer/backend/GLESBackend.cpp
+    # 策略模式文件
+    renderer/backend/strategy/PoolTextureStrategy.cpp
+    renderer/backend/strategy/DirectTextureStrategy.cpp
+    # 工厂模式文件
+    renderer/backend/factory/TextureFactory.cpp
+    # 命令模式文件
+    renderer/core/command/RenderFrameCommand.cpp
+    renderer/core/command/PreallocateTextureCommand.cpp
     renderer/core/Renderer.cpp
     renderer/core/RenderQueue.cpp
     renderer/core/PerformanceMonitor.cpp
     renderer/manager/RendererManager.cpp
     renderer/manager/SurfaceManager.cpp
     renderer/api/RendererApi.cpp
-    # NAPI 桥接
-    tests/performance_monitor_napi.cpp
-    tests/pixel_format_converter_napi.cpp
-    tests/render_queue_napi.cpp
-    tests/texture_manager_napi.cpp
-    tests/egl_context_manager_napi.cpp
-    tests/yuv_shader_manager_napi.cpp
-    tests/gles_backend_napi.cpp
-    tests/texture_pool_napi.cpp
-    tests/renderer_napi.cpp
-    tests/renderer_manager_napi.cpp
-    tests/surface_manager_napi.cpp
+    # NAPI 桥接（原 tests/ 目录）
+    napi_bridge/performance_monitor_napi.cpp
+    napi_bridge/pixel_format_converter_napi.cpp
+    napi_bridge/render_queue_napi.cpp
+    napi_bridge/texture_manager_napi.cpp
+    napi_bridge/egl_context_manager_napi.cpp
+    napi_bridge/yuv_shader_manager_napi.cpp
+    napi_bridge/gles_backend_napi.cpp
+    napi_bridge/texture_pool_napi.cpp
+    napi_bridge/renderer_napi.cpp
+    napi_bridge/renderer_manager_napi.cpp
+    napi_bridge/surface_manager_napi.cpp
     napi_init.cpp
 )
 

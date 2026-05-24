@@ -1,80 +1,74 @@
-# ArkZeroRenderer - 超低延迟零拷贝渲染组件
+# ArkZero - Ultra Low Latency Renderer
 
-基于 HarmonyOS **XComponent (SURFACE)** 与 **NativeWindow** 实现的极致性能渲染方案。
+ArkZero 是一个基于 HarmonyOS 的超低延迟渲染器项目，支持零拷贝渲染和自动后端检测。
 
-**核心特性**：绕过 `PixelMap` 和 `Image` 组件合成，直接在 Native 层操作显存并直出屏幕，实现真正的零拷贝、超低延迟渲染。
+## 📚 文档
 
-## 📖 项目背景
+所有技术文档已移动到 **[docs](./docs/)** 目录：
 
-在 HarmonyOS 高性能渲染场景（如相机预览、视频播放、实时滤镜）中，传统路径存在显著瓶颈：
-- **PixelMap 路径**：涉及多次内存拷贝，CPU 占用高，延迟大。
-- **Image 组件合成**：离屏纹理需要通过 UI 线程合成到屏幕，增加额外的帧延迟。
+- **[📖 文档中心](./docs/INDEX.md)** - 从这里开始浏览所有文档
+- **[🚀 快速开始](./docs/README.md)** - 项目概述和入门指南
+- **[🏗️ 架构设计](./docs/ARCHITECTURE.md)** - 系统架构说明
+- **[🧪 测试文档](./docs/UNIT_TEST_DESIGN.md)** - 完整的测试设计（⭐核心）
+- **[📖 API 参考](./docs/API_REFERENCE.md)** - API 详细说明
 
-本项目通过 **Direct Surface Rendering** 架构，将数据流缩短为：
-`ArkTS ArrayBuffer → NAPI Pointer → OpenGL ES → NativeWindow Surface → Screen`
+## 🎯 主要功能
 
-## ✨ 功能特性
-
-- ✅ **终极零拷贝**：NAPI 直接获取 ArkTS ArrayBuffer 指针，喂给 GPU。
-- ✅ **超低延迟 (<10ms)**：消除 Image 组件合成开销，利用系统级 VSync 同步。
-- ✅ **多格式支持**：原生支持 RGBA/BGRA/RGB/YUV，GPU 端零转换渲染。
-- ✅ **异步渲染架构**：后台线程处理渲染，ArkTS 主线程零阻塞。
-- ✅ **极简 API**：封装复杂的 EGL/NativeWindow 逻辑，提供简单的 `renderFrame` 接口。
-
-## 🛠️ 环境要求
-
-| 项目 | 要求 |
-| :--- | :--- |
-| HarmonyOS SDK | API 12+ (HarmonyOS 5.0+) |
-| DevEco Studio | 6.0+ |
-| 开发语言 | ArkTS + C++ (NAPI) |
-| 图形后端 | OpenGL ES 3.0+ |
+- ✅ **零拷贝渲染** - ArrayBuffer 直接传递指针到 Native 层
+- ✅ **自动后端检测** - Vulkan > OpenGL ES > CPU 软渲染
+- ✅ **异步渲染** - renderFrame 返回 Promise，完成后自动回调
+- ✅ **多实例支持** - 每个 ArkZeroRenderer 独立管理 Native 资源
+- ✅ **XComponent 集成** - Direct Surface Rendering，延迟 <10ms
 
 ## 🚀 快速开始
 
-### 1. 初始化渲染器
-在 ArkTS 页面中，通过 `XComponent` 的 `onLoad` 回调获取 `surfaceId` 并初始化：
+### 1. 构建应用
 
-```typescript
-const renderer = new ArkZeroRenderer();
-await renderer.initialize(surfaceId, { 
-  width: 1920, 
-  height: 1080, 
-  format: PixelFormat.RGBA 
-});
+```powershell
+hvigorw --mode module -p module=entry -p product=default assembleHap
 ```
 
-### 2. 渲染帧
-直接传递像素数据引用，实现零拷贝上屏：
+### 2. 安装到设备
 
-```typescript
-// pixelData 为 ArrayBuffer
-await renderer.renderFrame(pixelData, 1920, 1080);
+```powershell
+hdc install entry/build/default/outputs/default/entry-default-signed.hap
 ```
+
+### 3. 运行测试
+
+在应用首页点击 **"🧪 运行集成测试"** 按钮即可运行可视化测试。
+
+详细使用方法请参考：**[docs/UNIT_TEST_DESIGN.md](./docs/UNIT_TEST_DESIGN.md)** 第 4.2.3 章节
 
 ## 📂 项目结构
 
-```text
-entry/src/main/
-├── cpp/
-│   ├── renderer/          # 核心渲染引擎
-│   │   ├── api/           # NAPI 桥接层
-│   │   ├── backend/       # OpenGL ES/Vulkan 后端实现
-│   │   ├── core/          # 渲染器外观类
-│   │   └── manager/       # 资源管理与工厂
-│   ├── common/            # 公共常量与枚举
-│   └── types/             # TypeScript 类型定义
-└── ets/
-    ├── components/        # ArkTS 封装组件
-    └── pages/             # 示例页面
+```
+ArkZero/
+├── docs/                    # 📚 所有技术文档
+│   ├── INDEX.md            # 文档导航
+│   ├── README.md           # 项目概述
+│   ├── ARCHITECTURE.md     # 架构设计
+│   ├── UNIT_TEST_DESIGN.md # 测试设计 ⭐
+│   └── API_REFERENCE.md    # API 参考
+├── entry/                   # 主模块
+│   └── src/
+│       ├── main/           # 主代码
+│       │   ├── ets/        # ArkTS 代码
+│       │   └── cpp/        # C++ 代码
+│       └── ohosTest/       # 单元测试
+└── ...
 ```
 
-## 🎯 性能指标
+## 🔗 相关链接
 
-- **延迟**：< 10ms (4K @ 60fps)
-- **CPU 占用**：< 3% (单核)
-- **内存拷贝**：0 字节 (ArkTS → Native)
+- [HarmonyOS 官方文档](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides)
+- [Hypium 测试框架](https://gitee.com/openharmony/testfwk_arkxtest)
 
-## 📝 许可证
+## 📄 许可证
 
-Apache License 2.0
+本项目采用 Apache-2.0 许可证。详见 [LICENSE](./LICENSE) 文件。
+
+---
+
+**维护者**: ArkZeroRenderer Team  
+**最后更新**: 2026-05-13

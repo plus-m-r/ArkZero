@@ -1,6 +1,7 @@
 {
   "src": [
     "pages/Index",
-    "pages/SurfaceDemoPage"
+    "pages/SurfaceDemoPage",
+    "integration/pages/IntegrationTestPage"
   ]
 }

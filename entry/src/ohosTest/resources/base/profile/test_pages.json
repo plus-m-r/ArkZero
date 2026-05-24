@@ -1,6 +1,5 @@
 {
   "src": [
-    "testability/pages/Index",
-    "testability/pages/IntegrationTestPage"
+    "testability/pages/Index"
   ]
 }

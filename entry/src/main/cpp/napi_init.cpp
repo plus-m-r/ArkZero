@@ -17,17 +17,17 @@
 
 #include "common/common.h"
 #include "renderer/api/RendererApi.h"
-#include "tests/performance_monitor_napi.h"
-#include "tests/pixel_format_converter_napi.h"
-#include "tests/render_queue_napi.h"
-#include "tests/texture_manager_napi.h"
-#include "tests/egl_context_manager_napi.h"
-#include "tests/yuv_shader_manager_napi.h"
-#include "tests/gles_backend_napi.h"
-#include "tests/texture_pool_napi.h"
-#include "tests/renderer_napi.h"
-#include "tests/renderer_manager_napi.h"
-#include "tests/surface_manager_napi.h"
+#include "napi_bridge/performance_monitor_napi.h"
+#include "napi_bridge/pixel_format_converter_napi.h"
+#include "napi_bridge/render_queue_napi.h"
+#include "napi_bridge/texture_manager_napi.h"
+#include "napi_bridge/egl_context_manager_napi.h"
+#include "napi_bridge/yuv_shader_manager_napi.h"
+#include "napi_bridge/gles_backend_napi.h"
+#include "napi_bridge/texture_pool_napi.h"
+#include "napi_bridge/renderer_napi.h"
+#include "napi_bridge/renderer_manager_napi.h"
+#include "napi_bridge/surface_manager_napi.h"
 
 namespace NativeXComponentSample {
 EXTERN_C_START

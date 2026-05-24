@@ -91,10 +91,23 @@ public:
      */
     bool IsInitialized() const { return m_eglDisplay != EGL_NO_DISPLAY; }
 
+    /**
+     * ⭐ 检查 Surface 是否需要恢复
+     */
+    bool IsSurfaceInvalidated() const { return m_surfaceInvalidated; }
+
+    /**
+     * ⭐ 恢复失效的 Surface（保持 Context 不变）
+     * @param nativeWindow 新的 NativeWindow 指针
+     * @return true 成功，false 失败
+     */
+    bool RecoverSurface(void* nativeWindow);
+
 private:
     EGLDisplay m_eglDisplay;
     EGLContext m_eglContext;
     EGLSurface m_eglSurface;
+    bool m_surfaceInvalidated = false;  // ⭐ 标记 Surface 是否失效
 };
 
 } // namespace NativeXComponentSample

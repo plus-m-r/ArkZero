@@ -1,6 +1,6 @@
 import { describe } from '@ohos/hypium';
 
-// C++ 层测试（通过 NAPI 桥接）
+// C++ 层测试（通过 NAPI 桥接）- 离屏单元测试
 import PerformanceMonitorTest from './native/PerformanceMonitor.test';
 import PixelFormatConverterTest from './native/PixelFormatConverter.test';
 import RenderQueueTest from './native/RenderQueue.test';
@@ -13,16 +13,13 @@ import RendererTest from './native/Renderer.test';
 import RendererManagerTest from './native/RendererManager.test';
 import SurfaceManagerTest from './native/SurfaceManager.test';
 
-// 集成测试（使用真实 XComponent Surface）
-import integrationTests from './integration/List.integration.test';
-
-// ArkTS 层测试
+// ArkTS 层测试 - 逻辑单元测试
 import PixelFormatTest from './arkts/PixelFormat.test';
 import ArkZeroRendererConfigTest from './arkts/ArkZeroRendererConfig.test';
 import ArkZeroRendererTest from './arkts/ArkZeroRenderer.test';
 
 export default function testsuite() {
-  // C++ 层测试
+  // ========== C++ 层单元测试（离屏 Pbuffer）==========
   PerformanceMonitorTest();
   PixelFormatConverterTest();
   RenderQueueTest();
@@ -35,11 +32,12 @@ export default function testsuite() {
   RendererManagerTest();    // ⭐ 渲染器管理器（生命周期管理）
   SurfaceManagerTest();     // ⭐ 表面管理器（NativeWindow 管理）
   
-  // 集成测试（使用真实 XComponent Surface）
-  integrationTests();       // ⭐ 端到端集成测试
-  
-  // ArkTS 层测试
+  // ========== ArkTS 层单元测试 ==========
   PixelFormatTest();
   ArkZeroRendererConfigTest();
   ArkZeroRendererTest();
+  
+  // ℹ️ 注意：集成测试已迁移到 main 模块
+  // 请访问：entry/src/main/ets/integration/pages/IntegrationTestPage.ets
+  // 在应用界面中点击 "🧪 运行集成测试" 按钮即可运行
 }
