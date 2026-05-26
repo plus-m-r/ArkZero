@@ -29,7 +29,6 @@ RendererManager::~RendererManager() {
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "RendererManager", "Manager destroying, cleaning up all renderers");
     
-    // 清理所有renderer
     for (auto& pair : m_renderers) {
         if (pair.second) {
             pair.second->Destroy();
@@ -46,14 +45,14 @@ RendererManager& RendererManager::GetInstance() {
     return instance;
 }
 
-int32_t RendererManager::CreateRenderer(void* nativeWindow, int32_t width, int32_t height, PixelFormat format, bool enableAsync) {
+int32_t RendererManager::CreateRenderer(void* nativeWindow, int32_t width, int32_t height, PixelFormat format) {
     std::lock_guard<std::mutex> lock(m_mutex);
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "RendererManager", "Creating renderer: %dx%d, format=%d, async=%s", 
-        width, height, static_cast<int>(format), enableAsync ? "enabled" : "disabled");
+        "RendererManager", "Creating renderer: %dx%d, format=%d", 
+        width, height, static_cast<int>(format));
     
-    auto renderer = std::make_unique<Renderer>(width, height, format, enableAsync);
+    auto renderer = std::make_unique<Renderer>(width, height, format);
     if (!renderer->Initialize(nativeWindow)) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
             "RendererManager", "Failed to initialize renderer");
@@ -65,58 +64,6 @@ int32_t RendererManager::CreateRenderer(void* nativeWindow, int32_t width, int32
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "RendererManager", "✅ Created renderer: handle=%d", handle);
-    
-    return handle;
-}
-
-int32_t RendererManager::CreateOffscreenRenderer(int32_t width, int32_t height, PixelFormat format, bool enableAsync) {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "RendererManager", "Creating offscreen renderer: %dx%d, format=%d, async=%s", 
-        width, height, static_cast<int>(format), enableAsync ? "enabled" : "disabled");
-    
-    auto renderer = std::make_unique<Renderer>(width, height, format, enableAsync);
-    if (!renderer->InitializeOffscreen(width, height)) {  // 使用离屏初始化
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererManager", "Failed to initialize offscreen renderer");
-        return -1;
-    }
-    
-    int32_t handle = m_nextHandle++;
-    m_renderers[handle] = std::move(renderer);
-    
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "RendererManager", "✅ Created offscreen renderer: handle=%d", handle);
-    
-    return handle;
-}
-
-int32_t RendererManager::CreateSurfaceRenderer(void* nativeWindow, int32_t width, int32_t height, PixelFormat format, bool enableAsync) {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "RendererManager", "Creating surface renderer: %dx%d, format=%d, async=%s", 
-        width, height, static_cast<int>(format), enableAsync ? "enabled" : "disabled");
-    
-    if (!nativeWindow) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererManager", "Invalid nativeWindow pointer");
-        return -1;
-    }
-    
-    auto renderer = std::make_unique<Renderer>(width, height, format, enableAsync);
-    if (!renderer->Initialize(nativeWindow)) {  // 使用真实 Surface 初始化
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererManager", "Failed to initialize surface renderer");
-        return -1;
-    }
-    
-    int32_t handle = m_nextHandle++;
-    m_renderers[handle] = std::move(renderer);
-    
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "RendererManager", "✅ Created surface renderer: handle=%d", handle);
     
     return handle;
 }

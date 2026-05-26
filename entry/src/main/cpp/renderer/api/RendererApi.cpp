@@ -18,10 +18,83 @@
 #include "../manager/SurfaceManager.h"
 #include <hilog/log.h>
 #include <cstdint>
+#include <memory>
+#include <string>
 
 #include "../../common/common.h"
 
 namespace NativeXComponentSample {
+
+struct RenderFrameWorkContext {
+    napi_env env { nullptr };
+    napi_deferred deferred { nullptr };
+    napi_async_work work { nullptr };
+    napi_ref bufferRef { nullptr };
+    int32_t handle { 0 };
+    void* data { nullptr };
+    size_t byteLength { 0 };
+    int32_t width { 0 };
+    int32_t height { 0 };
+    std::string errorMessage;
+};
+
+static void ExecuteRenderFrameWork(napi_env env, void* data)
+{
+    auto* context = static_cast<RenderFrameWorkContext*>(data);
+    if (context == nullptr) {
+        return;
+    }
+
+    Renderer* renderer = RendererManager::GetInstance().GetRenderer(context->handle);
+    if (renderer == nullptr) {
+        context->errorMessage = "Invalid renderer handle";
+        return;
+    }
+
+    bool renderSuccess = renderer->RenderFrame(
+        context->data,
+        context->byteLength,
+        context->width,
+        context->height);
+
+    if (!renderSuccess) {
+        context->errorMessage = "RenderFrame failed";
+        return;
+    }
+}
+
+static void CompleteRenderFrameWork(napi_env env, napi_status status, void* data)
+{
+    auto* context = static_cast<RenderFrameWorkContext*>(data);
+    if (context == nullptr) {
+        return;
+    }
+
+    napi_value result = nullptr;
+    if ((status == napi_ok) && context->errorMessage.empty()) {
+        napi_get_undefined(env, &result);
+        napi_resolve_deferred(env, context->deferred, result);
+    } else {
+        std::string errorMessage = context->errorMessage.empty() ? "RenderFrame failed" : context->errorMessage;
+        napi_value message = nullptr;
+        napi_value error = nullptr;
+        napi_create_string_utf8(env, errorMessage.c_str(), NAPI_AUTO_LENGTH, &message);
+        napi_create_error(env, nullptr, message, &error);
+        napi_reject_deferred(env, context->deferred, error);
+    }
+
+    if (context->bufferRef != nullptr) {
+        napi_delete_reference(env, context->bufferRef);
+        context->bufferRef = nullptr;
+    }
+
+    if (context->work != nullptr) {
+        napi_delete_async_work(env, context->work);
+        context->work = nullptr;
+    }
+
+    delete context;
+}
 
 /**
  * create(surfaceId: string, width: number, height: number, format: number): Promise<number>
@@ -236,42 +309,55 @@ napi_value RenderFrame(napi_env env, napi_callback_info info) {
         "RenderFrame: handle=%{public}d, width=%{public}f, height=%{public}f, bufferSize=%{public}zu",
         handle, width, height, byteLength);
 
-    // 获取renderer实例
-    Renderer* renderer = RendererManager::GetInstance().GetRenderer(handle);
-    if (renderer == nullptr) {
-        napi_throw_error(env, NULL, "Invalid renderer handle");
+    auto* context = new RenderFrameWorkContext();
+    context->env = env;
+    context->handle = handle;
+    context->data = data;
+    context->byteLength = byteLength;
+    context->width = static_cast<int32_t>(width);
+    context->height = static_cast<int32_t>(height);
+
+    if (napi_create_reference(env, args[1], 1, &context->bufferRef) != napi_ok) {
+        delete context;
+        napi_throw_error(env, NULL, "Failed to retain ArrayBuffer reference");
         return nullptr;
     }
 
-    // 调用核心渲染方法（零拷贝：直接使用data指针）
-    bool success = renderer->RenderFrame(data, byteLength, 
-        static_cast<int32_t>(width), 
-        static_cast<int32_t>(height));
-
-    if (!success) {
-        napi_throw_error(env, NULL, "RenderFrame failed");
+    napi_value resourceName;
+    if (napi_create_string_utf8(env, "ArkZeroRendererRenderFrame", NAPI_AUTO_LENGTH, &resourceName) != napi_ok) {
+        napi_delete_reference(env, context->bufferRef);
+        delete context;
+        napi_throw_error(env, NULL, "Failed to create async resource name");
         return nullptr;
     }
 
-    // 创建Promise并resolve
-    napi_value promise;
-    napi_deferred deferred;
-    if (napi_create_promise(env, &deferred, &promise) != napi_ok) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "RenderFrame: napi_create_promise failed");
+    napi_value promise = nullptr;
+    if (napi_create_promise(env, &context->deferred, &promise) != napi_ok) {
+        napi_delete_reference(env, context->bufferRef);
+        delete context;
+        napi_throw_error(env, NULL, "Failed to create promise");
         return nullptr;
     }
 
-    napi_value resolveValue;
-    if (napi_get_undefined(env, &resolveValue) != napi_ok) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "RenderFrame: napi_get_undefined failed");
+    if (napi_create_async_work(
+        env,
+        nullptr,
+        resourceName,
+        ExecuteRenderFrameWork,
+        CompleteRenderFrameWork,
+        context,
+        &context->work) != napi_ok) {
+        napi_delete_reference(env, context->bufferRef);
+        delete context;
+        napi_throw_error(env, NULL, "Failed to create async work");
         return nullptr;
     }
 
-    if (napi_resolve_deferred(env, deferred, resolveValue) != napi_ok) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "RenderFrame: napi_resolve_deferred failed");
+    if (napi_queue_async_work(env, context->work) != napi_ok) {
+        napi_delete_async_work(env, context->work);
+        napi_delete_reference(env, context->bufferRef);
+        delete context;
+        napi_throw_error(env, NULL, "Failed to queue async work");
         return nullptr;
     }
 
@@ -380,56 +466,6 @@ napi_value ResizeRenderer(napi_env env, napi_callback_info info) {
     }
 
     return promise;
-}
-
-/**
- * getPerformanceStats(handle: number): string
- */
-napi_value GetPerformanceStats(napi_env env, napi_callback_info info) {
-    if ((env == nullptr) || (info == nullptr)) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "GetPerformanceStats: env or info is null");
-        return nullptr;
-    }
-
-    size_t argCnt = 1;
-    napi_value args[1] = { nullptr };
-    if (napi_get_cb_info(env, info, &argCnt, args, nullptr, nullptr) != napi_ok) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "GetPerformanceStats: napi_get_cb_info failed");
-        return nullptr;
-    }
-
-    // 获取handle参数
-    int64_t handle = 0;
-    if (napi_get_value_int64(env, args[0], &handle) != napi_ok) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "GetPerformanceStats: napi_get_value_int64 failed");
-        return nullptr;
-    }
-
-    // 从管理器获取renderer
-    auto& rendererManager = RendererManager::GetInstance();
-    auto renderer = rendererManager.GetRenderer(static_cast<int32_t>(handle));
-    if (!renderer) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "GetPerformanceStats: invalid handle=%ld", static_cast<long>(handle));
-        napi_throw_error(env, NULL, "Invalid renderer handle");
-        return nullptr;
-    }
-
-    // 获取性能统计字符串
-    std::string stats = renderer->GetPerformanceStats();
-
-    // 创建NAPI字符串
-    napi_value result;
-    if (napi_create_string_utf8(env, stats.c_str(), stats.length(), &result) != napi_ok) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "RendererApi", "GetPerformanceStats: napi_create_string_utf8 failed");
-        return nullptr;
-    }
-
-    return result;
 }
 
 /**

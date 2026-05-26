@@ -19,6 +19,7 @@
 #include "IRenderBackend.h"
 #include "EGLContextManager.h"
 #include "TextureManager.h"
+#include "TextureShader.h"
 #include "PixelFormatConverter.h"
 #include "YUVShaderManager.h"
 #include "TexturePool.h"
@@ -83,9 +84,10 @@ private:
      */
     bool IsYUVFormat(PixelFormat format) const;
 
-    // ⭐ 组合五个单一职责的组件
+    // ⭐ 组合六个单一职责的组件
     EGLContextManager m_eglManager;      // EGL 上下文管理
     TextureManager m_textureManager;     // 纹理管理（RGBA/RGB）
+    TextureShader m_textureShader;       // ⭐ 全屏四边形渲染（RGBA/RGB）
     YUVShaderManager m_yuvShader;        // YUV Shader 渲染（NV21/NV12）
     
     // ⭐ 设计模式：策略模式 - 纹理管理策略

@@ -52,17 +52,17 @@ export struct TestResultPanel {
   @Prop totalTests: number = 0;
   @Prop completedTests: number = 0;
 
-  private get passCount(): number {
+  private getPassCount(): number {
     return this.testResults.filter(r => r.status === TestStatus.PASSED).length;
   }
 
-  private get failCount(): number {
+  private getFailCount(): number {
     return this.testResults.filter(r => r.status === TestStatus.FAILED).length;
   }
 
-  private get passRate(): string {
+  private getPassRate(): string {
     if (this.completedTests === 0) return '0%';
-    return `${Math.floor((this.passCount / this.completedTests) * 100)}%`;
+    return `${Math.floor((this.getPassCount() / this.completedTests) * 100)}%`;
   }
 
   private getStatusColor(status: TestStatus): string {
@@ -102,7 +102,7 @@ export struct TestResultPanel {
         
         Blank()
         
-        Text(`${this.passRate} (${this.passCount}/${this.completedTests})`)
+        Text(`${this.getPassRate()} (${this.getPassCount()}/${this.completedTests})`)
           .fontSize(14)
           .fontColor(Color.White)
       }
@@ -167,12 +167,12 @@ export struct TestResultPanel {
           .fontColor('#AAAAAA')
           .margin({ right: 15 })
         
-        Text(`通过: ${this.passCount}`)
+        Text(`通过: ${this.getPassCount()}`)
           .fontSize(12)
           .fontColor('#4CAF50')
           .margin({ right: 15 })
         
-        Text(`失败: ${this.failCount}`)
+        Text(`失败: ${this.getFailCount()}`)
           .fontSize(12)
           .fontColor('#F44336')
       }

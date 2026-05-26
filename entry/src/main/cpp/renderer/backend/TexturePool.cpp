@@ -44,8 +44,8 @@ TextureManager* TexturePool::Acquire(int32_t width, int32_t height,
         m_stats.hitCount++;
         
         OH_LOG_Print(LOG_APP, LOG_DEBUG, LOG_PRINT_DOMAIN, 
-            "TexturePool", "✅ Hit: Reusing texture %dx%d (hitRate=%.1f%%)", 
-            width, height, m_stats.GetHitRate() * 100);
+        "TexturePool", "✅ Hit: Reusing texture %{public}dx%{public}d (hitRate=%{public}.1f%%)", 
+        width, height, m_stats.GetHitRate() * 100);
         
         return texture;
     }
@@ -54,7 +54,7 @@ TextureManager* TexturePool::Acquire(int32_t width, int32_t height,
     m_stats.missCount++;
     
     OH_LOG_Print(LOG_APP, LOG_DEBUG, LOG_PRINT_DOMAIN, 
-        "TexturePool", "❌ Miss: Creating new texture %dx%d (hitRate=%.1f%%)", 
+        "TexturePool", "❌ Miss: Creating new texture %{public}dx%{public}d (hitRate=%{public}.1f%%)", 
         width, height, m_stats.GetHitRate() * 100);
     
     return CreateAndAdd(width, height, internalFormat, format);

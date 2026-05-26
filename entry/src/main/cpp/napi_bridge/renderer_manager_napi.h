@@ -21,15 +21,15 @@
 namespace NativeXComponentSample {
 
 /**
- * 创建离屏渲染器（通过 Manager）
+ * 创建支持真实 Surface 的渲染器
  * 
- * ArkTS调用: managerCreateOffscreenRenderer(width: number, height: number, format: number, enableAsync?: boolean): number
+ * ArkTS调用: managerCreateSurfaceRenderer(surfaceId: string, width: number, height: number, format: number): number
  * 
  * @param env NAPI环境
  * @param info NAPI回调信息
  * @return number - 渲染器句柄
  */
-napi_value ManagerCreateOffscreenRenderer(napi_env env, napi_callback_info info);
+napi_value ManagerCreateSurfaceRenderer(napi_env env, napi_callback_info info);
 
 /**
  * 销毁渲染器（通过 Manager）
@@ -41,28 +41,6 @@ napi_value ManagerCreateOffscreenRenderer(napi_env env, napi_callback_info info)
  * @return boolean - 是否成功
  */
 napi_value ManagerDestroyRenderer(napi_env env, napi_callback_info info);
-
-/**
- * 获取渲染器数量
- * 
- * ArkTS调用: managerGetRendererCount(): number
- * 
- * @param env NAPI环境
- * @param info NAPI回调信息
- * @return number - 当前管理的渲染器数量
- */
-napi_value ManagerGetRendererCount(napi_env env, napi_callback_info info);
-
-/**
- * 创建支持真实 Surface 的渲染器（用于集成测试）
- * 
- * ArkTS调用: managerCreateSurfaceRenderer(surfaceId: string, width: number, height: number, format: number, enableAsync?: boolean): number
- * 
- * @param env NAPI环境
- * @param info NAPI回调信息
- * @return number - 渲染器句柄
- */
-napi_value ManagerCreateSurfaceRenderer(napi_env env, napi_callback_info info);
 
 } // namespace NativeXComponentSample
 

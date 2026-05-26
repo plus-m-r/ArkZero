@@ -4,7 +4,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,15 +17,6 @@
 
 #include "common/common.h"
 #include "renderer/api/RendererApi.h"
-#include "napi_bridge/performance_monitor_napi.h"
-#include "napi_bridge/pixel_format_converter_napi.h"
-#include "napi_bridge/render_queue_napi.h"
-#include "napi_bridge/texture_manager_napi.h"
-#include "napi_bridge/egl_context_manager_napi.h"
-#include "napi_bridge/yuv_shader_manager_napi.h"
-#include "napi_bridge/gles_backend_napi.h"
-#include "napi_bridge/texture_pool_napi.h"
-#include "napi_bridge/renderer_napi.h"
 #include "napi_bridge/renderer_manager_napi.h"
 #include "napi_bridge/surface_manager_napi.h"
 
@@ -38,84 +29,21 @@ static napi_value Init(napi_env env, napi_value exports) {
         return nullptr;
     }
 
+    // 只保留核心接口
     napi_property_descriptor desc[] = { 
+        // 核心渲染接口
         { "create", nullptr, CreateRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "renderFrame", nullptr, RenderFrame, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "resize", nullptr, ResizeRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "getPerformanceStats", nullptr, GetPerformanceStats, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "destroy", nullptr, DestroyRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
-        // PerformanceMonitor 测试接口
-        { "createPerformanceMonitor", nullptr, CreatePerformanceMonitor, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "destroyPerformanceMonitor", nullptr, DestroyPerformanceMonitor, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "monitorBeginFrame", nullptr, MonitorBeginFrame, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "monitorEndFrame", nullptr, MonitorEndFrame, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "monitorReset", nullptr, MonitorReset, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "getMonitorStats", nullptr, GetMonitorStats, nullptr, nullptr, nullptr, napi_default, nullptr },
-        // PixelFormatConverter 测试接口
-        { "getGLInternalFormat", nullptr, GetGLInternalFormat, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "getGLFormat", nullptr, GetGLFormat, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "getBytesPerPixel", nullptr, GetBytesPerPixel, nullptr, nullptr, nullptr, napi_default, nullptr },
-        // RenderQueue 测试接口
-        { "createRenderQueue", nullptr, CreateRenderQueue, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "destroyRenderQueue", nullptr, DestroyRenderQueue, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "queueSubmit", nullptr, QueueSubmit, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "queueDequeue", nullptr, QueueDequeue, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "queueStop", nullptr, QueueStop, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "getQueueInfo", nullptr, GetQueueInfo, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "queuePeek", nullptr, QueuePeek, nullptr, nullptr, nullptr, napi_default, nullptr },
-        // TextureManager 测试接口
-        { "createTextureManager", nullptr, CreateTextureManager, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "destroyTextureManager", nullptr, DestroyTextureManager, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "textureCreate", nullptr, TextureCreate, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "textureUpdate", nullptr, TextureUpdate, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "textureDestroy", nullptr, TextureDestroy, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "getTextureId", nullptr, GetTextureId, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "isTextureCreated", nullptr, IsTextureCreated, nullptr, nullptr, nullptr, napi_default, nullptr },
-        // EGLContextManager 测试接口
-        { "createEGLContext", nullptr, CreateEGLContext, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "destroyEGLContext", nullptr, DestroyEGLContext, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "eglMakeCurrent", nullptr, EGLMakeCurrent, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "isEGLInitialized", nullptr, IsEGLInitialized, nullptr, nullptr, nullptr, napi_default, nullptr },
-        // YUVShaderManager 测试接口
-        { "createYUVShaderManager", nullptr, CreateYUVShaderManager, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "destroyYUVShaderManager", nullptr, DestroyYUVShaderManager, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "yuvShaderInitialize", nullptr, YUVShaderInitialize, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "yuvShaderRenderNV21", nullptr, YUVShaderRenderNV21, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "yuvShaderRenderNV12", nullptr, YUVShaderRenderNV12, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "isYUVShaderInitialized", nullptr, IsYUVShaderInitialized, nullptr, nullptr, nullptr, napi_default, nullptr },
-        // GLESBackend 测试接口
-        { "createGLESBackend", nullptr, CreateGLESBackend, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "destroyGLESBackend", nullptr, DestroyGLESBackend, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "glesBackendInitialize", nullptr, GLESBackendInitialize, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "glesBackendRenderFrame", nullptr, GLESBackendRenderFrame, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "isGLESBackendInitialized", nullptr, IsGLESBackendInitialized, nullptr, nullptr, nullptr, napi_default, nullptr },
-        // TexturePool 测试接口
-        { "createTexturePool", nullptr, CreateTexturePool, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "destroyTexturePool", nullptr, DestroyTexturePool, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "texturePoolAcquire", nullptr, TexturePoolAcquire, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "texturePoolRelease", nullptr, TexturePoolRelease, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "texturePoolPreallocate", nullptr, TexturePoolPreallocate, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "texturePoolClear", nullptr, TexturePoolClear, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "texturePoolSize", nullptr, TexturePoolSize, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "texturePoolGetStats", nullptr, TexturePoolGetStats, nullptr, nullptr, nullptr, napi_default, nullptr },
-        // Renderer 测试接口
-        { "createTestRenderer", nullptr, CreateTestRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "destroyTestRenderer", nullptr, DestroyTestRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "rendererInitialize", nullptr, RendererInitialize, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "rendererRenderFrame", nullptr, RendererRenderFrame, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "rendererResize", nullptr, RendererResize, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "isRendererInitialized", nullptr, IsRendererInitialized, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "getRendererBackendName", nullptr, GetRendererBackendName, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "getRendererPerformanceStats", nullptr, GetRendererPerformanceStats, nullptr, nullptr, nullptr, napi_default, nullptr },
-        // RendererManager 测试接口
-        { "managerCreateOffscreenRenderer", nullptr, ManagerCreateOffscreenRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "managerDestroyRenderer", nullptr, ManagerDestroyRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
-        { "managerGetRendererCount", nullptr, ManagerGetRendererCount, nullptr, nullptr, nullptr, napi_default, nullptr },
+        // RendererManager 接口
         { "managerCreateSurfaceRenderer", nullptr, ManagerCreateSurfaceRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
-        // SurfaceManager 测试接口
+        { "managerDestroyRenderer", nullptr, ManagerDestroyRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
+        // SurfaceManager 接口
         { "surfaceManagerCreateNativeWindow", nullptr, SurfaceManagerCreateNativeWindow, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "surfaceManagerDestroyNativeWindow", nullptr, SurfaceManagerDestroyNativeWindow, nullptr, nullptr, nullptr, napi_default, nullptr }
     };
+    
     if (napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc) != napi_ok) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "Init", "napi_define_properties failed");
         return nullptr;

@@ -17,24 +17,22 @@
 #define RENDERER_H
 
 #include <cstdint>
+#include <cstddef>
 #include <memory>
-#include <thread>
+#include <mutex>
+
 #include "../backend/IRenderBackend.h"
-#include "RenderQueue.h"
-#include "PerformanceMonitor.h"
 
 namespace NativeXComponentSample {
 
 /**
- * Renderer - 外观类（Facade）
+ * 渲染器（异步架构 + 零拷贝 + 最小功能集）
  * 
- * 🎯 职责：
- * - 提供统一的渲染接口
- * - 委托给具体的后端实现
- * - 管理异步渲染线程
- * 
- * 📊 架构：
- * ArkTS → NAPI → Renderer → RenderQueue → Background Thread → IRenderBackend
+ * 🎯 设计目标：
+ * - API 简洁，只保留核心功能
+ * - 内部 100% 异步，主线程不阻塞
+ * - 零拷贝设计（直接使用用户 ArrayBuffer）
+ * - 线程安全
  */
 class Renderer {
 public:
@@ -43,35 +41,24 @@ public:
      * @param width 初始宽度
      * @param height 初始高度
      * @param format 像素格式
-     * @param enableAsync 是否启用异步渲染（默认 true）
      */
-    Renderer(int32_t width, int32_t height, PixelFormat format, bool enableAsync = true);
+    Renderer(int32_t width, int32_t height, PixelFormat format);
     
-    /**
-     * 析构函数
-     */
     ~Renderer();
 
     /**
-     * 初始化渲染器
-     * @param nativeWindow NativeWindow 指针（来自 XComponent Surface）
+     * 初始化渲染器（关联 NativeWindow）
+     * @param nativeWindow 原生窗口指针
      * @return true 成功，false 失败
      */
     bool Initialize(void* nativeWindow);
 
     /**
-     * 初始化渲染器（离屏模式，用于测试）
-     * @param width 宽度
-     * @param height 高度
-     * @return true 成功，false 失败
-     */
-    bool InitializeOffscreen(int32_t width, int32_t height);
-
-    /**
-     * 渲染帧（异步模式）
+     * 渲染一帧（异步！主线程不阻塞！）
      * 
-     * ⭐ ArkTS 主线程调用，立即返回（<0.5ms）
-     * ⭐ 数据被提交到队列，由后台线程执行实际渲染
+     * ⭐ 零拷贝设计！直接使用用户传入的指针
+     * ⭐ 用户保证指针在返回前不修改/不释放
+     * ⭐ 调用方通过 NAPI 异步工作线程等待真实完成
      * 
      * @param pixelData 像素数据指针
      * @param dataSize 数据大小
@@ -79,11 +66,10 @@ public:
      * @param height 高度
      * @return true 成功提交，false 失败
      */
-    bool RenderFrame(const void* pixelData, size_t dataSize, 
-                    int32_t width, int32_t height);
+    bool RenderFrame(const void* pixelData, size_t dataSize, int32_t width, int32_t height);
 
     /**
-     * 调整尺寸
+     * 调整大小
      * @param width 新宽度
      * @param height 新高度
      * @return true 成功，false 失败
@@ -97,42 +83,27 @@ public:
 
     /**
      * 检查是否已初始化
-     * @return true 已初始化
      */
     bool IsInitialized() const;
 
-    /**
-     * 获取当前后端名称
-     * @return 后端名称字符串
-     */
-    const char* GetBackendName() const;
-
-    /**
-     * 获取性能统计
-     * @return 性能数据字符串
-     */
-    std::string GetPerformanceStats() const;
-
 private:
-    // 禁止拷贝
     Renderer(const Renderer&) = delete;
     Renderer& operator=(const Renderer&) = delete;
 
-    /**
-     * 后台渲染线程循环
-     */
-    void renderLoop();
-
-private:
-    std::unique_ptr<IRenderBackend> m_backend; // ⭐ 多态后端
-    std::unique_ptr<RenderQueue> m_renderQueue; // ⭐ 异步渲染队列
-    std::thread m_renderThread;                 // ⭐ 后台渲染线程
-    PerformanceMonitor m_perfMonitor;           // ⭐ 性能监控器
+    // ========================================
+    // 成员变量
+    // ========================================
     
+    // 渲染后端
+    std::unique_ptr<IRenderBackend> m_backend;
+    
+    // 渲染互斥锁（保证单槽 ownership transfer）
+    std::mutex m_renderMutex;
+    
+    // 渲染尺寸
     int32_t m_width;
     int32_t m_height;
     PixelFormat m_format;
-    bool m_enableAsync;  // ⭐ 是否启用异步渲染
 };
 
 } // namespace NativeXComponentSample

@@ -87,6 +87,16 @@ public:
     EGLSurface GetSurface() const { return m_eglSurface; }
 
     /**
+     * 获取当前 EGL Surface 宽度
+     */
+    int32_t GetSurfaceWidth() const { return m_surfaceWidth; }
+
+    /**
+     * 获取当前 EGL Surface 高度
+     */
+    int32_t GetSurfaceHeight() const { return m_surfaceHeight; }
+
+    /**
      * 检查是否已初始化
      */
     bool IsInitialized() const { return m_eglDisplay != EGL_NO_DISPLAY; }
@@ -108,6 +118,10 @@ private:
     EGLContext m_eglContext;
     EGLSurface m_eglSurface;
     bool m_surfaceInvalidated = false;  // ⭐ 标记 Surface 是否失效
+    int32_t m_surfaceWidth = 0;
+    int32_t m_surfaceHeight = 0;
+
+    bool UpdateSurfaceSize();
 };
 
 } // namespace NativeXComponentSample

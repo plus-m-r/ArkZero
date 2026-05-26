@@ -111,6 +111,11 @@ bool EGLContextManager::Initialize(void* nativeWindow, int32_t width, int32_t he
         return false;
     }
 
+    if (!UpdateSurfaceSize()) {
+        OH_LOG_Print(LOG_APP, LOG_WARN, LOG_PRINT_DOMAIN,
+            "EGLContextManager", "Failed to query surface size after initialize");
+    }
+
     // 7. 启用 VSync（关键！消除画面撕裂）
     if (enableVSync) {
         eglSwapInterval(m_eglDisplay, 1);
@@ -207,6 +212,11 @@ bool EGLContextManager::InitializeOffscreen(int32_t width, int32_t height) {
         return false;
     }
 
+    if (!UpdateSurfaceSize()) {
+        OH_LOG_Print(LOG_APP, LOG_WARN, LOG_PRINT_DOMAIN,
+            "EGLContextManager", "Failed to query surface size after recovery");
+    }
+
     // 7. 禁用 VSync（离屏不需要）
     eglSwapInterval(m_eglDisplay, 0);
 
@@ -224,8 +234,7 @@ void EGLContextManager::Destroy() {
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "EGLContextManager", "Destroying EGL context...");
 
-    eglMakeCurrent(m_eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-
+    // ⭐ 安全地销毁资源，不依赖 eglMakeCurrent（可能已失效）
     if (m_eglContext != EGL_NO_CONTEXT) {
         eglDestroyContext(m_eglDisplay, m_eglContext);
         m_eglContext = EGL_NO_CONTEXT;
@@ -351,6 +360,30 @@ bool EGLContextManager::RecoverSurface(void* nativeWindow) {
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "EGLContextManager", "✅ Surface recovered successfully");
     
+    return true;
+}
+
+bool EGLContextManager::UpdateSurfaceSize() {
+    if (m_eglDisplay == EGL_NO_DISPLAY || m_eglSurface == EGL_NO_SURFACE) {
+        return false;
+    }
+
+    EGLint surfaceWidth = 0;
+    EGLint surfaceHeight = 0;
+    if (!eglQuerySurface(m_eglDisplay, m_eglSurface, EGL_WIDTH, &surfaceWidth)) {
+        return false;
+    }
+
+    if (!eglQuerySurface(m_eglDisplay, m_eglSurface, EGL_HEIGHT, &surfaceHeight)) {
+        return false;
+    }
+
+    m_surfaceWidth = static_cast<int32_t>(surfaceWidth);
+    m_surfaceHeight = static_cast<int32_t>(surfaceHeight);
+
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN,
+        "EGLContextManager", "Surface size: %{public}dx%{public}d", m_surfaceWidth, m_surfaceHeight);
+
     return true;
 }
 

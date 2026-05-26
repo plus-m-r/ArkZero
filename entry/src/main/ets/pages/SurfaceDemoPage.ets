@@ -15,6 +15,7 @@
 
 import { ArkZeroRenderer, PixelFormat } from '../components/rendering/ArkZeroRenderer';
 import hilog from '@ohos.hilog';
+import type { DisposeAsyncOptions } from '../components/rendering/ArkZeroRenderer';
 
 const DOMAIN = 0x0001;
 const TAG = 'SurfaceDemoPage';
@@ -37,14 +38,20 @@ struct SurfaceDemoPage {
   
   private renderer?: ArkZeroRenderer;
   private pixelBuffer?: ArrayBuffer;
-  private animationTimer?: number;
+  private pixelView?: Uint32Array;
+  private running: boolean = false;
+  private renderLoopPromise?: Promise<void>;
+  private readonly disposeOptions: DisposeAsyncOptions = { wait: true, timeoutMs: 2000 };
   private xComponentController: XComponentController = new XComponentController();
-
+  
+  // 恢复为原始分辨率，验证是否可见
+  private readonly renderWidth = 640;
+  private readonly renderHeight = 480;
   aboutToAppear() {
     // 初始化渲染器
     this.renderer = new ArkZeroRenderer({
-      width: 1920,
-      height: 1080,
+      width: this.renderWidth,
+      height: this.renderHeight,
       format: PixelFormat.RGBA
     });
     
@@ -56,40 +63,62 @@ struct SurfaceDemoPage {
   }
 
   aboutToDisappear() {
-    // 停止动画
-    if (this.animationTimer) {
-      clearInterval(this.animationTimer);
-    }
-    
-    // 清理资源
-    if (this.renderer) {
-      this.renderer.dispose();
-    }
+    // 停止渲染循环，并在飞行渲染完成后安全释放资源
+    this.running = false;
+
+    // 等待循环结束后再销毁 renderer，避免 native 仍在使用 buffer 时释放
+    (async () => {
+      try {
+        if (this.renderLoopPromise) {
+          await this.renderLoopPromise;
+        }
+      } catch (e) {
+        // 忽略渲染错误，仍要尝试释放资源
+      } finally {
+        if (this.renderer) {
+          await this.renderer.disposeAsync(this.disposeOptions);
+        }
+      }
+    })();
   }
 
   /**
-   * 生成测试图案（渐变色彩）
+   * 生成测试图案（简化版本，提高性能）
    */
-  private generateTestPattern(buffer: ArrayBuffer, width: number, height: number, time: number): void {
-    const data = new Uint8Array(buffer);
-    const timeFactor = time % 360; // 0-360度
-    
+  private generateTestPattern(bufferView: Uint32Array, width: number, height: number, time: number): void {
+    // 先整帧填充为深灰底色，成本低且能稳定看见输出
+    bufferView.fill(0xFF202020);
+
+    const barWidth = 48;
+    const barHeight = 48;
+    const movingX = Math.floor((time / 4) % Math.max(1, width - barWidth));
+    const movingY = Math.floor((time / 6) % Math.max(1, height - barHeight));
+
+    // 横向移动的红色条
     for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const index = (y * width + x) * 4;
-        
-        // 创建动态渐变效果
-        const r = Math.floor((Math.sin(x / 100 + timeFactor / 180 * Math.PI) + 1) * 127.5);
-        const g = Math.floor((Math.sin(y / 100 + timeFactor / 180 * Math.PI) + 1) * 127.5);
-        const b = Math.floor((Math.sin((x + y) / 200 + timeFactor / 180 * Math.PI) + 1) * 127.5);
-        const a = 255;
-        
-        data[index] = r;
-        data[index + 1] = g;
-        data[index + 2] = b;
-        data[index + 3] = a;
+      const rowOffset = y * width;
+      for (let x = movingX; x < movingX + barWidth; x++) {
+        if (x >= 0 && x < width) {
+          bufferView[rowOffset + x] = 0xFFFF4040;
+        }
       }
     }
+
+    // 纵向移动的蓝色条
+    for (let y = movingY; y < movingY + barHeight; y++) {
+      if (y >= 0 && y < height) {
+        const rowOffset = y * width;
+        for (let x = 0; x < width; x += 2) {
+          bufferView[rowOffset + x] = 0xFF4080FF;
+        }
+      }
+    }
+  }
+
+  private async sleep(ms: number): Promise<void> {
+    return new Promise<void>((resolve) => {
+      setTimeout(resolve, ms);
+    });
   }
 
   /**
@@ -100,35 +129,43 @@ struct SurfaceDemoPage {
       hilog.error(DOMAIN, TAG, '❌ Renderer not initialized');
       return;
     }
-    
-    // 分配像素缓冲区
-    const bufferSize = 1920 * 1080 * 4; // RGBA
-    this.pixelBuffer = new ArrayBuffer(bufferSize);
-    
+
+    // 分配一次像素缓冲区并在整个页面生命周期中复用，避免每帧分配造成 GC 压力
+    const bufferSize = this.renderWidth * this.renderHeight * 4; // RGBA
+    if (!this.pixelBuffer || this.pixelBuffer.byteLength !== bufferSize) {
+      this.pixelBuffer = new ArrayBuffer(bufferSize);
+    }
+    this.pixelView = new Uint32Array(this.pixelBuffer);
+
     let frameTime = 0;
-    
-    // 启动渲染循环（60fps）
-    this.animationTimer = setInterval(async () => {
-      try {
-        // 生成测试图案
-        this.generateTestPattern(this.pixelBuffer!, 1920, 1080, frameTime);
-        
-        // 渲染帧（零拷贝）
-        await this.renderer!.renderFrame(
-          this.pixelBuffer!,
-          1920,
-          1080
-        );
-        
-        frameTime += 16; // 约60fps
-        
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        hilog.error(DOMAIN, TAG, '❌ Render failed: %{public}s', errorMsg);
+    this.running = true;
+
+    // 单 buffer 复用：更新内容后立即通知渲染器刷新，渲染提交仍保持序列化，避免 buffer 被 native 侧并发读取
+    this.renderLoopPromise = (async () => {
+      while (this.running) {
+        try {
+          // 生成测试图案
+          this.generateTestPattern(this.pixelView!, this.renderWidth, this.renderHeight, frameTime);
+
+          // 通知渲染器刷新当前 buffer，使用端不再重新分配 buffer
+          await this.renderer!.renderFrame(
+            this.pixelBuffer!,
+            this.renderWidth,
+            this.renderHeight
+          );
+
+          frameTime += 8; // 降低时间增量
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          hilog.error(DOMAIN, TAG, '❌ Render failed: %{public}s', errorMsg);
+        }
+
+        // 实验期间放慢一点，便于观察稳定性
+        await this.sleep(100);
       }
-    }, 16); // 16ms ≈ 60fps
-    
-    hilog.info(DOMAIN, TAG, '✅ Rendering started at 60fps');
+    })();
+
+    hilog.info(DOMAIN, TAG, '✅ Rendering started with single reusable ArrayBuffer, resolution: %{public}dx%{public}d', this.renderWidth, this.renderHeight);
   }
 
   build() {
@@ -163,7 +200,7 @@ struct SurfaceDemoPage {
         })
         .width('100%')
         .height('100%');
-      
+
       // 状态显示
       Row() {
         Text(`Status: ${this.isInitialized ? '✅ Running' : '⏳ Initializing'}`)

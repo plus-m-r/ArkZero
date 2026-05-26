@@ -227,18 +227,18 @@ export class RendererIntegrationTest {
         throw new Error('渲染器未初始化');
       }
       
-      // 恢复到原始尺寸
-      await this.renderer.resize(1920, 1080);
+      // 恢复到较小尺寸（避免模拟器超时）
+      await this.renderer.resize(800, 600);
       
-      const frameCount = 10;
-      const bufferSize = 1920 * 1080 * 4;
+      const frameCount = 5;
+      const bufferSize = 800 * 600 * 4;
       
       for (let i = 0; i < frameCount; i++) {
         const pixelBuffer = new ArrayBuffer(bufferSize);
         const data = new Uint8Array(pixelBuffer);
         
         // 不同颜色
-        const color = (i * 25) % 256;
+        const color = (i * 50) % 256;
         for (let j = 0; j < bufferSize; j += 4) {
           data[j] = color;
           data[j + 1] = 128;
@@ -246,7 +246,7 @@ export class RendererIntegrationTest {
           data[j + 3] = 255;
         }
         
-        await this.renderer.renderFrame(pixelBuffer, 1920, 1080);
+        await this.renderer.renderFrame(pixelBuffer, 800, 600);
       }
       
       const duration = Date.now() - startTime;

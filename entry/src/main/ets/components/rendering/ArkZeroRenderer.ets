@@ -44,6 +44,11 @@ export interface ArkZeroRendererConfig {
   surfaceId?: string;
 }
 
+export interface DisposeAsyncOptions {
+  wait?: boolean;
+  timeoutMs?: number;
+}
+
 /**
  * Ark零拷贝渲染器
  * 
@@ -66,6 +71,12 @@ export class ArkZeroRenderer {
   private nativeHandle: number = 0;
   private config: ArkZeroRendererConfig;
   private isInitialized: boolean = false;
+  // 正在进行中的渲染计数（用于安全销毁）
+  private pendingRenders: number = 0;
+  // 当等待空闲的 promise resolve 时存放 resolve 函数
+  private idleWaiters: Array<(v?: void)=>void> = [];
+  // 标记是否已请求销毁但等待飞行渲染完成
+  private destroyScheduled: boolean = false;
   
   // 渲染完成回调
   private onFrameRenderedCallback?: () => void;
@@ -235,6 +246,13 @@ export class ArkZeroRenderer {
       throw new Error('ArkZeroRenderer not initialized');
     }
 
+    if (this.destroyScheduled) {
+      throw new Error('ArkZeroRenderer is disposing');
+    }
+
+    // 增加 pending 计数，确保在 native 使用期间不会被销毁
+    this.pendingRenders++;
+
     try {
       // 调用Native层渲染
       await nativerender.renderFrame(
@@ -255,6 +273,26 @@ export class ArkZeroRenderer {
       const errorMsg = error instanceof Error ? error.message : String(error);
       hilog.error(DOMAIN, TAG, '❌ renderFrame failed: %{public}s', errorMsg);
       throw new Error(errorMsg);
+    } finally {
+      // 渲染完成或失败后减少 pending 计数，并在变为 0 时通知等待者
+      this.pendingRenders = Math.max(0, this.pendingRenders - 1);
+      if (this.pendingRenders === 0) {
+        // 触发所有等待的 awaitIdle
+        const waiters = this.idleWaiters.slice();
+        this.idleWaiters.length = 0;
+        for (const resolve of waiters) {
+          try { resolve(); } catch (e) { /* ignore */ }
+        }
+        // 如果之前请求了销毁，则现在执行真正的销毁
+        if (this.destroyScheduled) {
+          try {
+            this.doDestroy();
+          } catch (e) {
+            const errMsg = e instanceof Error ? e.message : String(e);
+            hilog.error(DOMAIN, TAG, '❌ doDestroy failed: %{public}s', errMsg);
+          }
+        }
+      }
     }
   }
 
@@ -289,20 +327,105 @@ export class ArkZeroRenderer {
    * 清理资源
    */
   dispose(): void {
+    // 安全销毁：若有飞行渲染则延后销毁，避免 native 在使用中被释放导致崩溃
     if (!this.isInitialized) {
       return;
     }
 
+    if (this.pendingRenders === 0) {
+      try {
+        this.doDestroy();
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        hilog.error(DOMAIN, TAG, '❌ dispose failed: %{public}s', errorMsg);
+      }
+    } else {
+      // 标记需要在 pendingRenders 清零后执行销毁
+      this.destroyScheduled = true;
+      // 同时设置一个安全超时，避免无限等待（例如 native 卡死）
+      const timeoutMs = 2000;
+      setTimeout(() => {
+        if (this.destroyScheduled) {
+          try {
+            this.doDestroy();
+          } catch (e) {
+            const errMsg = e instanceof Error ? e.message : String(e);
+            hilog.error(DOMAIN, TAG, '❌ timed doDestroy failed: %{public}s', errMsg);
+          }
+        }
+      }, timeoutMs);
+    }
+  }
+
+  /**
+   * 异步等待所有飞行渲染完成
+   * @param timeoutMs 可选超时毫秒，若超时则 reject
+   */
+  awaitIdle(timeoutMs?: number): Promise<void> {
+    if (this.pendingRenders === 0) {
+      return Promise.resolve();
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      this.idleWaiters.push(resolve);
+      if (typeof timeoutMs === 'number' && timeoutMs > 0) {
+        const timer = setTimeout(() => {
+          // 超时后从等待队列移除并 reject
+          const idx = this.idleWaiters.indexOf(resolve);
+          if (idx >= 0) this.idleWaiters.splice(idx, 1);
+          reject(new Error('awaitIdle timeout'));
+        }, timeoutMs);
+        // 如果 resolve 触发，清除定时器
+        const wrapped = () => { clearTimeout(timer); };
+        // 将清理逻辑附加到 resolve 调用点（通过修改最后 push 的项不方便），所以在 resolve 执行后定时器会被清理在外部分支
+      }
+    });
+  }
+
+  /**
+   * 异步安全销毁：等待飞行渲染完成或超时后销毁
+   * @param options.wait 是否等待 pending 渲染完成（默认 true）
+   * @param options.timeoutMs 等待超时 ms（默认 2000ms）
+   */
+  async disposeAsync(options?: DisposeAsyncOptions): Promise<void> {
+    const wait = options?.wait !== false;
+    const timeoutMs = options?.timeoutMs ?? 2000;
+
+    if (!this.isInitialized) return;
+
+    if (wait) {
+      try {
+        await this.awaitIdle(timeoutMs);
+      } catch (e) {
+        // 超时或错误，仍尝试销毁
+        hilog.warn(DOMAIN, TAG, '⚠️ disposeAsync awaitIdle failed: %{public}s', String(e));
+      }
+    }
+
+    try {
+      this.doDestroy();
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      hilog.error(DOMAIN, TAG, '❌ disposeAsync doDestroy failed: %{public}s', errMsg);
+      throw new Error(errMsg);
+    }
+  }
+
+  // 真正执行 native 层销毁的内部方法
+  private doDestroy(): void {
     try {
       nativerender.destroy(this.nativeHandle);
+    } finally {
       this.nativeHandle = 0;
       this.isInitialized = false;
-      
+      this.destroyScheduled = false;
+      // 清理并通知所有等待者（防止悬挂）
+      const waiters = this.idleWaiters.slice();
+      this.idleWaiters.length = 0;
+      for (const resolve of waiters) {
+        try { resolve(); } catch (e) { /* ignore */ }
+      }
       hilog.info(DOMAIN, TAG, '♻️ ArkZeroRenderer disposed');
-
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      hilog.error(DOMAIN, TAG, '❌ dispose failed: %{public}s', errorMsg);
     }
   }
 }

@@ -105,7 +105,6 @@ src/
     - `PreallocateTextureCommand.h/.cpp` - 预分配命令
 - **文件**:
   - `Renderer.h/.cpp` - 渲染器核心
-  - `RenderQueue.h/.cpp` - 渲染队列
   - `PerformanceMonitor.h/.cpp` - 性能监控
 
 ##### manager/

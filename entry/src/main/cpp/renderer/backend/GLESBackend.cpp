@@ -99,6 +99,15 @@ bool GLESBackend::Initialize(void* nativeWindow, int32_t width, int32_t height, 
             return false;
         }
         
+        // ⭐ 初始化 TextureShader（全屏四边形绘制）
+        if (!m_textureShader.Initialize()) {
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+                "GLESBackend", "Failed to initialize TextureShader");
+            m_textureStrategy->Release(texture);
+            m_eglManager.Destroy();
+            return false;
+        }
+        
         OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
             "GLESBackend", "✅ Using texture strategy: %s", m_textureStrategy->GetName());
     }
@@ -139,48 +148,40 @@ bool GLESBackend::InitializeOffscreen(int32_t width, int32_t height, PixelFormat
             return false;
         }
     } else {
-        // RGBA/RGB 格式：使用传统纹理渲染
+        // RGBA/RGB 格式：使用策略模式管理纹理
+        GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(format);
+        GLenum glFormat = PixelFormatConverter::GetGLFormat(format);
         
-        // ⭐ 如果启用纹理池，创建并预分配
-        if (m_enableTexturePool) {
-            m_texturePool = std::make_unique<TexturePool>(10);  // 最多 10 个纹理
-            
-            // 预分配常用分辨率
-            std::vector<std::pair<int32_t, int32_t>> resolutions = {
-                {1920, 1080},   // 1080p
-                {3840, 2160},   // 4K
-                {1280, 720},    // 720p
-            };
-            
-            GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(format);
-            GLenum glFormat = PixelFormatConverter::GetGLFormat(format);
-            
-            m_texturePool->Preallocate(resolutions, internalFormat, glFormat);
-            
-            // 从池中获取当前尺寸的纹理
-            TextureManager* texture = m_texturePool->Acquire(width, height, internalFormat, glFormat);
-            if (!texture) {
-                OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-                    "GLESBackend", "Failed to acquire texture from pool");
-                m_eglManager.Destroy();
-                return false;
-            }
+        // ⭐ 预分配常用分辨率（仅池化策略支持）
+        if (std::string(m_textureStrategy->GetName()) == "PoolStrategy") {
+            m_textureStrategy->Preallocate(1920, 1080, internalFormat, glFormat);
+            m_textureStrategy->Preallocate(3840, 2160, internalFormat, glFormat);
+            m_textureStrategy->Preallocate(1280, 720, internalFormat, glFormat);
             
             OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-                "GLESBackend", "✅ Using texture pool (hitRate=%.1f%%)", 
-                m_texturePool->GetStats().GetHitRate() * 100);
-        } else {
-            // 不使用纹理池，直接创建
-            GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(format);
-            GLenum glFormat = PixelFormatConverter::GetGLFormat(format);
-            
-            if (!m_textureManager.Create(width, height, internalFormat, glFormat)) {
-                OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-                    "GLESBackend", "Failed to create texture");
-                m_eglManager.Destroy();
-                return false;
-            }
+                "GLESBackend", "✅ Preallocated textures for common resolutions");
         }
+        
+        // ⭐ 从策略中获取当前尺寸的纹理
+        TextureManager* texture = m_textureStrategy->Acquire(width, height, internalFormat, glFormat);
+        if (!texture) {
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+                "GLESBackend", "Failed to acquire texture from strategy");
+            m_eglManager.Destroy();
+            return false;
+        }
+        
+        // ⭐ 初始化 TextureShader（全屏四边形绘制）
+        if (!m_textureShader.Initialize()) {
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+                "GLESBackend", "Failed to initialize TextureShader");
+            m_textureStrategy->Release(texture);
+            m_eglManager.Destroy();
+            return false;
+        }
+        
+        OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+            "GLESBackend", "✅ Using texture strategy: %s", m_textureStrategy->GetName());
     }
 
     m_isInitialized = true;
@@ -243,7 +244,11 @@ bool GLESBackend::RenderFrame(const void* pixelData, size_t dataSize,
             "GLESBackend", "✅ Surface recovered, continuing render");
     }
 
-    // ⭐ 2. 根据格式选择渲染路径
+    const int32_t viewportWidth = m_eglManager.GetSurfaceWidth() > 0 ? m_eglManager.GetSurfaceWidth() : width;
+    const int32_t viewportHeight = m_eglManager.GetSurfaceHeight() > 0 ? m_eglManager.GetSurfaceHeight() : height;
+    glViewport(0, 0, viewportWidth, viewportHeight);
+
+    // ⭐ 2. 直接进入渲染路径，避免 clear 暴露出未覆盖区域
     bool success = false;
     if (IsYUVFormat(m_format)) {
         // YUV 格式：使用 GPU Shader 渲染（零 CPU 开销）
@@ -260,12 +265,26 @@ bool GLESBackend::RenderFrame(const void* pixelData, size_t dataSize,
         // RGBA/RGB 格式：使用策略模式
         GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
         
-        // ⭐ 从策略中获取纹理并更新
+        // ⭐ 从策略中获取纹理
         GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(m_format);
         TextureManager* texture = m_textureStrategy->Acquire(width, height, internalFormat, glFormat);
         
         if (texture) {
+            // ⭐ 绑定纹理并更新像素数据
+            glBindTexture(GL_TEXTURE_2D, texture->GetTextureId());
+
             success = texture->Update(pixelData, width, height, glFormat);
+            
+            if (success) {
+                // ⭐ 关键修复：将纹理绘制为全屏四边形输出到 framebuffer
+                OH_LOG_Print(LOG_APP, LOG_DEBUG, LOG_PRINT_DOMAIN, 
+                    "GLESBackend", "🎨 Drawing fullscreen quad with texture #%u", 
+                    texture->GetTextureId());
+                success = m_textureShader.Draw(texture->GetTextureId(), viewportWidth, viewportHeight);
+            }
+            
+            // ⭐ 渲染完成后归还纹理到池中
+            m_textureStrategy->Release(texture);
         } else {
             OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
                 "GLESBackend", "Failed to acquire texture from strategy");
@@ -324,6 +343,9 @@ bool GLESBackend::Resize(int32_t width, int32_t height) {
         OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
             "GLESBackend", "✅ Resized using strategy: %s", m_textureStrategy->GetName());
         
+        // ⭐ Resize 完成后归还纹理
+        m_textureStrategy->Release(texture);
+        
         m_width = width;
         m_height = height;
         return true;
@@ -342,19 +364,27 @@ void GLESBackend::Destroy() {
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "GLESBackend", "Destroying...");
 
-    // ⭐ 1. 销毁 YUV Shader 或纹理策略
+    // ⭐ 销毁 TextureShader 或 YUV Shader
+    // 注意：此时EGL上下文应该还有效（在Destroy()前调用）
     if (IsYUVFormat(m_format)) {
         m_yuvShader.Destroy();
-    } else if (m_textureStrategy) {
-        // ⭐ 使用策略模式清理纹理
-        m_textureStrategy->Clear();
-        m_textureStrategy.reset();
+    } else {
+        if (m_textureShader.IsInitialized()) {
+            m_textureShader.Destroy();
+        }
+        
+        // ⭐ 清空纹理策略
+        if (m_textureStrategy) {
+            m_textureStrategy->Clear();
+            m_textureStrategy.reset();
+        }
     }
 
-    // ⭐ 2. 释放 EGL 上下文
-    m_eglManager.Destroy();
-
     m_isInitialized = false;
+    m_nativeWindow = nullptr;
+
+    // ⭐ 最后释放 EGL 上下文（此时GL对象已销毁）
+    m_eglManager.Destroy();
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "GLESBackend", "♻️ Destroyed");

@@ -15,7 +15,7 @@
 
 {
   "app": {
-    "bundleName": "com.samples.ndkxcomponent",
+    "bundleName": "com.plusml.Arkzero",
     "vendor": "samples",
     "versionCode": 1000000,
     "versionName": "1.0.0",
