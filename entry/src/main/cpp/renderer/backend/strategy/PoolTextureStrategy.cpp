@@ -40,8 +40,9 @@ bool PoolTextureStrategy::Preallocate(int32_t width, int32_t height,
                                      GLint internalFormat, GLenum format) {
     auto texture = m_pool->Acquire(width, height, internalFormat, format);
     if (texture) {
+        m_pool->Release(texture);
         OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN,
-            "PoolStrategy", "✅ Preallocated texture %dx%d", width, height);
+            "PoolStrategy", "Preallocated texture %dx%d", width, height);
         return true;
     }
     return false;

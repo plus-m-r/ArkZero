@@ -89,12 +89,33 @@ void SurfaceManager::DestroyNativeWindow(void* nativeWindow) {
     }
     
     OHNativeWindow* window = reinterpret_cast<OHNativeWindow*>(nativeWindow);
-    
-    // ⭐ 调用 HarmonyOS NDK API 销毁 NativeWindow
     OH_NativeWindow_DestroyNativeWindow(window);
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "SurfaceManager", "♻️ Destroyed NativeWindow: %{public}p", nativeWindow);
+}
+
+void SurfaceManager::StoreNativeWindow(const std::string& id, void* window) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_storedWindows[id] = window;
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN,
+        "SurfaceManager", "Stored NativeWindow for id=%{public}s, window=%p", id.c_str(), window);
+}
+
+void* SurfaceManager::GetStoredNativeWindow(const std::string& id) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    auto it = m_storedWindows.find(id);
+    if (it != m_storedWindows.end()) {
+        return it->second;
+    }
+    return nullptr;
+}
+
+void SurfaceManager::RemoveNativeWindow(const std::string& id) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_storedWindows.erase(id);
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN,
+        "SurfaceManager", "Removed NativeWindow for id=%{public}s", id.c_str());
 }
 
 } // namespace NativeXComponentSample

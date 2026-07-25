@@ -44,6 +44,13 @@ export interface ArkZeroRendererConfig {
   surfaceId?: string;
 }
 
+export interface DirtyRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export interface DisposeAsyncOptions {
   wait?: boolean;
   timeoutMs?: number;
@@ -113,7 +120,9 @@ export class ArkZeroRenderer {
     }
 
     try {
-      // ⭐ 调用 Native 层创建渲染器
+      hilog.info(DOMAIN, TAG, '[ARKZERO-DIAG] initialize START: surfaceId=%{public}s, w=%{public}d, h=%{public}d, fmt=%{public}d',
+        surfaceId, this.config.width, this.config.height, this.config.format);
+
       this.nativeHandle = await nativerender.create(
         surfaceId,
         this.config.width,
@@ -123,8 +132,7 @@ export class ArkZeroRenderer {
 
       this.isInitialized = true;
       
-      hilog.info(DOMAIN, TAG, '✅ ArkZeroRenderer initialized: %{public}dx%{public}d',
-        this.config.width, this.config.height);
+      hilog.info(DOMAIN, TAG, '[ARKZERO-DIAG] initialize SUCCESS: nativeHandle=%{public}d', this.nativeHandle);
         
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -243,6 +251,7 @@ export class ArkZeroRenderer {
     height: number
   ): Promise<void> {
     if (!this.isInitialized) {
+      hilog.error(DOMAIN, TAG, '[ARKZERO-DIAG] renderFrame called but NOT initialized, nativeHandle=%{public}d', this.nativeHandle);
       throw new Error('ArkZeroRenderer not initialized');
     }
 
@@ -250,11 +259,9 @@ export class ArkZeroRenderer {
       throw new Error('ArkZeroRenderer is disposing');
     }
 
-    // 增加 pending 计数，确保在 native 使用期间不会被销毁
     this.pendingRenders++;
 
     try {
-      // 调用Native层渲染
       await nativerender.renderFrame(
         this.nativeHandle,
         pixelData,
@@ -262,34 +269,150 @@ export class ArkZeroRenderer {
         height
       );
 
-      hilog.debug(DOMAIN, TAG, '🎨 Frame rendered: %{public}dx%{public}d', width, height);
-      
-      // ⭐ 渲染完成后自动调用回调
       if (this.onFrameRenderedCallback) {
         this.onFrameRenderedCallback();
       }
 
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      hilog.error(DOMAIN, TAG, '❌ renderFrame failed: %{public}s', errorMsg);
       throw new Error(errorMsg);
     } finally {
-      // 渲染完成或失败后减少 pending 计数，并在变为 0 时通知等待者
       this.pendingRenders = Math.max(0, this.pendingRenders - 1);
       if (this.pendingRenders === 0) {
-        // 触发所有等待的 awaitIdle
         const waiters = this.idleWaiters.slice();
         this.idleWaiters.length = 0;
         for (const resolve of waiters) {
           try { resolve(); } catch (e) { /* ignore */ }
         }
-        // 如果之前请求了销毁，则现在执行真正的销毁
         if (this.destroyScheduled) {
           try {
             this.doDestroy();
           } catch (e) {
             const errMsg = e instanceof Error ? e.message : String(e);
-            hilog.error(DOMAIN, TAG, '❌ doDestroy failed: %{public}s', errMsg);
+            hilog.error(DOMAIN, TAG, 'doDestroy failed: %{public}s', errMsg);
+          }
+        }
+      }
+    }
+  }
+
+  async renderFrameRegions(
+    pixelData: ArrayBuffer,
+    frameWidth: number,
+    frameHeight: number,
+    regions: DirtyRect[],
+    swap: boolean = true
+  ): Promise<void> {
+    if (!this.isInitialized) {
+      throw new Error('ArkZeroRenderer not initialized');
+    }
+
+    if (this.destroyScheduled) {
+      throw new Error('ArkZeroRenderer is disposing');
+    }
+
+    this.pendingRenders++;
+
+    try {
+      await nativerender.renderFrameRegions(
+        this.nativeHandle,
+        pixelData,
+        frameWidth,
+        frameHeight,
+        regions,
+        swap
+      );
+
+      if (swap && this.onFrameRenderedCallback) {
+        this.onFrameRenderedCallback();
+      }
+
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      throw new Error(errorMsg);
+    } finally {
+      this.pendingRenders = Math.max(0, this.pendingRenders - 1);
+      if (this.pendingRenders === 0) {
+        const waiters = this.idleWaiters.slice();
+        this.idleWaiters.length = 0;
+        for (const resolve of waiters) {
+          try { resolve(); } catch (e) { /* ignore */ }
+        }
+        if (this.destroyScheduled) {
+          try {
+            this.doDestroy();
+          } catch (e) {
+            const errMsg = e instanceof Error ? e.message : String(e);
+            hilog.error(DOMAIN, TAG, 'doDestroy failed: %{public}s', errMsg);
+          }
+        }
+      }
+    }
+  }
+
+  async updateDirtyRegions(
+    pixelData: ArrayBuffer,
+    frameWidth: number,
+    frameHeight: number,
+    regions: DirtyRect[]
+  ): Promise<void> {
+    if (!this.isInitialized) {
+      throw new Error('ArkZeroRenderer not initialized');
+    }
+
+    if (this.destroyScheduled) {
+      throw new Error('ArkZeroRenderer is disposing');
+    }
+
+    try {
+      await nativerender.updateDirtyRegions(
+        this.nativeHandle,
+        pixelData,
+        frameWidth,
+        frameHeight,
+        regions
+      );
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      throw new Error(errorMsg);
+    }
+  }
+
+  async presentFrame(): Promise<void> {
+    if (!this.isInitialized) {
+      throw new Error('ArkZeroRenderer not initialized');
+    }
+
+    if (this.destroyScheduled) {
+      throw new Error('ArkZeroRenderer is disposing');
+    }
+
+    this.pendingRenders++;
+
+    try {
+      await nativerender.presentFrame(this.nativeHandle);
+
+      if (this.onFrameRenderedCallback) {
+        this.onFrameRenderedCallback();
+      }
+
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      throw new Error(errorMsg);
+    } finally {
+      this.pendingRenders = Math.max(0, this.pendingRenders - 1);
+      if (this.pendingRenders === 0) {
+        const waiters = this.idleWaiters.slice();
+        this.idleWaiters.length = 0;
+        for (const resolve of waiters) {
+          try { resolve(); } catch (e) { /* ignore */ }
+        }
+        if (this.destroyScheduled) {
+          try {
+            this.doDestroy();
+          } catch (e) {
+            const errMsg = e instanceof Error ? e.message : String(e);
+            hilog.error(DOMAIN, TAG, 'doDestroy failed: %{public}s', errMsg);
           }
         }
       }
@@ -367,17 +490,22 @@ export class ArkZeroRenderer {
     }
 
     return new Promise<void>((resolve, reject) => {
-      this.idleWaiters.push(resolve);
+      let timer: number | undefined = undefined;
+      const wrappedResolve = () => {
+        if (timer !== undefined) {
+          clearTimeout(timer);
+          timer = undefined;
+        }
+        resolve();
+      };
+      this.idleWaiters.push(wrappedResolve);
       if (typeof timeoutMs === 'number' && timeoutMs > 0) {
-        const timer = setTimeout(() => {
-          // 超时后从等待队列移除并 reject
-          const idx = this.idleWaiters.indexOf(resolve);
+        timer = setTimeout(() => {
+          const idx = this.idleWaiters.indexOf(wrappedResolve);
           if (idx >= 0) this.idleWaiters.splice(idx, 1);
+          timer = undefined;
           reject(new Error('awaitIdle timeout'));
         }, timeoutMs);
-        // 如果 resolve 触发，清除定时器
-        const wrapped = () => { clearTimeout(timer); };
-        // 将清理逻辑附加到 resolve 调用点（通过修改最后 push 的项不方便），所以在 resolve 执行后定时器会被清理在外部分支
       }
     });
   }
@@ -411,15 +539,16 @@ export class ArkZeroRenderer {
     }
   }
 
-  // 真正执行 native 层销毁的内部方法
   private doDestroy(): void {
+    if (!this.isInitialized && this.nativeHandle === 0) {
+      return;
+    }
     try {
       nativerender.destroy(this.nativeHandle);
     } finally {
       this.nativeHandle = 0;
       this.isInitialized = false;
       this.destroyScheduled = false;
-      // 清理并通知所有等待者（防止悬挂）
       const waiters = this.idleWaiters.slice();
       this.idleWaiters.length = 0;
       for (const resolve of waiters) {

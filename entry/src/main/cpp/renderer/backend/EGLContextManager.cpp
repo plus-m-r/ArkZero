@@ -116,15 +116,10 @@ bool EGLContextManager::Initialize(void* nativeWindow, int32_t width, int32_t he
             "EGLContextManager", "Failed to query surface size after initialize");
     }
 
-    // 7. 启用 VSync（关键！消除画面撕裂）
     if (enableVSync) {
         eglSwapInterval(m_eglDisplay, 1);
-        OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-            "EGLContextManager", "✅ VSync enabled");
     } else {
         eglSwapInterval(m_eglDisplay, 0);
-        OH_LOG_Print(LOG_APP, LOG_WARN, LOG_PRINT_DOMAIN, 
-            "EGLContextManager", "⚠️ VSync disabled (may cause tearing)");
     }
 
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
@@ -234,7 +229,6 @@ void EGLContextManager::Destroy() {
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "EGLContextManager", "Destroying EGL context...");
 
-    // ⭐ 安全地销毁资源，不依赖 eglMakeCurrent（可能已失效）
     if (m_eglContext != EGL_NO_CONTEXT) {
         eglDestroyContext(m_eglDisplay, m_eglContext);
         m_eglContext = EGL_NO_CONTEXT;
@@ -247,6 +241,7 @@ void EGLContextManager::Destroy() {
 
     eglTerminate(m_eglDisplay);
     m_eglDisplay = EGL_NO_DISPLAY;
+    m_isCurrent = false;
 
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "EGLContextManager", "♻️ EGL context destroyed");
@@ -259,12 +254,17 @@ bool EGLContextManager::MakeCurrent() {
         return false;
     }
 
+    if (m_isCurrent) {
+        return true;
+    }
+
     if (!eglMakeCurrent(m_eglDisplay, m_eglSurface, m_eglSurface, m_eglContext)) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
             "EGLContextManager", "Failed to make context current: %{public}x", eglGetError());
         return false;
     }
 
+    m_isCurrent = true;
     return true;
 }
 
@@ -277,89 +277,40 @@ bool EGLContextManager::SwapBuffers() {
 
     if (!eglSwapBuffers(m_eglDisplay, m_eglSurface)) {
         EGLint error = eglGetError();
+        OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
+            "ArkZeroRenderer", "[ARKZERO-FATAL] SwapBuffers FAILED: eglError=0x%{public}x surfaceW=%{public}d surfaceH=%{public}d",
+            error, m_surfaceWidth, m_surfaceHeight);
         
-        // ⭐ 检测 Surface 失效错误
         if (error == EGL_BAD_SURFACE || error == EGL_BAD_NATIVE_WINDOW) {
             OH_LOG_Print(LOG_APP, LOG_WARN, LOG_PRINT_DOMAIN, 
                 "EGLContextManager", 
-                "⚠️ Surface invalidated (error: 0x%x), will recover on next frame", error);
-            // 标记需要恢复，但不立即重建（避免阻塞渲染线程）
+                "Surface invalidated (error: 0x%{public}x), attempting recovery", error);
             m_surfaceInvalidated = true;
+
+            UpdateSurfaceSize();
+            if (eglMakeCurrent(m_eglDisplay, m_eglSurface, m_eglSurface, m_eglContext)) {
+                OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN,
+                    "EGLContextManager", "Surface recovery: re-makecurrent succeeded, retrying swap");
+                if (eglSwapBuffers(m_eglDisplay, m_eglSurface)) {
+                    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN,
+                        "EGLContextManager", "Surface recovery: swap succeeded on retry");
+                    m_surfaceInvalidated = false;
+                    return true;
+                }
+                EGLint retryError = eglGetError();
+                OH_LOG_Print(LOG_APP, LOG_WARN, LOG_PRINT_DOMAIN,
+                    "EGLContextManager", "Surface recovery: swap still failed after retry, error=0x%{public}x", retryError);
+            } else {
+                OH_LOG_Print(LOG_APP, LOG_WARN, LOG_PRINT_DOMAIN,
+                    "EGLContextManager", "Surface recovery: re-makecurrent failed, error=0x%{public}x", eglGetError());
+            }
         } else {
             OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-                "EGLContextManager", "Failed to swap buffers: 0x%x", error);
+                "EGLContextManager", "Failed to swap buffers: 0x%{public}x", error);
         }
         return false;
     }
 
-    return true;
-}
-
-bool EGLContextManager::RecoverSurface(void* nativeWindow) {
-    if (!nativeWindow) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "EGLContextManager", "Invalid nativeWindow for recovery");
-        return false;
-    }
-
-    if (!m_surfaceInvalidated) {
-        // Surface 没有失效，无需恢复
-        return true;
-    }
-
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "EGLContextManager", "🔄 Recovering invalidated surface...");
-
-    // ⭐ 1. 销毁旧的 Surface（保持 Context 和 Display）
-    if (m_eglSurface != EGL_NO_SURFACE) {
-        eglDestroySurface(m_eglDisplay, m_eglSurface);
-        m_eglSurface = EGL_NO_SURFACE;
-    }
-
-    // ⭐ 2. 创建新的 Surface（使用相同的 Config）
-    // 注意：这里需要重新获取 config，简化起见我们假设 config 不变
-    // 实际项目中应该缓存 config
-    const EGLint configAttribs[] = {
-        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT_KHR,
-        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-        EGL_BLUE_SIZE, EGL_BLUE_SIZE_DEFAULT,
-        EGL_GREEN_SIZE, EGL_GREEN_SIZE_DEFAULT,
-        EGL_RED_SIZE, EGL_RED_SIZE_DEFAULT,
-        EGL_ALPHA_SIZE, EGL_ALPHA_SIZE_DEFAULT,
-        EGL_DEPTH_SIZE, EGL_DEPTH_SIZE_DEFAULT,
-        EGL_STENCIL_SIZE, EGL_STENCIL_SIZE_DEFAULT,
-        EGL_NONE
-    };
-
-    EGLConfig config;
-    EGLint numConfigs;
-    if (!eglChooseConfig(m_eglDisplay, configAttribs, &config, 1, &numConfigs)) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "EGLContextManager", "Failed to choose config during recovery: 0x%x", eglGetError());
-        return false;
-    }
-
-    m_eglSurface = eglCreateWindowSurface(m_eglDisplay, config, 
-                                          (EGLNativeWindowType)nativeWindow, nullptr);
-    if (m_eglSurface == EGL_NO_SURFACE) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "EGLContextManager", "Failed to create surface during recovery: 0x%x", eglGetError());
-        return false;
-    }
-
-    // ⭐ 3. 重新使上下文当前化
-    if (!eglMakeCurrent(m_eglDisplay, m_eglSurface, m_eglSurface, m_eglContext)) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "EGLContextManager", "Failed to make current during recovery: 0x%x", eglGetError());
-        return false;
-    }
-
-    // ⭐ 4. 清除失效标记
-    m_surfaceInvalidated = false;
-
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "EGLContextManager", "✅ Surface recovered successfully");
-    
     return true;
 }
 

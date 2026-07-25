@@ -51,16 +51,16 @@ export class StressIntegrationTest {
     const startTime: number = Date.now();
     const testName: string = '高频渲染测试';
     
+    const config: ArkZeroRendererConfig = {
+      width: this.width,
+      height: this.height,
+      format: PixelFormat.RGBA
+    };
+    
+    const renderer: ArkZeroRenderer = new ArkZeroRenderer(config);
+    
     try {
       hilog.info(DOMAIN, TAG, 'Test: 高频渲染测试');
-      
-      const config: ArkZeroRendererConfig = {
-        width: this.width,
-        height: this.height,
-        format: PixelFormat.RGBA
-      };
-      
-      const renderer: ArkZeroRenderer = new ArkZeroRenderer(config);
       
       await renderer.initialize(this.surfaceId);
       
@@ -86,7 +86,6 @@ export class StressIntegrationTest {
       };
       this.results.push(result);
       
-      renderer.dispose();
       hilog.info(DOMAIN, TAG, `PASSED: ${testName} (${duration}ms, avg ${avgTime.toFixed(1)}ms/frame)`);
       
     } catch (error) {
@@ -101,6 +100,8 @@ export class StressIntegrationTest {
       this.results.push(result);
       
       hilog.error(DOMAIN, TAG, `FAILED: ${testName} - ${errorMsg}`);
+    } finally {
+      renderer.dispose();
     }
   }
 
@@ -108,16 +109,16 @@ export class StressIntegrationTest {
     const startTime: number = Date.now();
     const testName: string = '快速尺寸切换测试';
     
+    const config: ArkZeroRendererConfig = {
+      width: this.width,
+      height: this.height,
+      format: PixelFormat.RGBA
+    };
+    
+    const renderer: ArkZeroRenderer = new ArkZeroRenderer(config);
+    
     try {
       hilog.info(DOMAIN, TAG, 'Test: 快速尺寸切换测试');
-      
-      const config: ArkZeroRendererConfig = {
-        width: this.width,
-        height: this.height,
-        format: PixelFormat.RGBA
-      };
-      
-      const renderer: ArkZeroRenderer = new ArkZeroRenderer(config);
       
       await renderer.initialize(this.surfaceId);
       
@@ -148,7 +149,6 @@ export class StressIntegrationTest {
       };
       this.results.push(result);
       
-      renderer.dispose();
       hilog.info(DOMAIN, TAG, `PASSED: ${testName} (${duration}ms)`);
       
     } catch (error) {
@@ -163,6 +163,8 @@ export class StressIntegrationTest {
       this.results.push(result);
       
       hilog.error(DOMAIN, TAG, `FAILED: ${testName} - ${errorMsg}`);
+    } finally {
+      renderer.dispose();
     }
   }
 
@@ -189,16 +191,18 @@ export class StressIntegrationTest {
         
         const renderer: ArkZeroRenderer = new ArkZeroRenderer(config);
         
-        await renderer.initialize(this.surfaceId);
-        
-        const bufferSize: number = res.w * res.h * 4;
-        const pixelBuffer: ArrayBuffer = new ArrayBuffer(bufferSize);
-        const data: Uint8Array = new Uint8Array(pixelBuffer);
-        data.fill(64);
-        
-        await renderer.renderFrame(pixelBuffer, res.w, res.h);
-        
-        renderer.dispose();
+        try {
+          await renderer.initialize(this.surfaceId);
+          
+          const bufferSize: number = res.w * res.h * 4;
+          const pixelBuffer: ArrayBuffer = new ArrayBuffer(bufferSize);
+          const data: Uint8Array = new Uint8Array(pixelBuffer);
+          data.fill(64);
+          
+          await renderer.renderFrame(pixelBuffer, res.w, res.h);
+        } finally {
+          renderer.dispose();
+        }
       }
       
       const duration: number = Date.now() - startTime;
@@ -246,13 +250,15 @@ export class StressIntegrationTest {
         
         const renderer: ArkZeroRenderer = new ArkZeroRenderer(config);
         
-        await renderer.initialize(this.surfaceId);
-        
-        const bufferSize: number = this.width * this.height * 4;
-        const pixelBuffer: ArrayBuffer = new ArrayBuffer(bufferSize);
-        await renderer.renderFrame(pixelBuffer, this.width, this.height);
-        
-        renderer.dispose();
+        try {
+          await renderer.initialize(this.surfaceId);
+          
+          const bufferSize: number = this.width * this.height * 4;
+          const pixelBuffer: ArrayBuffer = new ArrayBuffer(bufferSize);
+          await renderer.renderFrame(pixelBuffer, this.width, this.height);
+        } finally {
+          renderer.dispose();
+        }
       }
       
       const duration: number = Date.now() - startTime;
@@ -286,16 +292,16 @@ export class StressIntegrationTest {
     const startTime: number = Date.now();
     const testName: string = '内存压力测试';
     
+    const config: ArkZeroRendererConfig = {
+      width: this.width,
+      height: this.height,
+      format: PixelFormat.RGBA
+    };
+    
+    const renderer: ArkZeroRenderer = new ArkZeroRenderer(config);
+    
     try {
       hilog.info(DOMAIN, TAG, 'Test: 内存压力测试');
-      
-      const config: ArkZeroRendererConfig = {
-        width: this.width,
-        height: this.height,
-        format: PixelFormat.RGBA
-      };
-      
-      const renderer: ArkZeroRenderer = new ArkZeroRenderer(config);
       
       await renderer.initialize(this.surfaceId);
       
@@ -324,7 +330,6 @@ export class StressIntegrationTest {
       };
       this.results.push(result);
       
-      renderer.dispose();
       hilog.info(DOMAIN, TAG, `PASSED: ${testName} (${duration}ms)`);
       
     } catch (error) {
@@ -339,6 +344,8 @@ export class StressIntegrationTest {
       this.results.push(result);
       
       hilog.error(DOMAIN, TAG, `FAILED: ${testName} - ${errorMsg}`);
+    } finally {
+      renderer.dispose();
     }
   }
 }

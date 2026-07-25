@@ -256,4 +256,11 @@ enum class PixelFormat {
     NV12 = 4       // YUV420半平面 (1.5字节/像素)
 };
 
+struct DirtyRect {
+    int32_t x;
+    int32_t y;
+    int32_t w;
+    int32_t h;
+};
+
 #endif // NATIVE_XCOMPONENT_COMMON_H

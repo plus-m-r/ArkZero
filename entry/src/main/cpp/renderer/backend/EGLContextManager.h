@@ -106,18 +106,12 @@ public:
      */
     bool IsSurfaceInvalidated() const { return m_surfaceInvalidated; }
 
-    /**
-     * ⭐ 恢复失效的 Surface（保持 Context 不变）
-     * @param nativeWindow 新的 NativeWindow 指针
-     * @return true 成功，false 失败
-     */
-    bool RecoverSurface(void* nativeWindow);
-
 private:
     EGLDisplay m_eglDisplay;
     EGLContext m_eglContext;
     EGLSurface m_eglSurface;
-    bool m_surfaceInvalidated = false;  // ⭐ 标记 Surface 是否失效
+    bool m_surfaceInvalidated = false;
+    bool m_isCurrent = false;
     int32_t m_surfaceWidth = 0;
     int32_t m_surfaceHeight = 0;
 

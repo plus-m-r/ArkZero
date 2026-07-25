@@ -55,6 +55,17 @@ public:
     virtual bool RenderFrame(const void* pixelData, size_t dataSize, 
                             int32_t width, int32_t height) = 0;
 
+    virtual bool RenderFrameRegions(const void* pixelData, size_t dataSize,
+                                    int32_t frameWidth, int32_t frameHeight,
+                                    const DirtyRect* regions, int32_t regionCount,
+                                    bool swapBuffers) = 0;
+
+    virtual bool UpdateDirtyRegions(const void* pixelData, size_t dataSize,
+                                    int32_t frameWidth, int32_t frameHeight,
+                                    const DirtyRect* regions, int32_t regionCount) = 0;
+
+    virtual bool PresentFrame() = 0;
+
     /**
      * 调整尺寸
      * @param width 新宽度

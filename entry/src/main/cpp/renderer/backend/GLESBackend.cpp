@@ -45,10 +45,7 @@ bool GLESBackend::Initialize(void* nativeWindow, int32_t width, int32_t height, 
             "GLESBackend", "Invalid nativeWindow");
         return false;
     }
-    
-    // ⭐ 保存 NativeWindow 引用，用于后续 Surface 恢复
-    m_nativeWindow = nativeWindow;
-    
+
     m_width = width;
     m_height = height;
     m_format = format;
@@ -90,32 +87,22 @@ bool GLESBackend::Initialize(void* nativeWindow, int32_t width, int32_t height, 
                 "GLESBackend", "✅ Preallocated textures for common resolutions");
         }
         
-        // ⭐ 从策略中获取当前尺寸的纹理
-        TextureManager* texture = m_textureStrategy->Acquire(width, height, internalFormat, glFormat);
-        if (!texture) {
-            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-                "GLESBackend", "Failed to acquire texture from strategy");
-            m_eglManager.Destroy();
-            return false;
-        }
-        
         // ⭐ 初始化 TextureShader（全屏四边形绘制）
         if (!m_textureShader.Initialize()) {
             OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
                 "GLESBackend", "Failed to initialize TextureShader");
-            m_textureStrategy->Release(texture);
             m_eglManager.Destroy();
             return false;
         }
         
         OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "✅ Using texture strategy: %s", m_textureStrategy->GetName());
+            "GLESBackend", "Using texture strategy: %s", m_textureStrategy->GetName());
     }
 
     m_isInitialized = true;
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "GLESBackend", "✅ Initialized");
+        "GLESBackend", "Initialized");
     
     return true;
 }
@@ -162,32 +149,22 @@ bool GLESBackend::InitializeOffscreen(int32_t width, int32_t height, PixelFormat
                 "GLESBackend", "✅ Preallocated textures for common resolutions");
         }
         
-        // ⭐ 从策略中获取当前尺寸的纹理
-        TextureManager* texture = m_textureStrategy->Acquire(width, height, internalFormat, glFormat);
-        if (!texture) {
-            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-                "GLESBackend", "Failed to acquire texture from strategy");
-            m_eglManager.Destroy();
-            return false;
-        }
-        
         // ⭐ 初始化 TextureShader（全屏四边形绘制）
         if (!m_textureShader.Initialize()) {
             OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
                 "GLESBackend", "Failed to initialize TextureShader");
-            m_textureStrategy->Release(texture);
             m_eglManager.Destroy();
             return false;
         }
         
         OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "✅ Using texture strategy: %s", m_textureStrategy->GetName());
+            "GLESBackend", "Using texture strategy: %s", m_textureStrategy->GetName());
     }
 
     m_isInitialized = true;
     
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "GLESBackend", "✅ Offscreen initialized");
+        "GLESBackend", "Offscreen initialized");
     
     return true;
 }
@@ -195,113 +172,227 @@ bool GLESBackend::InitializeOffscreen(int32_t width, int32_t height, PixelFormat
 bool GLESBackend::RenderFrame(const void* pixelData, size_t dataSize, 
                                int32_t width, int32_t height) {
     if (!m_isInitialized) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Not initialized");
+        OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
+            "ArkZeroRenderer", "[ARKZERO-FATAL] GLESBackend::RenderFrame: NOT initialized");
         return false;
     }
 
     if (!pixelData) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Invalid pixel data");
+        OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
+            "ArkZeroRenderer", "[ARKZERO-FATAL] GLESBackend::RenderFrame: pixelData is null");
         return false;
     }
 
-    // 验证数据大小
     int bytesPerPixel = PixelFormatConverter::GetBytesPerPixel(m_format);
     size_t expectedSize = static_cast<size_t>(width) * static_cast<size_t>(height) * bytesPerPixel;
     if (dataSize < expectedSize) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", 
-            "Data size mismatch: expected=%zu, actual=%zu", 
-            expectedSize, dataSize);
+        OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
+            "ArkZeroRenderer", "[ARKZERO-FATAL] GLESBackend::RenderFrame: data size mismatch expected=%{public}zu actual=%{public}zu w=%{public}d h=%{public}d bpp=%{public}d",
+            expectedSize, dataSize, width, height, bytesPerPixel);
         return false;
     }
 
-    OH_LOG_Print(LOG_APP, LOG_DEBUG, LOG_PRINT_DOMAIN, 
-        "GLESBackend", 
-        "🎨 Rendering frame: %dx%d, format=%d", 
-        width, height, static_cast<int>(m_format));
-
-    // ⭐ 1. 使 EGL 上下文当前化
     if (!m_eglManager.MakeCurrent()) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to make EGL context current");
+        OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
+            "ArkZeroRenderer", "[ARKZERO-FATAL] GLESBackend::RenderFrame: MakeCurrent FAILED");
         return false;
-    }
-
-    // ⭐ 1.5 检查并恢复失效的 Surface
-    if (m_eglManager.IsSurfaceInvalidated() && m_nativeWindow) {
-        OH_LOG_Print(LOG_APP, LOG_WARN, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "⚠️ Detecting invalidated surface, attempting recovery...");
-        
-        if (!m_eglManager.RecoverSurface(m_nativeWindow)) {
-            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-                "GLESBackend", "❌ Failed to recover surface");
-            return false;
-        }
-        
-        OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "✅ Surface recovered, continuing render");
     }
 
     const int32_t viewportWidth = m_eglManager.GetSurfaceWidth() > 0 ? m_eglManager.GetSurfaceWidth() : width;
     const int32_t viewportHeight = m_eglManager.GetSurfaceHeight() > 0 ? m_eglManager.GetSurfaceHeight() : height;
     glViewport(0, 0, viewportWidth, viewportHeight);
 
-    // ⭐ 2. 直接进入渲染路径，避免 clear 暴露出未覆盖区域
     bool success = false;
     if (IsYUVFormat(m_format)) {
-        // YUV 格式：使用 GPU Shader 渲染（零 CPU 开销）
         const uint8_t* data = static_cast<const uint8_t*>(pixelData);
         const uint8_t* yPlane = data;
         const uint8_t* uvPlane = data + width * height;
-        
+
         if (m_format == PixelFormat::NV21) {
             success = m_yuvShader.RenderNV21(yPlane, uvPlane, width, height);
         } else if (m_format == PixelFormat::NV12) {
             success = m_yuvShader.RenderNV12(yPlane, uvPlane, width, height);
         }
     } else {
-        // RGBA/RGB 格式：使用策略模式
         GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
-        
-        // ⭐ 从策略中获取纹理
         GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(m_format);
-        TextureManager* texture = m_textureStrategy->Acquire(width, height, internalFormat, glFormat);
-        
-        if (texture) {
-            // ⭐ 绑定纹理并更新像素数据
-            glBindTexture(GL_TEXTURE_2D, texture->GetTextureId());
 
+        TextureManager* texture = m_textureStrategy->Acquire(width, height, internalFormat, glFormat);
+
+        if (texture) {
             success = texture->Update(pixelData, width, height, glFormat);
-            
+
             if (success) {
-                // ⭐ 关键修复：将纹理绘制为全屏四边形输出到 framebuffer
-                OH_LOG_Print(LOG_APP, LOG_DEBUG, LOG_PRINT_DOMAIN, 
-                    "GLESBackend", "🎨 Drawing fullscreen quad with texture #%u", 
-                    texture->GetTextureId());
                 success = m_textureShader.Draw(texture->GetTextureId(), viewportWidth, viewportHeight);
+                if (!success) {
+                    OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
+                        "ArkZeroRenderer", "[ARKZERO-FATAL] GLESBackend: textureShader.Draw FAILED");
+                }
+            } else {
+                OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
+                    "ArkZeroRenderer", "[ARKZERO-FATAL] GLESBackend: texture->Update FAILED");
             }
-            
-            // ⭐ 渲染完成后归还纹理到池中
+
             m_textureStrategy->Release(texture);
         } else {
-            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-                "GLESBackend", "Failed to acquire texture from strategy");
+            OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
+                "ArkZeroRenderer", "[ARKZERO-FATAL] GLESBackend: Acquire texture FAILED");
             success = false;
         }
     }
-    
+
     if (!success) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to render frame");
+        OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
+            "ArkZeroRenderer", "[ARKZERO-FATAL] GLESBackend: render content failed");
         return false;
     }
 
-    // ⭐ 3. 交换缓冲区（触发 VSync）
     if (!m_eglManager.SwapBuffers()) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "GLESBackend", "Failed to swap buffers");
+        OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
+            "ArkZeroRenderer", "[ARKZERO-FATAL] GLESBackend: SwapBuffers FAILED");
+        return false;
+    }
+
+    return true;
+}
+
+bool GLESBackend::RenderFrameRegions(const void* pixelData, size_t dataSize,
+                                     int32_t frameWidth, int32_t frameHeight,
+                                     const DirtyRect* regions, int32_t regionCount,
+                                     bool swapBuffers) {
+    if (!m_isInitialized || !pixelData || !regions || regionCount <= 0) {
+        return false;
+    }
+
+    if (IsYUVFormat(m_format)) {
+        return false;
+    }
+
+    if (!m_eglManager.MakeCurrent()) {
+        return false;
+    }
+
+    const int32_t viewportWidth = m_eglManager.GetSurfaceWidth() > 0 ? m_eglManager.GetSurfaceWidth() : frameWidth;
+    const int32_t viewportHeight = m_eglManager.GetSurfaceHeight() > 0 ? m_eglManager.GetSurfaceHeight() : frameHeight;
+    glViewport(0, 0, viewportWidth, viewportHeight);
+
+    GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
+    GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(m_format);
+
+    TextureManager* texture = m_textureStrategy->Acquire(frameWidth, frameHeight, internalFormat, glFormat);
+    if (!texture) {
+        return false;
+    }
+
+    int32_t bytesPerPixel = PixelFormatConverter::GetBytesPerPixel(m_format);
+
+    for (int32_t i = 0; i < regionCount; i++) {
+        int32_t rx = regions[i].x;
+        int32_t ry = regions[i].y;
+        int32_t rw = regions[i].w;
+        int32_t rh = regions[i].h;
+
+        size_t rowOffset = static_cast<size_t>(ry) * static_cast<size_t>(frameWidth) * bytesPerPixel;
+        size_t colOffset = static_cast<size_t>(rx) * bytesPerPixel;
+        const uint8_t* regionPtr = static_cast<const uint8_t*>(pixelData) + rowOffset + colOffset;
+
+        int32_t glY = frameHeight - ry - rh;
+
+        texture->UpdateRegion(regionPtr, rx, glY, rw, rh, frameWidth, glFormat);
+    }
+
+    bool success = m_textureShader.Draw(texture->GetTextureId(), viewportWidth, viewportHeight);
+
+    m_textureStrategy->Release(texture);
+
+    if (!success) {
+        return false;
+    }
+
+    if (swapBuffers) {
+        if (!m_eglManager.SwapBuffers()) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool GLESBackend::UpdateDirtyRegions(const void* pixelData, size_t dataSize,
+                                     int32_t frameWidth, int32_t frameHeight,
+                                     const DirtyRect* regions, int32_t regionCount) {
+    if (!m_isInitialized || !pixelData || !regions || regionCount <= 0) {
+        return false;
+    }
+
+    if (IsYUVFormat(m_format)) {
+        return false;
+    }
+
+    if (!m_eglManager.MakeCurrent()) {
+        return false;
+    }
+
+    GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
+    GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(m_format);
+
+    TextureManager* texture = m_textureStrategy->Acquire(frameWidth, frameHeight, internalFormat, glFormat);
+    if (!texture) {
+        return false;
+    }
+
+    int32_t bytesPerPixel = PixelFormatConverter::GetBytesPerPixel(m_format);
+
+    for (int32_t i = 0; i < regionCount; i++) {
+        int32_t rx = regions[i].x;
+        int32_t ry = regions[i].y;
+        int32_t rw = regions[i].w;
+        int32_t rh = regions[i].h;
+
+        size_t rowOffset = static_cast<size_t>(ry) * static_cast<size_t>(frameWidth) * bytesPerPixel;
+        size_t colOffset = static_cast<size_t>(rx) * bytesPerPixel;
+        const uint8_t* regionPtr = static_cast<const uint8_t*>(pixelData) + rowOffset + colOffset;
+
+        int32_t glY = frameHeight - ry - rh;
+
+        texture->UpdateRegion(regionPtr, rx, glY, rw, rh, frameWidth, glFormat);
+    }
+
+    m_textureStrategy->Release(texture);
+
+    return true;
+}
+
+bool GLESBackend::PresentFrame() {
+    if (!m_isInitialized) {
+        return false;
+    }
+
+    if (!m_eglManager.MakeCurrent()) {
+        return false;
+    }
+
+    const int32_t viewportWidth = m_eglManager.GetSurfaceWidth() > 0 ? m_eglManager.GetSurfaceWidth() : m_width;
+    const int32_t viewportHeight = m_eglManager.GetSurfaceHeight() > 0 ? m_eglManager.GetSurfaceHeight() : m_height;
+    glViewport(0, 0, viewportWidth, viewportHeight);
+
+    GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
+    GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(m_format);
+
+    TextureManager* texture = m_textureStrategy->Acquire(m_width, m_height, internalFormat, glFormat);
+    if (!texture) {
+        return false;
+    }
+
+    bool success = m_textureShader.Draw(texture->GetTextureId(), viewportWidth, viewportHeight);
+
+    m_textureStrategy->Release(texture);
+
+    if (!success) {
+        return false;
+    }
+
+    if (!m_eglManager.SwapBuffers()) {
         return false;
     }
 
@@ -310,20 +401,20 @@ bool GLESBackend::RenderFrame(const void* pixelData, size_t dataSize,
 
 bool GLESBackend::Resize(int32_t width, int32_t height) {
     if (!m_isInitialized) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN,
             "GLESBackend", "Not initialized");
         return false;
     }
 
     if (width <= 0 || height <= 0) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN,
             "GLESBackend", "Invalid size: %dx%d", width, height);
         return false;
     }
 
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "GLESBackend", 
-        "📐 Resizing: %dx%d -> %dx%d", 
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN,
+        "GLESBackend",
+        "📐 Resizing: %dx%d -> %dx%d",
         m_width, m_height, width, height);
 
     // ⭐ YUV 格式不需要 Resize，Shader 会自动适配
@@ -332,25 +423,25 @@ bool GLESBackend::Resize(int32_t width, int32_t height) {
         m_height = height;
         return true;
     }
-    
+
     // ⭐ 使用策略模式处理 Resize
     GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(m_format);
     GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
-    
+
     TextureManager* texture = m_textureStrategy->Acquire(width, height, internalFormat, glFormat);
-    
+
     if (texture) {
-        OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+        OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN,
             "GLESBackend", "✅ Resized using strategy: %s", m_textureStrategy->GetName());
-        
+
         // ⭐ Resize 完成后归还纹理
         m_textureStrategy->Release(texture);
-        
+
         m_width = width;
         m_height = height;
         return true;
     } else {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN,
             "GLESBackend", "Failed to acquire texture from strategy");
         return false;
     }
@@ -361,18 +452,16 @@ void GLESBackend::Destroy() {
         return;
     }
 
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN,
         "GLESBackend", "Destroying...");
 
-    // ⭐ 销毁 TextureShader 或 YUV Shader
-    // 注意：此时EGL上下文应该还有效（在Destroy()前调用）
     if (IsYUVFormat(m_format)) {
         m_yuvShader.Destroy();
     } else {
         if (m_textureShader.IsInitialized()) {
             m_textureShader.Destroy();
         }
-        
+
         // ⭐ 清空纹理策略
         if (m_textureStrategy) {
             m_textureStrategy->Clear();
@@ -381,12 +470,11 @@ void GLESBackend::Destroy() {
     }
 
     m_isInitialized = false;
-    m_nativeWindow = nullptr;
 
     // ⭐ 最后释放 EGL 上下文（此时GL对象已销毁）
     m_eglManager.Destroy();
-    
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
+
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN,
         "GLESBackend", "♻️ Destroyed");
 }
 
@@ -400,9 +488,9 @@ void GLESBackend::SetTextureStrategy(const char* strategyType) {
             "GLESBackend", "Invalid strategy type");
         return;
     }
-    
+
     std::string type(strategyType);
-    
+
     if (type == "pool") {
         // 切换到池化策略（高性能）
         m_textureStrategy = std::make_unique<PoolTextureStrategy>(10);

@@ -47,16 +47,16 @@ export class PixelFormatIntegrationTest {
     const startTime: number = Date.now();
     const testName: string = 'RGBA8888格式渲染';
     
+    const config: ArkZeroRendererConfig = {
+      width: this.width,
+      height: this.height,
+      format: PixelFormat.RGBA
+    };
+    
+    const renderer: ArkZeroRenderer = new ArkZeroRenderer(config);
+    
     try {
       hilog.info(DOMAIN, TAG, 'Test: RGBA8888格式渲染');
-      
-      const config: ArkZeroRendererConfig = {
-        width: this.width,
-        height: this.height,
-        format: PixelFormat.RGBA
-      };
-      
-      const renderer: ArkZeroRenderer = new ArkZeroRenderer(config);
       
       await renderer.initialize(this.surfaceId);
       
@@ -84,7 +84,6 @@ export class PixelFormatIntegrationTest {
       };
       this.results.push(result);
       
-      renderer.dispose();
       hilog.info(DOMAIN, TAG, `PASSED: ${testName} (${duration}ms)`);
       
     } catch (error) {
@@ -99,6 +98,8 @@ export class PixelFormatIntegrationTest {
       this.results.push(result);
       
       hilog.error(DOMAIN, TAG, `FAILED: ${testName} - ${errorMsg}`);
+    } finally {
+      renderer.dispose();
     }
   }
 
@@ -106,16 +107,16 @@ export class PixelFormatIntegrationTest {
     const startTime: number = Date.now();
     const testName: string = 'RGB888格式渲染';
     
+    const config: ArkZeroRendererConfig = {
+      width: this.width,
+      height: this.height,
+      format: PixelFormat.RGB
+    };
+    
+    const renderer: ArkZeroRenderer = new ArkZeroRenderer(config);
+    
     try {
       hilog.info(DOMAIN, TAG, 'Test: RGB888格式渲染');
-      
-      const config: ArkZeroRendererConfig = {
-        width: this.width,
-        height: this.height,
-        format: PixelFormat.RGB
-      };
-      
-      const renderer: ArkZeroRenderer = new ArkZeroRenderer(config);
       
       await renderer.initialize(this.surfaceId);
       
@@ -142,7 +143,6 @@ export class PixelFormatIntegrationTest {
       };
       this.results.push(result);
       
-      renderer.dispose();
       hilog.info(DOMAIN, TAG, `PASSED: ${testName} (${duration}ms)`);
       
     } catch (error) {
@@ -157,6 +157,8 @@ export class PixelFormatIntegrationTest {
       this.results.push(result);
       
       hilog.error(DOMAIN, TAG, `FAILED: ${testName} - ${errorMsg}`);
+    } finally {
+      renderer.dispose();
     }
   }
 
@@ -164,16 +166,16 @@ export class PixelFormatIntegrationTest {
     const startTime: number = Date.now();
     const testName: string = 'BGRA8888格式渲染';
     
+    const config: ArkZeroRendererConfig = {
+      width: this.width,
+      height: this.height,
+      format: PixelFormat.BGRA
+    };
+    
+    const renderer: ArkZeroRenderer = new ArkZeroRenderer(config);
+    
     try {
       hilog.info(DOMAIN, TAG, 'Test: BGRA8888格式渲染');
-      
-      const config: ArkZeroRendererConfig = {
-        width: this.width,
-        height: this.height,
-        format: PixelFormat.BGRA
-      };
-      
-      const renderer: ArkZeroRenderer = new ArkZeroRenderer(config);
       
       await renderer.initialize(this.surfaceId);
       
@@ -201,7 +203,6 @@ export class PixelFormatIntegrationTest {
       };
       this.results.push(result);
       
-      renderer.dispose();
       hilog.info(DOMAIN, TAG, `PASSED: ${testName} (${duration}ms)`);
       
     } catch (error) {
@@ -216,6 +217,8 @@ export class PixelFormatIntegrationTest {
       this.results.push(result);
       
       hilog.error(DOMAIN, TAG, `FAILED: ${testName} - ${errorMsg}`);
+    } finally {
+      renderer.dispose();
     }
   }
 
@@ -223,16 +226,16 @@ export class PixelFormatIntegrationTest {
     const startTime: number = Date.now();
     const testName: string = 'NV21格式渲染';
     
+    const config: ArkZeroRendererConfig = {
+      width: this.width,
+      height: this.height,
+      format: PixelFormat.NV21
+    };
+    
+    const renderer: ArkZeroRenderer = new ArkZeroRenderer(config);
+    
     try {
       hilog.info(DOMAIN, TAG, 'Test: NV21格式渲染');
-      
-      const config: ArkZeroRendererConfig = {
-        width: this.width,
-        height: this.height,
-        format: PixelFormat.NV21
-      };
-      
-      const renderer: ArkZeroRenderer = new ArkZeroRenderer(config);
       
       await renderer.initialize(this.surfaceId);
       
@@ -263,7 +266,6 @@ export class PixelFormatIntegrationTest {
       };
       this.results.push(result);
       
-      renderer.dispose();
       hilog.info(DOMAIN, TAG, `PASSED: ${testName} (${duration}ms)`);
       
     } catch (error) {
@@ -278,6 +280,8 @@ export class PixelFormatIntegrationTest {
       this.results.push(result);
       
       hilog.error(DOMAIN, TAG, `FAILED: ${testName} - ${errorMsg}`);
+    } finally {
+      renderer.dispose();
     }
   }
 
@@ -285,16 +289,16 @@ export class PixelFormatIntegrationTest {
     const startTime: number = Date.now();
     const testName: string = 'NV12格式渲染';
     
+    const config: ArkZeroRendererConfig = {
+      width: this.width,
+      height: this.height,
+      format: PixelFormat.NV12
+    };
+    
+    const renderer: ArkZeroRenderer = new ArkZeroRenderer(config);
+    
     try {
       hilog.info(DOMAIN, TAG, 'Test: NV12格式渲染');
-      
-      const config: ArkZeroRendererConfig = {
-        width: this.width,
-        height: this.height,
-        format: PixelFormat.NV12
-      };
-      
-      const renderer: ArkZeroRenderer = new ArkZeroRenderer(config);
       
       await renderer.initialize(this.surfaceId);
       
@@ -325,7 +329,6 @@ export class PixelFormatIntegrationTest {
       };
       this.results.push(result);
       
-      renderer.dispose();
       hilog.info(DOMAIN, TAG, `PASSED: ${testName} (${duration}ms)`);
       
     } catch (error) {
@@ -340,6 +343,8 @@ export class PixelFormatIntegrationTest {
       this.results.push(result);
       
       hilog.error(DOMAIN, TAG, `FAILED: ${testName} - ${errorMsg}`);
+    } finally {
+      renderer.dispose();
     }
   }
 
@@ -367,16 +372,19 @@ export class PixelFormatIntegrationTest {
         
         const renderer: ArkZeroRenderer = new ArkZeroRenderer(config);
         
-        await renderer.initialize(this.surfaceId);
-        
-        const bytesPerPixel: number = fmt.format === PixelFormat.RGB ? 3 : 4;
-        const bufferSize: number = this.width * this.height * bytesPerPixel;
-        const pixelBuffer: ArrayBuffer = new ArrayBuffer(bufferSize);
-        const data: Uint8Array = new Uint8Array(pixelBuffer);
-        data.fill(128);
-        
-        await renderer.renderFrame(pixelBuffer, this.width, this.height);
-        renderer.dispose();
+        try {
+          await renderer.initialize(this.surfaceId);
+          
+          const bytesPerPixel: number = fmt.format === PixelFormat.RGB ? 3 : 4;
+          const bufferSize: number = this.width * this.height * bytesPerPixel;
+          const pixelBuffer: ArrayBuffer = new ArrayBuffer(bufferSize);
+          const data: Uint8Array = new Uint8Array(pixelBuffer);
+          data.fill(128);
+          
+          await renderer.renderFrame(pixelBuffer, this.width, this.height);
+        } finally {
+          renderer.dispose();
+        }
       }
       
       const duration: number = Date.now() - startTime;

@@ -41,16 +41,16 @@ export class CallbackIntegrationTest {
     const startTime = Date.now();
     const testName = '单帧渲染完成回调';
     
+    const config: ArkZeroRendererConfig = {
+      width: this.width,
+      height: this.height,
+      format: PixelFormat.RGBA
+    };
+    
+    const renderer = new ArkZeroRenderer(config);
+    
     try {
       hilog.info(DOMAIN, TAG, 'Test: 单帧渲染完成回调');
-      
-      const config: ArkZeroRendererConfig = {
-        width: this.width,
-        height: this.height,
-        format: PixelFormat.RGBA
-      };
-      
-      const renderer = new ArkZeroRenderer(config);
       
       await renderer.initialize(this.surfaceId);
       
@@ -78,7 +78,6 @@ export class CallbackIntegrationTest {
       };
       this.results.push(result);
       
-      renderer.dispose();
       hilog.info(DOMAIN, TAG, `PASSED: ${testName} (${duration}ms)`);
       
     } catch (error) {
@@ -93,6 +92,8 @@ export class CallbackIntegrationTest {
       this.results.push(result);
       
       hilog.error(DOMAIN, TAG, `FAILED: ${testName} - ${errorMsg}`);
+    } finally {
+      renderer.dispose();
     }
   }
 
@@ -100,16 +101,16 @@ export class CallbackIntegrationTest {
     const startTime = Date.now();
     const testName = '多帧渲染回调计数';
     
+    const config: ArkZeroRendererConfig = {
+      width: this.width,
+      height: this.height,
+      format: PixelFormat.RGBA
+    };
+    
+    const renderer = new ArkZeroRenderer(config);
+    
     try {
       hilog.info(DOMAIN, TAG, 'Test: 多帧渲染回调计数');
-      
-      const config: ArkZeroRendererConfig = {
-        width: this.width,
-        height: this.height,
-        format: PixelFormat.RGBA
-      };
-      
-      const renderer = new ArkZeroRenderer(config);
       
       await renderer.initialize(this.surfaceId);
       
@@ -141,7 +142,6 @@ export class CallbackIntegrationTest {
       };
       this.results.push(result);
       
-      renderer.dispose();
       hilog.info(DOMAIN, TAG, `PASSED: ${testName} (${duration}ms)`);
       
     } catch (error) {
@@ -156,6 +156,8 @@ export class CallbackIntegrationTest {
       this.results.push(result);
       
       hilog.error(DOMAIN, TAG, `FAILED: ${testName} - ${errorMsg}`);
+    } finally {
+      renderer.dispose();
     }
   }
 
@@ -229,16 +231,16 @@ export class CallbackIntegrationTest {
     const startTime = Date.now();
     const testName = '回调执行顺序';
     
+    const config: ArkZeroRendererConfig = {
+      width: this.width,
+      height: this.height,
+      format: PixelFormat.RGBA
+    };
+    
+    const renderer = new ArkZeroRenderer(config);
+    
     try {
       hilog.info(DOMAIN, TAG, 'Test: 回调执行顺序');
-      
-      const config: ArkZeroRendererConfig = {
-        width: this.width,
-        height: this.height,
-        format: PixelFormat.RGBA
-      };
-      
-      const renderer = new ArkZeroRenderer(config);
       
       await renderer.initialize(this.surfaceId);
       
@@ -272,7 +274,6 @@ export class CallbackIntegrationTest {
       };
       this.results.push(result);
       
-      renderer.dispose();
       hilog.info(DOMAIN, TAG, `PASSED: ${testName} (${duration}ms)`);
       
     } catch (error) {
@@ -287,6 +288,8 @@ export class CallbackIntegrationTest {
       this.results.push(result);
       
       hilog.error(DOMAIN, TAG, `FAILED: ${testName} - ${errorMsg}`);
+    } finally {
+      renderer.dispose();
     }
   }
 
@@ -294,16 +297,16 @@ export class CallbackIntegrationTest {
     const startTime = Date.now();
     const testName = 'resize后回调行为';
     
+    const config: ArkZeroRendererConfig = {
+      width: this.width,
+      height: this.height,
+      format: PixelFormat.RGBA
+    };
+    
+    const renderer = new ArkZeroRenderer(config);
+    
     try {
       hilog.info(DOMAIN, TAG, 'Test: resize后回调行为');
-      
-      const config: ArkZeroRendererConfig = {
-        width: this.width,
-        height: this.height,
-        format: PixelFormat.RGBA
-      };
-      
-      const renderer = new ArkZeroRenderer(config);
       
       await renderer.initialize(this.surfaceId);
       
@@ -333,7 +336,6 @@ export class CallbackIntegrationTest {
       };
       this.results.push(result);
       
-      renderer.dispose();
       hilog.info(DOMAIN, TAG, `PASSED: ${testName} (${duration}ms)`);
       
     } catch (error) {
@@ -348,6 +350,8 @@ export class CallbackIntegrationTest {
       this.results.push(result);
       
       hilog.error(DOMAIN, TAG, `FAILED: ${testName} - ${errorMsg}`);
+    } finally {
+      renderer.dispose();
     }
   }
 }

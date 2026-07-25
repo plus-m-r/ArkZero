@@ -69,31 +69,66 @@ bool Renderer::Initialize(void* nativeWindow)
 bool Renderer::RenderFrame(const void* pixelData, size_t dataSize, int32_t width, int32_t height)
 {
     if (!m_backend || !m_backend->IsInitialized()) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "Renderer", "Not initialized");
+        OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
+            "ArkZeroRenderer", "[ARKZERO-FATAL] Renderer::RenderFrame: backend=%{public}d, isInit=%{public}d",
+            m_backend ? 1 : 0, (m_backend && m_backend->IsInitialized()) ? 1 : 0);
         return false;
     }
 
     if (!pixelData || dataSize == 0) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "Renderer", "Invalid pixel data");
+        OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
+            "ArkZeroRenderer", "[ARKZERO-FATAL] Renderer::RenderFrame: pixelData=%{public}d, dataSize=%{public}zu",
+            pixelData ? 1 : 0, dataSize);
         return false;
     }
 
-    std::lock_guard<std::mutex> lock(m_renderMutex);
-
-    // ⭐ 单槽 ownership transfer：调用期间独占这块 buffer，直到返回才允许 ArkTS 复用
     bool renderSuccess = m_backend->RenderFrame(pixelData, dataSize, width, height);
     if (!renderSuccess) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "Renderer", "Failed to render frame");
+        OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
+            "ArkZeroRenderer", "[ARKZERO-FATAL] Renderer::RenderFrame: backend->RenderFrame returned false");
         return false;
     }
 
-    OH_LOG_Print(LOG_APP, LOG_DEBUG, LOG_PRINT_DOMAIN, 
-        "Renderer", "🎨 Frame rendered (single-slot ownership transfer)");
-
     return true;
+}
+
+bool Renderer::RenderFrameRegions(const void* pixelData, size_t dataSize,
+                                  int32_t frameWidth, int32_t frameHeight,
+                                  const DirtyRect* regions, int32_t regionCount,
+                                  bool swapBuffers) {
+    if (!m_backend || !m_backend->IsInitialized()) {
+        return false;
+    }
+
+    if (!pixelData || dataSize == 0 || !regions || regionCount <= 0) {
+        return false;
+    }
+
+    return m_backend->RenderFrameRegions(pixelData, dataSize, frameWidth, frameHeight,
+                                         regions, regionCount, swapBuffers);
+}
+
+bool Renderer::UpdateDirtyRegions(const void* pixelData, size_t dataSize,
+                                  int32_t frameWidth, int32_t frameHeight,
+                                  const DirtyRect* regions, int32_t regionCount) {
+    if (!m_backend || !m_backend->IsInitialized()) {
+        return false;
+    }
+
+    if (!pixelData || dataSize == 0 || !regions || regionCount <= 0) {
+        return false;
+    }
+
+    return m_backend->UpdateDirtyRegions(pixelData, dataSize, frameWidth, frameHeight,
+                                         regions, regionCount);
+}
+
+bool Renderer::PresentFrame() {
+    if (!m_backend || !m_backend->IsInitialized()) {
+        return false;
+    }
+
+    return m_backend->PresentFrame();
 }
 
 bool Renderer::Resize(int32_t width, int32_t height)

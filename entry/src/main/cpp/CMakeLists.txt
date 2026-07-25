@@ -22,6 +22,12 @@ add_library(nativerender SHARED
     # 策略模式文件
     renderer/backend/strategy/PoolTextureStrategy.cpp
     renderer/backend/strategy/DirectTextureStrategy.cpp
+    # 工厂模式文件
+    renderer/backend/factory/TextureFactory.cpp
+    # 渲染命令文件
+    renderer/core/command/RenderFrameCommand.cpp
+    renderer/core/command/PreallocateTextureCommand.cpp
+    renderer/core/PerformanceMonitor.cpp
     renderer/core/Renderer.cpp
     renderer/manager/RendererManager.cpp
     renderer/manager/SurfaceManager.cpp
@@ -29,6 +35,14 @@ add_library(nativerender SHARED
     # NAPI 桥接（核心接口）
     napi_bridge/renderer_manager_napi.cpp
     napi_bridge/surface_manager_napi.cpp
+    # NAPI 桥接（扩展接口）
+    napi_bridge/egl_context_manager_napi.cpp
+    napi_bridge/gles_backend_napi.cpp
+    napi_bridge/texture_manager_napi.cpp
+    napi_bridge/texture_pool_napi.cpp
+    napi_bridge/pixel_format_converter_napi.cpp
+    napi_bridge/yuv_shader_manager_napi.cpp
+    napi_bridge/performance_monitor_napi.cpp
     napi_init.cpp
 )
 

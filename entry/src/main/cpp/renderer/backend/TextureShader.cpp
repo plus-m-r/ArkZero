@@ -167,47 +167,21 @@ void TextureShader::Destroy() {
 
 bool TextureShader::Draw(GLuint textureId, int32_t width, int32_t height) {
     if (!m_isInitialized || !m_program) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "TextureShader", "Not initialized");
         return false;
     }
 
     if (textureId == 0) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "TextureShader", "Invalid texture ID");
         return false;
     }
 
-    // 1. 使用 Shader 程序
     glUseProgram(m_program);
 
-    // 2. 设置视口
-    glViewport(0, 0, width, height);
-
-    // 3. 绑定纹理
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, textureId);
     glUniform1i(m_textureLoc, 0);
 
-    // 4. 绘制全屏四边形
     glBindVertexArray(m_vao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    glBindVertexArray(0);
-
-    // 5. 解绑纹理
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    // 6. 检查错误
-    GLenum error = glGetError();
-    if (error != GL_NO_ERROR) {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
-            "TextureShader", "OpenGL error: %{public}x", error);
-        return false;
-    }
-
-    OH_LOG_Print(LOG_APP, LOG_DEBUG, LOG_PRINT_DOMAIN, 
-        "TextureShader", "✅ Fullscreen quad drawn with texture #%u (%dx%d)", 
-        textureId, width, height);
 
     return true;
 }

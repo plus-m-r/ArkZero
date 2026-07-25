@@ -4,7 +4,9 @@ import { PixelFormatIntegrationTest } from '../tests/PixelFormatIntegration.test
 import { StressIntegrationTest } from '../tests/StressIntegration.test';
 import { CallbackIntegrationTest } from '../tests/CallbackIntegration.test';
 import { LifecycleObserverIntegrationTest } from '../tests/LifecycleObserverIntegration.test';
+import { IncrementalBenchmarkTest } from '../tests/IncrementalBenchmark.test';
 import { TestResultPanel, TestCaseResult } from '../components/TestResultPanel';
+import { router } from '@kit.ArkUI';
 import hilog from '@ohos.hilog';
 
 const DOMAIN = 0x0001;
@@ -16,7 +18,8 @@ enum TestModule {
   PIXEL_FORMAT = '像素格式兼容性',
   STRESS = '压力测试',
   CALLBACK = '回调机制测试',
-  LIFECYCLE_OBSERVER = '生命周期观察者'
+  LIFECYCLE_OBSERVER = '生命周期观察者',
+  INCREMENTAL_BENCH = '增量渲染基准测试'
 }
 
 @Entry
@@ -78,6 +81,10 @@ struct IntegrationTestPage {
         case TestModule.LIFECYCLE_OBSERVER:
           this.totalTests = 6;
           await this.runLifecycleObserverTest();
+          break;
+        case TestModule.INCREMENTAL_BENCH:
+          this.totalTests = 8;
+          await this.runIncrementalBenchmark();
           break;
       }
     } catch (error) {
@@ -167,6 +174,26 @@ struct IntegrationTestPage {
     await test.runAllTests();
   }
 
+  private async runIncrementalBenchmark(): Promise<void> {
+    const test = new IncrementalBenchmarkTest(
+      this.surfaceId,
+      (results: TestCaseResult[]) => {
+        this.testResults = results;
+        this.completedTests = results.length;
+        hilog.info(DOMAIN, TAG, `Incremental Benchmark tests completed: ${results.length} cases`);
+      }
+    );
+    await test.runAllTests();
+  }
+
+  private handleTouchEvent(event: TouchEvent): void {
+    for (let i = 0; i < event.touches.length; i++) {
+      const touch = event.touches[i];
+      hilog.info(DOMAIN, TAG, 'Touch: id=%{public}d x=%{public}f y=%{public}f type=%{public}d',
+        touch.id, touch.x, touch.y, event.type);
+    }
+  }
+
   build() {
     Stack() {
       XComponent({
@@ -177,7 +204,7 @@ struct IntegrationTestPage {
         .onLoad(() => {
           this.surfaceId = this.xComponentController.getXComponentSurfaceId();
           this.isInitialized = true;
-          hilog.info(DOMAIN, TAG, `XComponent loaded, surfaceId: ${this.surfaceId}`);
+          hilog.info(DOMAIN, TAG, 'XComponent loaded, surfaceId: %{public}s', this.surfaceId);
         })
         .onDestroy(() => {
           hilog.info(DOMAIN, TAG, 'XComponent destroyed');
@@ -197,6 +224,15 @@ struct IntegrationTestPage {
             .fontSize(14)
             .fontColor('#CCCCCC')
             .margin({ top: 10 })
+          
+          Button('返回首页')
+            .fontSize(14)
+            .width(250)
+            .margin({ top: 10 })
+            .backgroundColor('#666666')
+            .onClick(() => {
+              router.back();
+            })
           
           Column() {
             Button(TestModule.RENDERER)
@@ -252,6 +288,15 @@ struct IntegrationTestPage {
               .onClick(() => {
                 this.runTestModule(TestModule.LIFECYCLE_OBSERVER);
               })
+            
+            Button(TestModule.INCREMENTAL_BENCH)
+              .fontSize(14)
+              .width(250)
+              .margin({ top: 10 })
+              .enabled(this.isInitialized)
+              .onClick(() => {
+                this.runTestModule(TestModule.INCREMENTAL_BENCH);
+              })
           }
           .margin({ top: 30 })
           
@@ -271,6 +316,7 @@ struct IntegrationTestPage {
         .height('100%')
         .justifyContent(FlexAlign.Center)
         .backgroundColor('rgba(0, 0, 0, 0.8)')
+        .hitTestBehavior(HitTestMode.Transparent)
       }
 
       if (this.showTestPanel) {
@@ -310,10 +356,14 @@ struct IntegrationTestPage {
         .width('70%')
         .height('85%')
         .position({ x: '15%', y: '7.5%' })
+        .hitTestBehavior(HitTestMode.Transparent)
       }
     }
     .width('100%')
     .height('100%')
     .backgroundColor(Color.Black)
+    .onTouch((event: TouchEvent) => {
+      this.handleTouchEvent(event);
+    })
   }
 }

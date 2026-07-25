@@ -20,81 +20,13 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "../../common/common.h"
 
 namespace NativeXComponentSample {
 
-struct RenderFrameWorkContext {
-    napi_env env { nullptr };
-    napi_deferred deferred { nullptr };
-    napi_async_work work { nullptr };
-    napi_ref bufferRef { nullptr };
-    int32_t handle { 0 };
-    void* data { nullptr };
-    size_t byteLength { 0 };
-    int32_t width { 0 };
-    int32_t height { 0 };
-    std::string errorMessage;
-};
 
-static void ExecuteRenderFrameWork(napi_env env, void* data)
-{
-    auto* context = static_cast<RenderFrameWorkContext*>(data);
-    if (context == nullptr) {
-        return;
-    }
-
-    Renderer* renderer = RendererManager::GetInstance().GetRenderer(context->handle);
-    if (renderer == nullptr) {
-        context->errorMessage = "Invalid renderer handle";
-        return;
-    }
-
-    bool renderSuccess = renderer->RenderFrame(
-        context->data,
-        context->byteLength,
-        context->width,
-        context->height);
-
-    if (!renderSuccess) {
-        context->errorMessage = "RenderFrame failed";
-        return;
-    }
-}
-
-static void CompleteRenderFrameWork(napi_env env, napi_status status, void* data)
-{
-    auto* context = static_cast<RenderFrameWorkContext*>(data);
-    if (context == nullptr) {
-        return;
-    }
-
-    napi_value result = nullptr;
-    if ((status == napi_ok) && context->errorMessage.empty()) {
-        napi_get_undefined(env, &result);
-        napi_resolve_deferred(env, context->deferred, result);
-    } else {
-        std::string errorMessage = context->errorMessage.empty() ? "RenderFrame failed" : context->errorMessage;
-        napi_value message = nullptr;
-        napi_value error = nullptr;
-        napi_create_string_utf8(env, errorMessage.c_str(), NAPI_AUTO_LENGTH, &message);
-        napi_create_error(env, nullptr, message, &error);
-        napi_reject_deferred(env, context->deferred, error);
-    }
-
-    if (context->bufferRef != nullptr) {
-        napi_delete_reference(env, context->bufferRef);
-        context->bufferRef = nullptr;
-    }
-
-    if (context->work != nullptr) {
-        napi_delete_async_work(env, context->work);
-        context->work = nullptr;
-    }
-
-    delete context;
-}
 
 /**
  * create(surfaceId: string, width: number, height: number, format: number): Promise<number>
@@ -176,8 +108,17 @@ napi_value CreateRenderer(napi_env env, napi_callback_info info) {
         "RendererApi", "Creating with XComponent Surface: width=%{public}f, height=%{public}f, format=%{public}d", 
         width, height, static_cast<int>(format));
 
-    // ⭐ 通过 SurfaceManager 从 surfaceId 创建 NativeWindow
-    void* nativeWindow = SurfaceManager::GetInstance().CreateNativeWindow(std::string(surfaceId));
+    // ⭐ 优先使用 XComponent callback 存储的 NativeWindow
+    void* nativeWindow = SurfaceManager::GetInstance().GetStoredNativeWindow(std::string(surfaceId));
+    if (nativeWindow) {
+        OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN,
+            "RendererApi", "✅ Using stored NativeWindow from XComponent callback: %{public}s", surfaceId);
+    } else {
+        // Fallback: 通过 surfaceId 创建 NativeWindow
+        OH_LOG_Print(LOG_APP, LOG_WARN, LOG_PRINT_DOMAIN,
+            "RendererApi", "No stored NativeWindow, falling back to CreateNativeWindow");
+        nativeWindow = SurfaceManager::GetInstance().CreateNativeWindow(std::string(surfaceId));
+    }
     if (!nativeWindow) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, 
             "RendererApi", "❌ Failed to create NativeWindow from surfaceId: %{public}s", surfaceId);
@@ -197,9 +138,14 @@ napi_value CreateRenderer(napi_env env, napi_callback_info info) {
     );
 
     if (handle < 0) {
+        OH_LOG_Print(LOG_APP, LOG_FATAL, LOG_PRINT_DOMAIN,
+            "RendererApi", "[ARKZERO-FATAL] CreateRenderer: CreateRenderer returned handle=%{public}d", handle);
         napi_throw_error(env, NULL, "Failed to create Renderer with surface");
         return nullptr;
     }
+
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN,
+        "RendererApi", "[ARKZERO] CreateRenderer: SUCCESS, handle=%{public}d", handle);
 
     // 创建Promise并resolve
     napi_value promise;
@@ -304,61 +250,374 @@ napi_value RenderFrame(napi_env env, napi_callback_info info) {
         return nullptr;
     }
 
-    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-        "RendererApi",
-        "RenderFrame: handle=%{public}d, width=%{public}f, height=%{public}f, bufferSize=%{public}zu",
-        handle, width, height, byteLength);
-
-    auto* context = new RenderFrameWorkContext();
-    context->env = env;
-    context->handle = handle;
-    context->data = data;
-    context->byteLength = byteLength;
-    context->width = static_cast<int32_t>(width);
-    context->height = static_cast<int32_t>(height);
-
-    if (napi_create_reference(env, args[1], 1, &context->bufferRef) != napi_ok) {
-        delete context;
-        napi_throw_error(env, NULL, "Failed to retain ArrayBuffer reference");
+    Renderer* renderer = RendererManager::GetInstance().GetRenderer(handle);
+    if (renderer == nullptr) {
+        OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
+            "ArkZeroRenderer", "[ARKZERO-FATAL] RenderFrame: handle=%{public}d NOT found", handle);
+        napi_throw_error(env, NULL, "Invalid renderer handle for renderFrame");
         return nullptr;
     }
 
-    napi_value resourceName;
-    if (napi_create_string_utf8(env, "ArkZeroRendererRenderFrame", NAPI_AUTO_LENGTH, &resourceName) != napi_ok) {
-        napi_delete_reference(env, context->bufferRef);
-        delete context;
-        napi_throw_error(env, NULL, "Failed to create async resource name");
-        return nullptr;
-    }
+    bool renderSuccess = renderer->RenderFrame(
+        data,
+        byteLength,
+        static_cast<int32_t>(width),
+        static_cast<int32_t>(height));
 
     napi_value promise = nullptr;
-    if (napi_create_promise(env, &context->deferred, &promise) != napi_ok) {
-        napi_delete_reference(env, context->bufferRef);
-        delete context;
+    napi_deferred deferred = nullptr;
+    if (napi_create_promise(env, &deferred, &promise) != napi_ok) {
         napi_throw_error(env, NULL, "Failed to create promise");
         return nullptr;
     }
 
-    if (napi_create_async_work(
-        env,
-        nullptr,
-        resourceName,
-        ExecuteRenderFrameWork,
-        CompleteRenderFrameWork,
-        context,
-        &context->work) != napi_ok) {
-        napi_delete_reference(env, context->bufferRef);
-        delete context;
-        napi_throw_error(env, NULL, "Failed to create async work");
+    napi_value result = nullptr;
+    napi_get_undefined(env, &result);
+
+    if (renderSuccess) {
+        napi_resolve_deferred(env, deferred, result);
+    } else {
+        napi_value message = nullptr;
+        napi_value error = nullptr;
+        napi_create_string_utf8(env, "RenderFrame failed", NAPI_AUTO_LENGTH, &message);
+        napi_create_error(env, nullptr, message, &error);
+        napi_reject_deferred(env, deferred, error);
+        OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
+            "ArkZeroRenderer", "[ARKZERO-FATAL] RenderFrame: FAILED (synchronous)");
+    }
+
+    return promise;
+}
+
+napi_value RenderFrameRegions(napi_env env, napi_callback_info info) {
+    if ((env == nullptr) || (info == nullptr)) {
         return nullptr;
     }
 
-    if (napi_queue_async_work(env, context->work) != napi_ok) {
-        napi_delete_async_work(env, context->work);
-        napi_delete_reference(env, context->bufferRef);
-        delete context;
-        napi_throw_error(env, NULL, "Failed to queue async work");
+    size_t argCnt = 6;
+    napi_value args[6] = { nullptr };
+    if (napi_get_cb_info(env, info, &argCnt, args, nullptr, nullptr) != napi_ok) {
         return nullptr;
+    }
+
+    if (argCnt != 6) {
+        napi_throw_type_error(env, NULL,
+            "Wrong number of arguments. Expected: handle, pixelData, frameWidth, frameHeight, regions, swap");
+        return nullptr;
+    }
+
+    napi_valuetype valuetype;
+
+    if (napi_typeof(env, args[0], &valuetype) != napi_ok || valuetype != napi_number) {
+        napi_throw_type_error(env, NULL, "First argument must be a number (handle)");
+        return nullptr;
+    }
+    int32_t handle;
+    if (napi_get_value_int32(env, args[0], &handle) != napi_ok) {
+        napi_throw_type_error(env, NULL, "Failed to get handle value");
+        return nullptr;
+    }
+
+    bool isArrayBuffer;
+    if (napi_is_arraybuffer(env, args[1], &isArrayBuffer) != napi_ok || !isArrayBuffer) {
+        napi_throw_type_error(env, NULL, "Second argument must be an ArrayBuffer");
+        return nullptr;
+    }
+    void* data = nullptr;
+    size_t byteLength = 0;
+    if (napi_get_arraybuffer_info(env, args[1], &data, &byteLength) != napi_ok) {
+        return nullptr;
+    }
+
+    if (napi_typeof(env, args[2], &valuetype) != napi_ok || valuetype != napi_number) {
+        napi_throw_type_error(env, NULL, "Third argument must be a number (frameWidth)");
+        return nullptr;
+    }
+    double frameWidth;
+    if (napi_get_value_double(env, args[2], &frameWidth) != napi_ok) {
+        return nullptr;
+    }
+
+    if (napi_typeof(env, args[3], &valuetype) != napi_ok || valuetype != napi_number) {
+        napi_throw_type_error(env, NULL, "Fourth argument must be a number (frameHeight)");
+        return nullptr;
+    }
+    double frameHeight;
+    if (napi_get_value_double(env, args[3], &frameHeight) != napi_ok) {
+        return nullptr;
+    }
+
+    bool isArray = false;
+    if (napi_is_array(env, args[4], &isArray) != napi_ok || !isArray) {
+        napi_throw_type_error(env, NULL, "Fifth argument must be an array of DirtyRect");
+        return nullptr;
+    }
+    uint32_t regionCount = 0;
+    if (napi_get_array_length(env, args[4], &regionCount) != napi_ok) {
+        return nullptr;
+    }
+
+    std::vector<DirtyRect> regions(regionCount);
+    for (uint32_t i = 0; i < regionCount; i++) {
+        napi_value element = nullptr;
+        if (napi_get_element(env, args[4], i, &element) != napi_ok) {
+            return nullptr;
+        }
+
+        napi_value xVal = nullptr;
+        napi_value yVal = nullptr;
+        napi_value wVal = nullptr;
+        napi_value hVal = nullptr;
+
+        if (napi_get_named_property(env, element, "x", &xVal) != napi_ok ||
+            napi_get_named_property(env, element, "y", &yVal) != napi_ok ||
+            napi_get_named_property(env, element, "w", &wVal) != napi_ok ||
+            napi_get_named_property(env, element, "h", &hVal) != napi_ok) {
+            return nullptr;
+        }
+
+        double xd, yd, wd, hd;
+        if (napi_get_value_double(env, xVal, &xd) != napi_ok ||
+            napi_get_value_double(env, yVal, &yd) != napi_ok ||
+            napi_get_value_double(env, wVal, &wd) != napi_ok ||
+            napi_get_value_double(env, hVal, &hd) != napi_ok) {
+            return nullptr;
+        }
+
+        regions[i].x = static_cast<int32_t>(xd);
+        regions[i].y = static_cast<int32_t>(yd);
+        regions[i].w = static_cast<int32_t>(wd);
+        regions[i].h = static_cast<int32_t>(hd);
+    }
+
+    bool swap = false;
+    napi_get_value_bool(env, args[5], &swap);
+
+    Renderer* renderer = RendererManager::GetInstance().GetRenderer(handle);
+    if (renderer == nullptr) {
+        napi_throw_error(env, NULL, "Invalid renderer handle");
+        return nullptr;
+    }
+
+    bool renderSuccess = renderer->RenderFrameRegions(
+        data, byteLength,
+        static_cast<int32_t>(frameWidth),
+        static_cast<int32_t>(frameHeight),
+        regions.data(),
+        static_cast<int32_t>(regionCount),
+        swap);
+
+    napi_value promise = nullptr;
+    napi_deferred deferred = nullptr;
+    if (napi_create_promise(env, &deferred, &promise) != napi_ok) {
+        napi_throw_error(env, NULL, "Failed to create promise");
+        return nullptr;
+    }
+
+    napi_value result = nullptr;
+    napi_get_undefined(env, &result);
+
+    if (renderSuccess) {
+        napi_resolve_deferred(env, deferred, result);
+    } else {
+        napi_value message = nullptr;
+        napi_value error = nullptr;
+        napi_create_string_utf8(env, "RenderFrameRegions failed", NAPI_AUTO_LENGTH, &message);
+        napi_create_error(env, nullptr, message, &error);
+        napi_reject_deferred(env, deferred, error);
+    }
+
+    return promise;
+}
+
+napi_value UpdateDirtyRegions(napi_env env, napi_callback_info info) {
+    if ((env == nullptr) || (info == nullptr)) {
+        return nullptr;
+    }
+
+    size_t argCnt = 5;
+    napi_value args[5] = { nullptr };
+    if (napi_get_cb_info(env, info, &argCnt, args, nullptr, nullptr) != napi_ok) {
+        return nullptr;
+    }
+
+    if (argCnt != 5) {
+        napi_throw_type_error(env, NULL,
+            "Wrong number of arguments. Expected: handle, pixelData, frameWidth, frameHeight, regions");
+        return nullptr;
+    }
+
+    napi_valuetype valuetype;
+
+    if (napi_typeof(env, args[0], &valuetype) != napi_ok || valuetype != napi_number) {
+        napi_throw_type_error(env, NULL, "First argument must be a number (handle)");
+        return nullptr;
+    }
+    int32_t handle;
+    if (napi_get_value_int32(env, args[0], &handle) != napi_ok) {
+        return nullptr;
+    }
+
+    bool isArrayBuffer;
+    if (napi_is_arraybuffer(env, args[1], &isArrayBuffer) != napi_ok || !isArrayBuffer) {
+        napi_throw_type_error(env, NULL, "Second argument must be an ArrayBuffer");
+        return nullptr;
+    }
+    void* data = nullptr;
+    size_t byteLength = 0;
+    if (napi_get_arraybuffer_info(env, args[1], &data, &byteLength) != napi_ok) {
+        return nullptr;
+    }
+
+    if (napi_typeof(env, args[2], &valuetype) != napi_ok || valuetype != napi_number) {
+        napi_throw_type_error(env, NULL, "Third argument must be a number (frameWidth)");
+        return nullptr;
+    }
+    double frameWidth;
+    if (napi_get_value_double(env, args[2], &frameWidth) != napi_ok) {
+        return nullptr;
+    }
+
+    if (napi_typeof(env, args[3], &valuetype) != napi_ok || valuetype != napi_number) {
+        napi_throw_type_error(env, NULL, "Fourth argument must be a number (frameHeight)");
+        return nullptr;
+    }
+    double frameHeight;
+    if (napi_get_value_double(env, args[3], &frameHeight) != napi_ok) {
+        return nullptr;
+    }
+
+    bool isArray = false;
+    if (napi_is_array(env, args[4], &isArray) != napi_ok || !isArray) {
+        napi_throw_type_error(env, NULL, "Fifth argument must be an array of DirtyRect");
+        return nullptr;
+    }
+    uint32_t regionCount = 0;
+    if (napi_get_array_length(env, args[4], &regionCount) != napi_ok) {
+        return nullptr;
+    }
+
+    std::vector<DirtyRect> regions(regionCount);
+    for (uint32_t i = 0; i < regionCount; i++) {
+        napi_value element = nullptr;
+        if (napi_get_element(env, args[4], i, &element) != napi_ok) {
+            return nullptr;
+        }
+
+        napi_value xVal = nullptr;
+        napi_value yVal = nullptr;
+        napi_value wVal = nullptr;
+        napi_value hVal = nullptr;
+
+        if (napi_get_named_property(env, element, "x", &xVal) != napi_ok ||
+            napi_get_named_property(env, element, "y", &yVal) != napi_ok ||
+            napi_get_named_property(env, element, "w", &wVal) != napi_ok ||
+            napi_get_named_property(env, element, "h", &hVal) != napi_ok) {
+            return nullptr;
+        }
+
+        double xd, yd, wd, hd;
+        if (napi_get_value_double(env, xVal, &xd) != napi_ok ||
+            napi_get_value_double(env, yVal, &yd) != napi_ok ||
+            napi_get_value_double(env, wVal, &wd) != napi_ok ||
+            napi_get_value_double(env, hVal, &hd) != napi_ok) {
+            return nullptr;
+        }
+
+        regions[i].x = static_cast<int32_t>(xd);
+        regions[i].y = static_cast<int32_t>(yd);
+        regions[i].w = static_cast<int32_t>(wd);
+        regions[i].h = static_cast<int32_t>(hd);
+    }
+
+    Renderer* renderer = RendererManager::GetInstance().GetRenderer(handle);
+    if (renderer == nullptr) {
+        napi_throw_error(env, NULL, "Invalid renderer handle");
+        return nullptr;
+    }
+
+    bool renderSuccess = renderer->UpdateDirtyRegions(
+        data, byteLength,
+        static_cast<int32_t>(frameWidth),
+        static_cast<int32_t>(frameHeight),
+        regions.data(),
+        static_cast<int32_t>(regionCount));
+
+    napi_value promise = nullptr;
+    napi_deferred deferred = nullptr;
+    if (napi_create_promise(env, &deferred, &promise) != napi_ok) {
+        napi_throw_error(env, NULL, "Failed to create promise");
+        return nullptr;
+    }
+
+    napi_value result = nullptr;
+    napi_get_undefined(env, &result);
+
+    if (renderSuccess) {
+        napi_resolve_deferred(env, deferred, result);
+    } else {
+        napi_value message = nullptr;
+        napi_value error = nullptr;
+        napi_create_string_utf8(env, "UpdateDirtyRegions failed", NAPI_AUTO_LENGTH, &message);
+        napi_create_error(env, nullptr, message, &error);
+        napi_reject_deferred(env, deferred, error);
+    }
+
+    return promise;
+}
+
+napi_value PresentFrame(napi_env env, napi_callback_info info) {
+    if ((env == nullptr) || (info == nullptr)) {
+        return nullptr;
+    }
+
+    size_t argCnt = 1;
+    napi_value args[1] = { nullptr };
+    if (napi_get_cb_info(env, info, &argCnt, args, nullptr, nullptr) != napi_ok) {
+        return nullptr;
+    }
+
+    if (argCnt != 1) {
+        napi_throw_type_error(env, NULL, "Wrong number of arguments. Expected: handle");
+        return nullptr;
+    }
+
+    napi_valuetype valuetype;
+    if (napi_typeof(env, args[0], &valuetype) != napi_ok || valuetype != napi_number) {
+        napi_throw_type_error(env, NULL, "Argument must be a number (handle)");
+        return nullptr;
+    }
+    int32_t handle;
+    if (napi_get_value_int32(env, args[0], &handle) != napi_ok) {
+        return nullptr;
+    }
+
+    Renderer* renderer = RendererManager::GetInstance().GetRenderer(handle);
+    if (renderer == nullptr) {
+        napi_throw_error(env, NULL, "Invalid renderer handle");
+        return nullptr;
+    }
+
+    bool success = renderer->PresentFrame();
+
+    napi_value promise = nullptr;
+    napi_deferred deferred = nullptr;
+    if (napi_create_promise(env, &deferred, &promise) != napi_ok) {
+        napi_throw_error(env, NULL, "Failed to create promise");
+        return nullptr;
+    }
+
+    napi_value result = nullptr;
+    napi_get_undefined(env, &result);
+
+    if (success) {
+        napi_resolve_deferred(env, deferred, result);
+    } else {
+        napi_value message = nullptr;
+        napi_value error = nullptr;
+        napi_create_string_utf8(env, "PresentFrame failed", NAPI_AUTO_LENGTH, &message);
+        napi_create_error(env, nullptr, message, &error);
+        napi_reject_deferred(env, deferred, error);
     }
 
     return promise;

@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-import { ArkZeroRenderer, PixelFormat } from '../../components/rendering/ArkZeroRenderer';
+import { ArkZeroRenderer, PixelFormat, DirtyRect } from '../../components/rendering/ArkZeroRenderer';
 import { TestCaseResult, TestStatus } from '../components/TestResultPanel';
 import hilog from '@ohos.hilog';
 
@@ -50,6 +50,7 @@ export class RendererIntegrationTest {
     await this.testRenderFrame();
     await this.testResize();
     await this.testMultipleRenders();
+    await this.testIncrementalRender();
     await this.testDispose();
     
     hilog.info(DOMAIN, TAG, `✅ All tests completed: ${this.results.length} cases`);
@@ -72,8 +73,8 @@ export class RendererIntegrationTest {
       hilog.info(DOMAIN, TAG, '▶️ Test: 初始化渲染器');
       
       this.renderer = new ArkZeroRenderer({
-        width: 1920,
-        height: 1080,
+        width: 800,
+        height: 600,
         format: PixelFormat.RGBA
       });
       
@@ -103,9 +104,6 @@ export class RendererIntegrationTest {
     }
   }
 
-  /**
-   * 测试 2: 渲染单帧
-   */
   private async testRenderFrame(): Promise<void> {
     const startTime = Date.now();
     const testName = '渲染单帧';
@@ -117,21 +115,12 @@ export class RendererIntegrationTest {
         throw new Error('渲染器未初始化');
       }
       
-      // 创建测试图案
-      const bufferSize = 1920 * 1080 * 4;
+      const bufferSize = 800 * 600 * 4;
       const pixelBuffer = new ArrayBuffer(bufferSize);
-      const data = new Uint8Array(pixelBuffer);
+      const data32 = new Uint32Array(pixelBuffer);
+      data32.fill(0xFF0000FF);
       
-      // 填充红色
-      for (let i = 0; i < bufferSize; i += 4) {
-        data[i] = 255;     // R
-        data[i + 1] = 0;   // G
-        data[i + 2] = 0;   // B
-        data[i + 3] = 255; // A
-      }
-      
-      // 渲染
-      await this.renderer.renderFrame(pixelBuffer, 1920, 1080);
+      await this.renderer.renderFrame(pixelBuffer, 800, 600);
       
       const duration = Date.now() - startTime;
       this.results.push({
@@ -177,15 +166,8 @@ export class RendererIntegrationTest {
       // 渲染一帧验证
       const bufferSize = 800 * 600 * 4;
       const pixelBuffer = new ArrayBuffer(bufferSize);
-      const data = new Uint8Array(pixelBuffer);
-      
-      // 填充绿色
-      for (let i = 0; i < bufferSize; i += 4) {
-        data[i] = 0;       // R
-        data[i + 1] = 255; // G
-        data[i + 2] = 0;   // B
-        data[i + 3] = 255; // A
-      }
+      const data32 = new Uint32Array(pixelBuffer);
+      data32.fill(0xFF00FF00);
       
       await this.renderer.renderFrame(pixelBuffer, 800, 600);
       
@@ -232,19 +214,15 @@ export class RendererIntegrationTest {
       
       const frameCount = 5;
       const bufferSize = 800 * 600 * 4;
-      
+      const pixelBuffer = new ArrayBuffer(bufferSize);
+      const data32 = new Uint32Array(pixelBuffer);
+
       for (let i = 0; i < frameCount; i++) {
-        const pixelBuffer = new ArrayBuffer(bufferSize);
-        const data = new Uint8Array(pixelBuffer);
-        
-        // 不同颜色
-        const color = (i * 50) % 256;
-        for (let j = 0; j < bufferSize; j += 4) {
-          data[j] = color;
-          data[j + 1] = 128;
-          data[j + 2] = 255 - color;
-          data[j + 3] = 255;
-        }
+        const r = (i * 50) % 256;
+        const g = 128;
+        const b = 255 - r;
+        const pixelValue = (255 << 24) | (b << 16) | (g << 8) | r;
+        data32.fill(pixelValue);
         
         await this.renderer.renderFrame(pixelBuffer, 800, 600);
       }
@@ -272,6 +250,74 @@ export class RendererIntegrationTest {
       });
       
       hilog.error(DOMAIN, TAG, `❌ ${testName}: FAILED - ${errorMsg}`);
+    }
+  }
+
+  private async testIncrementalRender(): Promise<void> {
+    const startTime = Date.now();
+    const testName = '增量渲染';
+    
+    try {
+      hilog.info(DOMAIN, TAG, 'Test: 增量渲染');
+      
+      if (!this.renderer) {
+        throw new Error('渲染器未初始化');
+      }
+
+      const frameWidth = 800;
+      const frameHeight = 600;
+
+      const fullBuffer = new ArrayBuffer(frameWidth * frameHeight * 4);
+      const full32 = new Uint32Array(fullBuffer);
+      full32.fill(0xFF0000FF);
+      await this.renderer.renderFrame(fullBuffer, frameWidth, frameHeight);
+
+      full32.fill(0xFF00FF00, 100 * frameWidth + 100, 100 * frameWidth + 100 + 50);
+      for (let row = 1; row < 50; row++) {
+        const start = (100 + row) * frameWidth + 100;
+        full32.fill(0xFF00FF00, start, start + 50);
+      }
+
+      full32.fill(0xFF0000FF, 200 * frameWidth + 200, 200 * frameWidth + 200 + 80);
+      for (let row = 1; row < 40; row++) {
+        const start = (200 + row) * frameWidth + 200;
+        full32.fill(0xFF0000FF, start, start + 80);
+      }
+
+      const region1: DirtyRect = { x: 100, y: 100, w: 50, h: 50 };
+      const region2: DirtyRect = { x: 200, y: 200, w: 80, h: 40 };
+
+      const incrementalStart = Date.now();
+      await this.renderer.renderFrameRegions(
+        fullBuffer,
+        frameWidth,
+        frameHeight,
+        [region1, region2],
+        true
+      );
+      const incrementalDuration = Date.now() - incrementalStart;
+
+      const duration = Date.now() - startTime;
+      this.results.push({
+        name: testName,
+        status: TestStatus.PASSED,
+        duration: duration,
+        message: `2区域增量渲染成功 (${incrementalDuration}ms)`
+      });
+      
+      hilog.info(DOMAIN, TAG, `${testName}: PASSED (${incrementalDuration}ms)`);
+      
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.results.push({
+        name: testName,
+        status: TestStatus.FAILED,
+        duration: duration,
+        message: `增量渲染失败: ${errorMsg}`
+      });
+      
+      hilog.error(DOMAIN, TAG, `${testName}: FAILED - ${errorMsg}`);
     }
   }
 

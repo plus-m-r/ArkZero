@@ -62,6 +62,17 @@ public:
     
     bool RenderFrame(const void* pixelData, size_t dataSize, 
                     int32_t width, int32_t height) override;
+
+    bool RenderFrameRegions(const void* pixelData, size_t dataSize,
+                            int32_t frameWidth, int32_t frameHeight,
+                            const DirtyRect* regions, int32_t regionCount,
+                            bool swapBuffers) override;
+
+    bool UpdateDirtyRegions(const void* pixelData, size_t dataSize,
+                            int32_t frameWidth, int32_t frameHeight,
+                            const DirtyRect* regions, int32_t regionCount) override;
+
+    bool PresentFrame() override;
     bool Resize(int32_t width, int32_t height) override;
     void Destroy() override;
     const char* GetBackendName() const override { return "OpenGL ES"; }
@@ -92,9 +103,7 @@ private:
     
     // ⭐ 设计模式：策略模式 - 纹理管理策略
     std::unique_ptr<ITextureStrategy> m_textureStrategy;  // 当前使用的策略
-    
-    void* m_nativeWindow = nullptr;  // ⭐ 保存 NativeWindow 引用，用于 Surface 恢复
-    
+
     int32_t m_width;
     int32_t m_height;
     PixelFormat m_format;

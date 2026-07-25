@@ -35,12 +35,20 @@ napi_value CreateRenderer(napi_env env, napi_callback_info info);
  * 渲染帧
  * 
  * ArkTS调用: renderFrame(handle: number, pixelData: ArrayBuffer, width: number, height: number): Promise<void>
+ * Note: RenderFrame executes synchronously on the calling thread (main/UI thread)
+ * to ensure EGL context validity for SwapBuffers.
  * 
  * @param env NAPI环境
  * @param info NAPI回调信息
  * @return Promise<void>
  */
 napi_value RenderFrame(napi_env env, napi_callback_info info);
+
+    napi_value RenderFrameRegions(napi_env env, napi_callback_info info);
+
+    napi_value UpdateDirtyRegions(napi_env env, napi_callback_info info);
+
+    napi_value PresentFrame(napi_env env, napi_callback_info info);
 
 /**
  * 调整渲染尺寸

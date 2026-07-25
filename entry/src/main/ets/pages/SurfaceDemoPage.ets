@@ -14,6 +14,7 @@
  */
 
 import { ArkZeroRenderer, PixelFormat } from '../components/rendering/ArkZeroRenderer';
+import { router } from '@kit.ArkUI';
 import hilog from '@ohos.hilog';
 import type { DisposeAsyncOptions } from '../components/rendering/ArkZeroRenderer';
 
@@ -86,30 +87,27 @@ struct SurfaceDemoPage {
    * 生成测试图案（简化版本，提高性能）
    */
   private generateTestPattern(bufferView: Uint32Array, width: number, height: number, time: number): void {
-    // 先整帧填充为深灰底色，成本低且能稳定看见输出
-    bufferView.fill(0xFF202020);
+    bufferView.fill(0xFFFFFFFF);
 
-    const barWidth = 48;
-    const barHeight = 48;
+    const barWidth = 120;
+    const barHeight = 120;
     const movingX = Math.floor((time / 4) % Math.max(1, width - barWidth));
     const movingY = Math.floor((time / 6) % Math.max(1, height - barHeight));
 
-    // 横向移动的红色条
     for (let y = 0; y < height; y++) {
       const rowOffset = y * width;
       for (let x = movingX; x < movingX + barWidth; x++) {
         if (x >= 0 && x < width) {
-          bufferView[rowOffset + x] = 0xFFFF4040;
+          bufferView[rowOffset + x] = 0xFFFF0000;
         }
       }
     }
 
-    // 纵向移动的蓝色条
     for (let y = movingY; y < movingY + barHeight; y++) {
       if (y >= 0 && y < height) {
         const rowOffset = y * width;
         for (let x = 0; x < width; x += 2) {
-          bufferView[rowOffset + x] = 0xFF4080FF;
+          bufferView[rowOffset + x] = 0xFF0000FF;
         }
       }
     }
@@ -168,42 +166,53 @@ struct SurfaceDemoPage {
     hilog.info(DOMAIN, TAG, '✅ Rendering started with single reusable ArrayBuffer, resolution: %{public}dx%{public}d', this.renderWidth, this.renderHeight);
   }
 
+  private handleTouchEvent(event: TouchEvent): void {
+    for (let i = 0; i < event.touches.length; i++) {
+      const touch = event.touches[i];
+      hilog.info(DOMAIN, TAG, 'Touch: id=%{public}d x=%{public}f y=%{public}f type=%{public}d',
+        touch.id, touch.x, touch.y, event.type);
+    }
+  }
+
   build() {
-    Column() {
-      // ⭐ XComponent 组件（SURFACE 模式）
+    Stack() {
       XComponent({
         id: 'surface_renderer',
         type: XComponentType.SURFACE,
+        libraryname: 'nativerender',
         controller: this.xComponentController
       })
         .onLoad(() => {
-          // 获取 surface ID
           this.surfaceId = this.xComponentController.getXComponentSurfaceId();
-          hilog.info(DOMAIN, TAG, '✅ XComponent loaded, surfaceId: %{public}s', this.surfaceId);
+          hilog.info(DOMAIN, TAG, 'XComponent loaded, surfaceId: %{public}s', this.surfaceId);
           
-          // 初始化渲染器
           this.renderer!.initialize(this.surfaceId)
             .then(() => {
               this.isInitialized = true;
-              hilog.info(DOMAIN, TAG, '✅ Renderer initialized');
-              
-              // 开始渲染
+              hilog.info(DOMAIN, TAG, 'Renderer initialized');
               this.startRendering();
             })
             .catch((error: Error) => {
               const errorMsg = error instanceof Error ? error.message : String(error);
-              hilog.error(DOMAIN, TAG, '❌ Initialization failed: %{public}s', errorMsg);
+              hilog.error(DOMAIN, TAG, 'Initialization failed: %{public}s', errorMsg);
             });
         })
         .onDestroy(() => {
-          hilog.info(DOMAIN, TAG, '♻️ XComponent destroyed');
+          hilog.info(DOMAIN, TAG, 'XComponent destroyed');
         })
         .width('100%')
-        .height('100%');
+        .height('100%')
 
-      // 状态显示
       Row() {
-        Text(`Status: ${this.isInitialized ? '✅ Running' : '⏳ Initializing'}`)
+        Button('Back')
+          .fontSize(12)
+          .height(30)
+          .margin({ right: 10 })
+          .onClick(() => {
+            router.back();
+          })
+        
+        Text(`Status: ${this.isInitialized ? 'Running' : 'Initializing'}`)
           .fontSize(14)
           .fontColor(Color.White)
           .margin({ right: 20 });
@@ -213,11 +222,16 @@ struct SurfaceDemoPage {
           .fontColor(Color.White);
       }
       .padding(10)
-      .backgroundColor('rgba(0, 0, 0, 0.5)')
-      .position({ x: 10, y: 10 });
+      .backgroundColor('rgba(0, 0, 0, 0.6)')
+      .borderRadius(8)
+      .position({ x: 10, y: 10 })
+      .hitTestBehavior(HitTestMode.Transparent)
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(Color.Black);
+    .backgroundColor(Color.Black)
+    .onTouch((event: TouchEvent) => {
+      this.handleTouchEvent(event);
+    })
   }
 }

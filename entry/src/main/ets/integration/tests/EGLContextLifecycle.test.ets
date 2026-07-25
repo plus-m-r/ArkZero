@@ -46,16 +46,16 @@ export class EGLContextLifecycleTest {
     const startTime = Date.now();
     const testName = '创建EGL上下文';
     
+    const config: ArkZeroRendererConfig = {
+      width: this.width,
+      height: this.height,
+      format: PixelFormat.RGBA
+    };
+    
+    const renderer = new ArkZeroRenderer(config);
+    
     try {
       hilog.info(DOMAIN, TAG, `Test: 创建EGL上下文 with surfaceId: ${this.surfaceId}`);
-      
-      const config: ArkZeroRendererConfig = {
-        width: this.width,
-        height: this.height,
-        format: PixelFormat.RGBA
-      };
-      
-      const renderer = new ArkZeroRenderer(config);
       
       await renderer.initialize(this.surfaceId);
       const duration = Date.now() - startTime;
@@ -68,7 +68,6 @@ export class EGLContextLifecycleTest {
       };
       this.results.push(result);
       
-      renderer.dispose();
       hilog.info(DOMAIN, TAG, `PASSED: ${testName} (${duration}ms)`);
       
     } catch (error) {
@@ -83,6 +82,8 @@ export class EGLContextLifecycleTest {
       this.results.push(result);
       
       hilog.error(DOMAIN, TAG, `FAILED: ${testName} - ${errorMsg}`);
+    } finally {
+      renderer.dispose();
     }
   }
 
@@ -90,16 +91,16 @@ export class EGLContextLifecycleTest {
     const startTime = Date.now();
     const testName = '复用EGL上下文';
     
+    const config: ArkZeroRendererConfig = {
+      width: this.width,
+      height: this.height,
+      format: PixelFormat.RGBA
+    };
+    
+    const renderer = new ArkZeroRenderer(config);
+    
     try {
       hilog.info(DOMAIN, TAG, 'Test: 复用EGL上下文');
-      
-      const config: ArkZeroRendererConfig = {
-        width: this.width,
-        height: this.height,
-        format: PixelFormat.RGBA
-      };
-      
-      const renderer = new ArkZeroRenderer(config);
       
       await renderer.initialize(this.surfaceId);
       
@@ -122,7 +123,6 @@ export class EGLContextLifecycleTest {
       };
       this.results.push(result);
       
-      renderer.dispose();
       hilog.info(DOMAIN, TAG, `PASSED: ${testName} (${duration}ms)`);
       
     } catch (error) {
@@ -137,6 +137,8 @@ export class EGLContextLifecycleTest {
       this.results.push(result);
       
       hilog.error(DOMAIN, TAG, `FAILED: ${testName} - ${errorMsg}`);
+    } finally {
+      renderer.dispose();
     }
   }
 
@@ -144,16 +146,16 @@ export class EGLContextLifecycleTest {
     const startTime = Date.now();
     const testName = 'EGL上下文调整尺寸';
     
+    const config: ArkZeroRendererConfig = {
+      width: this.width,
+      height: this.height,
+      format: PixelFormat.RGBA
+    };
+    
+    const renderer = new ArkZeroRenderer(config);
+    
     try {
       hilog.info(DOMAIN, TAG, 'Test: EGL上下文调整尺寸');
-      
-      const config: ArkZeroRendererConfig = {
-        width: this.width,
-        height: this.height,
-        format: PixelFormat.RGBA
-      };
-      
-      const renderer = new ArkZeroRenderer(config);
       
       await renderer.initialize(this.surfaceId);
       
@@ -182,7 +184,6 @@ export class EGLContextLifecycleTest {
       };
       this.results.push(result);
       
-      renderer.dispose();
       hilog.info(DOMAIN, TAG, `PASSED: ${testName} (${duration}ms)`);
       
     } catch (error) {
@@ -197,6 +198,8 @@ export class EGLContextLifecycleTest {
       this.results.push(result);
       
       hilog.error(DOMAIN, TAG, `FAILED: ${testName} - ${errorMsg}`);
+    } finally {
+      renderer.dispose();
     }
   }
 
@@ -264,27 +267,27 @@ export class EGLContextLifecycleTest {
     const startTime = Date.now();
     const testName = '销毁后重新创建EGL上下文';
     
+    const config1: ArkZeroRendererConfig = {
+      width: this.width,
+      height: this.height,
+      format: PixelFormat.RGBA
+    };
+    
+    const renderer1 = new ArkZeroRenderer(config1);
+    
+    const config2: ArkZeroRendererConfig = {
+      width: this.width,
+      height: this.height,
+      format: PixelFormat.RGBA
+    };
+    
+    const renderer2 = new ArkZeroRenderer(config2);
+    
     try {
       hilog.info(DOMAIN, TAG, 'Test: 销毁后重新创建EGL上下文');
       
-      const config1: ArkZeroRendererConfig = {
-        width: this.width,
-        height: this.height,
-        format: PixelFormat.RGBA
-      };
-      
-      const renderer1 = new ArkZeroRenderer(config1);
-      
       await renderer1.initialize(this.surfaceId);
       renderer1.dispose();
-      
-      const config2: ArkZeroRendererConfig = {
-        width: this.width,
-        height: this.height,
-        format: PixelFormat.RGBA
-      };
-      
-      const renderer2 = new ArkZeroRenderer(config2);
       
       await renderer2.initialize(this.surfaceId);
       
@@ -302,7 +305,6 @@ export class EGLContextLifecycleTest {
       };
       this.results.push(result);
       
-      renderer2.dispose();
       hilog.info(DOMAIN, TAG, `PASSED: ${testName} (${duration}ms)`);
       
     } catch (error) {
@@ -317,6 +319,8 @@ export class EGLContextLifecycleTest {
       this.results.push(result);
       
       hilog.error(DOMAIN, TAG, `FAILED: ${testName} - ${errorMsg}`);
+    } finally {
+      renderer2.dispose();
     }
   }
 }

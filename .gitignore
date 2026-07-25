@@ -108,3 +108,9 @@ coverage/
 
 # 💻 C++ 构建缓存 (entry/.cxx/)
 entry/.cxx/
+
+# DevEco Code 工具缓存
+.cache/
+.deveco/
+.mimocode/
+.appanalyzer/
