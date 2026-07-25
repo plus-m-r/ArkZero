@@ -1,5 +1,4 @@
-import { ArkZeroSurfaceView, SurfaceViewConfig, NormalizedTouchEvent } from '../components/rendering/ArkZeroSurfaceView';
-import { ArkZeroRenderer, PixelFormat, ArkZeroRendererConfig, DisposeAsyncOptions } from '../components/rendering/ArkZeroRenderer';
+import { ArkZeroSurfaceView, SurfaceViewConfig, NormalizedTouchEvent, ArkZeroRenderer, PixelFormat, ArkZeroRendererConfig, DisposeAsyncOptions } from '@plusml/arkzero';
 import { router } from '@kit.ArkUI';
 import hilog from '@ohos.hilog';
 

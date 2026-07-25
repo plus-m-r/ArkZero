@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@ohos/hypium';
-import { PixelFormat } from '../../../../main/ets/components/rendering/ArkZeroRenderer';
+import { PixelFormat } from '@plusml/arkzero';
 
 /**
  * ArkZeroRendererConfig 配置接口定义

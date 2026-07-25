@@ -1,5 +1,5 @@
 import { TestCaseResult, TestStatus } from '../components/TestResultPanel';
-import { ArkZeroRenderer, ArkZeroRendererConfig, PixelFormat } from '../../components/rendering/ArkZeroRenderer';
+import { ArkZeroRenderer, ArkZeroRendererConfig, PixelFormat } from '@plusml/arkzero';
 import hilog from '@ohos.hilog';
 
 interface FormatInfo {

@@ -1,4 +1,4 @@
-import { ArkZeroRenderer, ArkZeroRendererConfig, PixelFormat, DirtyRect } from '../../components/rendering/ArkZeroRenderer';
+import { ArkZeroRenderer, ArkZeroRendererConfig, PixelFormat, DirtyRect } from '@plusml/arkzero';
 import { TestCaseResult, TestStatus } from '../components/TestResultPanel';
 import hilog from '@ohos.hilog';
 

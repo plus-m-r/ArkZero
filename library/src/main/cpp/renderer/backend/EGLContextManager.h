@@ -1,0 +1,119 @@
+/*
+ * Copyright (c) 2024 Huawei Device Co., Ltd.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef EGL_CONTEXT_MANAGER_H
+#define EGL_CONTEXT_MANAGER_H
+
+#include <EGL/egl.h>
+#include <cstdint>
+#include <thread>
+
+namespace NativeXComponentSample {
+
+/**
+ * EGL 上下文管理器
+ * 
+ * 职责：
+ * - 初始化/释放 EGL Display、Context、Surface
+ * - 管理 EGL 配置和属性
+ * - 提供 VSync 控制
+ * 
+ * 设计原则：单一职责 - 仅负责 EGL 生命周期管理
+ */
+class EGLContextManager {
+public:
+    EGLContextManager();
+    ~EGLContextManager();
+
+    /**
+     * 使用 NativeWindow 初始化 EGL 上下文（XComponent Surface 模式）
+     * @param nativeWindow NativeWindow 指针
+     * @param width 宽度
+     * @param height 高度
+     * @param enableVSync 是否启用 VSync（推荐 true，消除画面撕裂）
+     * @return true 成功，false 失败
+     */
+    bool Initialize(void* nativeWindow, int32_t width, int32_t height, bool enableVSync = true);
+
+    /**
+     * 创建离屏 EGL 上下文（Pbuffer 模式，用于测试）
+     * @param width 宽度
+     * @param height 高度
+     * @return true 成功，false 失败
+     */
+    bool InitializeOffscreen(int32_t width, int32_t height);
+
+    /**
+     * 释放 EGL 资源
+     */
+    void Destroy();
+
+    bool MakeCurrent();
+
+    void ReleaseCurrent();
+
+    bool SwapBuffers();
+
+    /**
+     * 获取 EGL Display
+     */
+    EGLDisplay GetDisplay() const { return m_eglDisplay; }
+
+    /**
+     * 获取 EGL Context
+     */
+    EGLContext GetContext() const { return m_eglContext; }
+
+    /**
+     * 获取 EGL Surface
+     */
+    EGLSurface GetSurface() const { return m_eglSurface; }
+
+    /**
+     * 获取当前 EGL Surface 宽度
+     */
+    int32_t GetSurfaceWidth() const { return m_surfaceWidth; }
+
+    /**
+     * 获取当前 EGL Surface 高度
+     */
+    int32_t GetSurfaceHeight() const { return m_surfaceHeight; }
+
+    /**
+     * 检查是否已初始化
+     */
+    bool IsInitialized() const { return m_eglDisplay != EGL_NO_DISPLAY; }
+
+    /**
+     * ⭐ 检查 Surface 是否需要恢复
+     */
+    bool IsSurfaceInvalidated() const { return m_surfaceInvalidated; }
+
+private:
+    EGLDisplay m_eglDisplay;
+    EGLContext m_eglContext;
+    EGLSurface m_eglSurface;
+    bool m_surfaceInvalidated = false;
+    bool m_isCurrent = false;
+    std::thread::id m_ownerThread;
+    int32_t m_surfaceWidth = 0;
+    int32_t m_surfaceHeight = 0;
+
+    bool UpdateSurfaceSize();
+};
+
+} // namespace NativeXComponentSample
+
+#endif // EGL_CONTEXT_MANAGER_H

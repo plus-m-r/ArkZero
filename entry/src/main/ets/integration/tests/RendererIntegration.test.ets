@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-import { ArkZeroRenderer, PixelFormat, DirtyRect } from '../../components/rendering/ArkZeroRenderer';
+import { ArkZeroRenderer, PixelFormat, DirtyRect } from '@plusml/arkzero';
 import { TestCaseResult, TestStatus } from '../components/TestResultPanel';
 import hilog from '@ohos.hilog';
 

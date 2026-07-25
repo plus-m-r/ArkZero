@@ -106,8 +106,8 @@ coverage/
 .clang-tidy
 .clangd
 
-# 💻 C++ 构建缓存 (entry/.cxx/)
-entry/.cxx/
+# C++ 构建缓存
+.cxx/
 
 # DevEco Code 工具缓存
 .cache/

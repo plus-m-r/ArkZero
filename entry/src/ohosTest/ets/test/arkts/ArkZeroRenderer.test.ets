@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@ohos/hypium';
-import { ArkZeroRenderer, PixelFormat, ArkZeroRendererConfig } from '../../../../main/ets/components/rendering/ArkZeroRenderer';
+import { ArkZeroRenderer, PixelFormat, ArkZeroRendererConfig } from '@plusml/arkzero';
 
 /**
  * ArkZeroRenderer 组件单元测试
