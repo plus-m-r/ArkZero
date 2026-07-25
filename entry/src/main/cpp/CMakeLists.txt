@@ -28,6 +28,7 @@ add_library(nativerender SHARED
     renderer/core/command/RenderFrameCommand.cpp
     renderer/core/command/PreallocateTextureCommand.cpp
     renderer/core/PerformanceMonitor.cpp
+    renderer/core/RenderThread.cpp
     renderer/core/Renderer.cpp
     renderer/manager/RendererManager.cpp
     renderer/manager/SurfaceManager.cpp

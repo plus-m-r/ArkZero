@@ -1,6 +1,6 @@
 # ArkZero - Ultra Low Latency Renderer
 
-ArkZero 是一个基于 HarmonyOS 的超低延迟增量渲染器，支持零拷贝渲染、脏区增量上传和累积呈现。
+ArkZero 是一个基于 HarmonyOS 的超低延迟增量渲染器，支持异步渲染线程、比例视口系统和触控捕获。
 
 ## 文档
 
@@ -11,11 +11,12 @@ ArkZero 是一个基于 HarmonyOS 的超低延迟增量渲染器，支持零拷�
 
 ## 主要功能
 
-- 零拷贝渲染 - ArrayBuffer 直接传递指针到 Native 层
+- 异步渲染线程 - 专用 std::thread + 命令队列，UI 线程零阻塞
+- 比例视口系统 - 位置和尺寸全部用屏幕比例表达，跨设备零适配
+- 归一化触控 - 触摸输出同时提供 ratio (0.0~1.0) 和 pixel 坐标，调用方零计算
 - 增量脏区渲染 - 仅上传变化区域，节省 GPU 带宽
 - 分离式 API - `updateDirtyRegions` + `presentFrame`，支持累积模式
 - 多格式支持 - RGBA/RGB/BGRA/NV21/NV12，GPU 端零转换渲染
-- 异步渲染 - renderFrame 返回 Promise，完成后自动回调
 - 多实例支持 - 每个 ArkZeroRenderer 独立管理 Native 资源
 - XComponent 直出 - 绕过 UI 合成器，延迟 <10ms
 
@@ -47,31 +48,36 @@ hdc install entry/build/default/outputs/default/entry-default-signed.hap
 ### 3. 代码示例
 
 ```typescript
-import { ArkZeroRenderer, PixelFormat, DirtyRect } from '../components/rendering/ArkZeroRenderer';
+import { ArkZeroSurfaceView, SurfaceViewConfig, NormalizedTouchEvent } from '../components/rendering/ArkZeroSurfaceView';
+import { ArkZeroRenderer, PixelFormat } from '../components/rendering/ArkZeroRenderer';
 
-const renderer = new ArkZeroRenderer({
-  width: 1920,
-  height: 1080,
-  format: PixelFormat.RGBA
-});
+// 配置视口：全屏宽度，高度按渲染内容宽高比自适应，居中
+const config: SurfaceViewConfig = {
+  renderWidth: 640,
+  renderHeight: 480,
+  format: PixelFormat.RGBA,
+  originRatioX: 0.056,  // 居中偏移（屏幕比组件宽时）
+  sizeRatioX: 1.0,       // 占屏幕 100% 宽度
+  enableTouch: true
+};
 
-await renderer.initialize(surfaceId);
+// 触控回调：直接使用 pixelX/pixelY 写入 pixelBuffer，零计算
+const onTouch = (event: NormalizedTouchEvent) => {
+  for (const touch of event.touches) {
+    // touch.ratioX/Y: 0.0~1.0 归一化比例（跨设备通用）
+    // touch.pixelX/Y: 直接对应 renderWidth/renderHeight 像素坐标
+    drawCircle(pixelBuffer, touch.pixelX, touch.pixelY);
+  }
+};
 
-// 全帧渲染
-await renderer.renderFrame(pixelData, 1920, 1080);
-
-// 增量渲染（分离式）
-await renderer.updateDirtyRegions(pixelData, 1920, 1080, [{ x: 0, y: 0, w: 100, h: 100 }]);
-await renderer.presentFrame();
-
-// 累积模式：多次 update + 一次 present
-for (let i = 0; i < 10; i++) {
-  await renderer.updateDirtyRegions(data, w, h, dirtyRects);
-}
-await renderer.presentFrame();
-
-// 清理
-renderer.dispose();
+// 在 build() 中使用
+ArkZeroSurfaceView({
+  config: config,
+  touchHandler: onTouch,
+  onSurfaceLoaded: (surfaceId: string) => {
+    renderer.initialize(surfaceId);
+  }
+})
 ```
 
 ## 项目结构
@@ -82,15 +88,15 @@ ArkZero/
 ├── entry/src/main/
 │   ├── cpp/
 │   │   ├── renderer/        # 核心渲染引擎
-│   │   │   ├── api/         # NAPI 高层桥接（RendererApi）
+│   │   │   ├── api/         # NAPI 高层桥接（RendererApi，异步 work）
 │   │   │   ├── backend/     # GLESBackend + EGL/Texture/YUV/Pool/Strategy
-│   │   │   ├── core/        # Renderer 外观类 + Command + PerformanceMonitor
+│   │   │   ├── core/        # Renderer + RenderThread + PerformanceMonitor
 │   │   │   └── manager/     # RendererManager + SurfaceManager
 │   │   ├── napi_bridge/     # NAPI 底层桥接（各组件独立 NAPI 绑定）
 │   │   ├── common/          # 公共常量与类型（DirtyRect 等）
 │   │   └── types/           # TypeScript 类型定义（Index.d.ts）
 │   └── ets/
-│       ├── components/      # ArkZeroRenderer 封装组件
+│       ├── components/      # ArkZeroRenderer + ArkZeroSurfaceView
 │       ├── pages/           # 示例页面（Index, SurfaceDemoPage）
 │       └── integration/     # 集成测试 + 基准测试
 ```

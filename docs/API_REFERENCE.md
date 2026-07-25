@@ -2,14 +2,114 @@
 
 ## 概述
 
-ArkZeroRenderer 提供两层 API：
+ArkZero 提供三层 API：
 
-1. **ArkTS 封装层**（`ArkZeroRenderer.ets`）— 推荐，类型安全，生命周期管理
-2. **NAPI 模块**（`libnativerender.so`）— 底层，handle 直操作，用于测试或特殊场景
+1. **ArkZeroSurfaceView**（`ArkZeroSurfaceView.ets`）— 视口组件，比例布局 + 归一化触控
+2. **ArkZeroRenderer**（`ArkZeroRenderer.ets`）— 渲染器封装，类型安全，生命周期管理
+3. **NAPI 模块**（`libnativerender.so`）— 底层，handle 直操作，用于测试或特殊场景
 
 ---
 
-## ArkTS 封装层
+## ArkZeroSurfaceView
+
+**文件**：`entry/src/main/ets/components/rendering/ArkZeroSurfaceView.ets`
+
+### 类型定义
+
+```typescript
+interface SurfaceViewConfig {
+  renderWidth: number;      // 渲染内容宽度（像素），定义 pixelX 坐标空间
+  renderHeight: number;     // 渲染内容高度（像素），定义 pixelY 坐标空间
+  format: PixelFormat;      // 像素格式
+  originRatioX?: number;    // 组件左上角 X = 屏幕宽度 × 此值（默认 0.0，可超过 1.0）
+  originRatioY?: number;    // 组件左上角 Y = 屏幕高度 × 此值（默认 0.0）
+  sizeRatioX?: number;      // 组件宽度 = 屏幕宽度 × 此值（默认 1.0）
+  sizeRatioY?: number;      // 组件高度（省略则按 renderWidth/renderHeight 宽高比自动计算，
+                            // 若超出屏幕高度则 fit-to-screen）
+  enableTouch?: boolean;    // 启用触控捕获（默认 true）
+  xComponentId?: string;    // XComponent ID（默认 'arkzero_surface'）
+}
+
+interface TouchPoint {
+  id: number;              // 触摸点 ID
+  ratioX: number;          // 0.0~1.0 相对于组件面积的水平位置
+  ratioY: number;          // 0.0~1.0 相对于组件面积的垂直位置
+  pixelX: number;          // ratioX × renderWidth（pixelBuffer 直接可用）
+  pixelY: number;          // ratioY × renderHeight（pixelBuffer 直接可用）
+}
+
+interface NormalizedTouchEvent {
+  type: TouchType;         // Down / Move / Up / Cancel
+  touches: TouchPoint[];   // 所有活跃触摸点（归一化坐标）
+}
+```
+
+### ArkZeroSurfaceView 组件
+
+```typescript
+@Component
+export struct ArkZeroSurfaceView {
+  @Prop config: SurfaceViewConfig;
+  touchHandler?: (event: NormalizedTouchEvent) => void;
+  onSurfaceLoaded?: (surfaceId: string) => void;
+}
+```
+
+#### 使用示例
+
+```typescript
+// 全屏视口，640×480 渲染内容
+ArkZeroSurfaceView({
+  config: {
+    renderWidth: 640,
+    renderHeight: 480,
+    format: PixelFormat.RGBA,
+    sizeRatioX: 1.0,  // 占满屏幕宽度
+    enableTouch: true
+  },
+  touchHandler: (event: NormalizedTouchEvent) => {
+    // event.touches[0].pixelX/Y 直接对应 640×480 pixelBuffer 坐标
+    // event.touches[0].ratioX/Y 跨设备通用的归一化比例
+  },
+  onSurfaceLoaded: (surfaceId: string) => {
+    renderer.initialize(surfaceId);
+  }
+})
+
+// 小窗口视口，右下角 30% 屏幕区域
+ArkZeroSurfaceView({
+  config: {
+    renderWidth: 320,
+    renderHeight: 240,
+    format: PixelFormat.RGBA,
+    originRatioX: 0.7,
+    originRatioY: 0.7,
+    sizeRatioX: 0.3,
+    enableTouch: true
+  },
+  touchHandler: (event) => { ... },
+  onSurfaceLoaded: (surfaceId) => { ... }
+})
+```
+
+#### 视口布局算法
+
+1. 获取屏幕 vp 尺寸：`display.getDefaultDisplaySync().width / densityPixels`
+2. 计算组件 vp 尺寸：
+   - `componentVpW = screenVpW × sizeRatioX`
+   - 若指定 `sizeRatioY`：`componentVpH = screenVpH × sizeRatioY`
+   - 若省略：`componentVpH = componentVpW × (renderHeight / renderWidth)`，若超出屏幕高度则 fit-to-screen
+3. 计算位置：`posX = screenVpW × originRatioX`
+
+#### 触控坐标映射
+
+1. `onAreaChange` 测量组件实际 vp 尺寸
+2. 预计算缩放因子：`scaleX = renderWidth / areaWidth`，`scaleY = renderHeight / areaHeight`
+3. 触摸回调中：`pixelX = floor(touch.x × scaleX)`，`ratioX = touch.x / areaWidth`
+
+---
+
+## ArkZeroRenderer
 
 **文件**：`entry/src/main/ets/components/rendering/ArkZeroRenderer.ets`
 
@@ -83,9 +183,10 @@ renderer.setOnFrameRendered(() => {
 
 全帧渲染。上传完整像素数据到 GPU 纹理，绘制并交换缓冲区。
 
-- `pixelData`：像素数据，ArrayBuffer 引用传递（零拷贝）
+- `pixelData`：像素数据，ArrayBuffer 引用传递
 - RGBA: width × height × 4 字节
 - NV21/NV12: width × height × 1.5 字节
+- 异步执行：NAPI async work → RenderThread 命令队列
 
 ```typescript
 await renderer.renderFrame(pixelData, 1920, 1080);
@@ -127,7 +228,7 @@ await renderer.presentFrame();
 
 #### async resize(width: number, height: number): Promise\<void\>
 
-调整渲染目标尺寸。内部重建 EGL Surface 和纹理。
+调整渲染目标尺寸。同步执行（不频繁，阻塞可接受）。
 
 ```typescript
 await renderer.resize(1280, 720);
@@ -135,7 +236,7 @@ await renderer.resize(1280, 720);
 
 #### dispose(): void
 
-同步安全销毁。若有飞行中的渲染（`pendingRenders > 0`），标记 `destroyScheduled`，待渲染完成后自动销毁。设置 2 秒安全超时。
+同步销毁渲染器。
 
 ```typescript
 renderer.dispose();
@@ -143,30 +244,11 @@ renderer.dispose();
 
 #### async disposeAsync(options?: DisposeAsyncOptions): Promise\<void\>
 
-异步安全销毁。等待飞行渲染完成或超时后销毁。
-
-- `options.wait`：是否等待（默认 `true`）
-- `options.timeoutMs`：超时毫秒（默认 `2000`）
+异步销毁。等待飞行渲染完成或超时后销毁。
 
 ```typescript
 await renderer.disposeAsync({ wait: true, timeoutMs: 3000 });
 ```
-
-#### async awaitIdle(timeoutMs?: number): Promise\<void\>
-
-等待所有飞行中的渲染完成。超时时 reject。
-
-```typescript
-await renderer.awaitIdle(5000);
-```
-
-### 生命周期管理
-
-ArkZeroRenderer 内部维护 `pendingRenders` 计数器：
-
-- `renderFrame`、`renderFrameRegions(swap=true)`、`presentFrame` 进入时 +1，完成时 -1
-- `updateDirtyRegions` 不计入（无 SwapBuffers）
-- `pendingRenders === 0` 时触发 `idleWaiters` 和 `destroyScheduled` 检查
 
 ---
 
@@ -313,24 +395,24 @@ interface MonitorStats {
 
 ## C++ 层关键类
 
+### RenderThread
+
+**文件**：`renderer/core/RenderThread.h/.cpp`
+
+专用渲染线程，拥有 GLESBackend，执行所有 GL 操作。
+
+命令类型：INIT, RENDER_FRAME, RENDER_FRAME_REGIONS, UPDATE_DIRTY, PRESENT_FRAME, RESIZE, DESTROY, SHUTDOWN
+
+线程模型：
+- `EnqueueCommand()` → 加锁入队 + `notify_one()` → 返回 `future<bool>`
+- `ThreadLoop()` → `wait()` 取命令 → 执行 → `completion.set_value()`
+- NAPI async work 的 execute 回调在 libuv worker 线程上 `future.get()` 等待完成
+
 ### Renderer（外观类）
 
-**文件**：`renderer/core/Renderer.h`
+**文件**：`renderer/core/Renderer.h/.cpp`
 
-```cpp
-class Renderer {
-public:
-  Renderer(int width, int height, PixelFormat format);
-  bool Initialize(void* nativeWindow);
-  void RenderFrame(const void* data, size_t size, int w, int h);
-  void RenderFrameRegions(const void* data, size_t size, int fw, int fh, const std::vector<DirtyRect>& regions, bool swap);
-  void UpdateDirtyRegions(const void* data, size_t size, int fw, int fh, const std::vector<DirtyRect>& regions);
-  void PresentFrame();
-  void Resize(int w, int h);
-  void Destroy();
-  bool IsInitialized() const;
-};
-```
+通过 `m_renderThread` 异步执行所有渲染操作。方法返回 `std::future<bool>`。
 
 ### GLESBackend（Facade）
 
@@ -344,34 +426,12 @@ public:
 - `UpdateDirtyRegions()` — 仅脏区上传（从 Pool Acquire → TextureManager::UpdateRegion → Pool Release）
 - `PresentFrame()` — 绘制 + SwapBuffers
 
-### TextureManager
-
-**文件**：`renderer/backend/TextureManager.h`
-
-```cpp
-class TextureManager {
-public:
-  bool Create(int w, int h, int internalFormat, int format);
-  void Destroy();
-  void Update(const void* data, int w, int h, int format);           // 全帧更新
-  void UpdateRegion(const void* data, int fw, int fh, int format,    // 脏区更新
-                    int x, int y, int regionW, int regionH);
-  GLuint GetTextureId() const;
-  bool IsCreated() const;
-};
-```
-
-`UpdateRegion` 内部使用：
-- `glPixelStorei(GL_UNPACK_ROW_LENGTH, frameWidth)` — 设置行跨度
-- `glPixelStorei(GL_UNPACK_SKIP_ROWS, glY)` / `GL_UNPACK_SKIP_PIXELS, glX` — 设置偏移
-- `glTexSubImage2D(...)` — 上传子区域
-
 ### EGLContextManager
 
 **文件**：`renderer/backend/EGLContextManager.h`
 
 关键特性：
-- `m_isCurrent` 标志 — 跳过已当前的 `eglMakeCurrent`
+- `m_ownerThread` — 线程所有权跟踪，`ReleaseCurrent()` 释放当前线程绑定
 - `eglSwapInterval(display, 1)` — VSync 启用
 - `IsSurfaceInvalidated()` — 检测 Surface 是否有效
 
@@ -387,6 +447,10 @@ public:
 ---
 
 ## 使用注意事项
+
+### 触控与渲染的单一职责
+
+ArkZeroSurfaceView 的触控叠加层只负责捕获触摸事件并输出归一化坐标，不负责视觉渲染。触控反馈应通过回调传出 → 写入 pixelBuffer → 渲染器渲染。
 
 ### DirtyRect 坐标系
 
@@ -413,15 +477,8 @@ await renderer.presentFrame();
 
 ### aboutToDisappear 中不要用 async IIFE
 
-ArkTS 组件可能在 async 完成前被回收。使用 `.then()` 链替代 fire-and-forget async IIFE：
-
-```typescript
-aboutToDisappear() {
-  this.running = false;
-  this.renderer.dispose();  // 同步标记销毁
-}
-```
+ArkTS 组件可能在 async 完成前被回收。使用 `.then()` 链替代 fire-and-forget async IIFE。
 
 ### XComponent libraryname 限制
 
-`napi_init.cpp` 中的 `g_nativeXComponent` / `g_xcomponentId` 是全局静态变量，仅支持一个 XComponent。多页面场景应使用 surfaceId 方式（不指定 `libraryname`）。
+`napi_init.cpp` 中的 `g_nativeXComponent` / `g_xcomponentId` 是全局静态变量，仅支持一个 XComponent。ArkZeroSurfaceView 不使用 libraryname，通过 surfaceId 方式创建。

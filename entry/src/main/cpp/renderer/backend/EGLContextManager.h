@@ -18,6 +18,7 @@
 
 #include <EGL/egl.h>
 #include <cstdint>
+#include <thread>
 
 namespace NativeXComponentSample {
 
@@ -59,16 +60,10 @@ public:
      */
     void Destroy();
 
-    /**
-     * 使 EGL 上下文当前化（渲染前必须调用）
-     * @return true 成功，false 失败
-     */
     bool MakeCurrent();
 
-    /**
-     * 交换缓冲区（渲染后调用，触发 VSync）
-     * @return true 成功，false 失败
-     */
+    void ReleaseCurrent();
+
     bool SwapBuffers();
 
     /**
@@ -112,6 +107,7 @@ private:
     EGLSurface m_eglSurface;
     bool m_surfaceInvalidated = false;
     bool m_isCurrent = false;
+    std::thread::id m_ownerThread;
     int32_t m_surfaceWidth = 0;
     int32_t m_surfaceHeight = 0;
 

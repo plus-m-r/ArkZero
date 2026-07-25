@@ -242,6 +242,7 @@ void EGLContextManager::Destroy() {
     eglTerminate(m_eglDisplay);
     m_eglDisplay = EGL_NO_DISPLAY;
     m_isCurrent = false;
+    m_ownerThread = std::thread::id();
 
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
         "EGLContextManager", "♻️ EGL context destroyed");
@@ -265,7 +266,20 @@ bool EGLContextManager::MakeCurrent() {
     }
 
     m_isCurrent = true;
+    m_ownerThread = std::this_thread::get_id();
     return true;
+}
+
+void EGLContextManager::ReleaseCurrent() {
+    if (m_eglDisplay == EGL_NO_DISPLAY) {
+        return;
+    }
+
+    if (m_eglContext != EGL_NO_CONTEXT) {
+        eglMakeCurrent(m_eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+    }
+    m_isCurrent = false;
+    m_ownerThread = std::thread::id();
 }
 
 bool EGLContextManager::SwapBuffers() {

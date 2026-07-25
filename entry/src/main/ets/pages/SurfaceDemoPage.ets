@@ -1,91 +1,65 @@
-/*
- * Copyright (c) 2024 Huawei Device Co., Ltd.
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-import { ArkZeroRenderer, PixelFormat } from '../components/rendering/ArkZeroRenderer';
+import { ArkZeroSurfaceView, SurfaceViewConfig, NormalizedTouchEvent } from '../components/rendering/ArkZeroSurfaceView';
+import { ArkZeroRenderer, PixelFormat, ArkZeroRendererConfig, DisposeAsyncOptions } from '../components/rendering/ArkZeroRenderer';
 import { router } from '@kit.ArkUI';
 import hilog from '@ohos.hilog';
-import type { DisposeAsyncOptions } from '../components/rendering/ArkZeroRenderer';
 
 const DOMAIN = 0x0001;
 const TAG = 'SurfaceDemoPage';
 
-/**
- * XComponent Surface 直出渲染示例
- * 
- * 🎯 **演示内容**：
- * - 使用 XComponent 作为底层渲染表面
- * - Direct Surface Rendering（直接渲染到屏幕）
- * - 超低延迟 <10ms
- * - VSync 同步，消除画面撕裂
- */
+interface TouchFeedback {
+  x: number;
+  y: number;
+  radius: number;
+  color: number;
+  ttl: number;
+}
+
 @Entry
 @Component
 struct SurfaceDemoPage {
-  @State surfaceId: string = '';
   @State isInitialized: boolean = false;
   @State frameCount: number = 0;
-  
+
   private renderer?: ArkZeroRenderer;
   private pixelBuffer?: ArrayBuffer;
   private pixelView?: Uint32Array;
   private running: boolean = false;
   private renderLoopPromise?: Promise<void>;
   private readonly disposeOptions: DisposeAsyncOptions = { wait: true, timeoutMs: 2000 };
-  private xComponentController: XComponentController = new XComponentController();
-  
-  // 恢复为原始分辨率，验证是否可见
-  private readonly renderWidth = 640;
-  private readonly renderHeight = 480;
-  aboutToAppear() {
-    // 初始化渲染器
-    this.renderer = new ArkZeroRenderer({
-      width: this.renderWidth,
-      height: this.renderHeight,
-      format: PixelFormat.RGBA
-    });
-    
-    // 设置渲染完成回调
-    this.renderer.setOnFrameRendered(() => {
-      this.frameCount++;
-      hilog.debug(DOMAIN, TAG, '🎨 Frame rendered: %{public}d', this.frameCount);
-    });
-  }
 
-  aboutToDisappear() {
-    this.running = false;
+  private readonly surfaceViewConfig: SurfaceViewConfig = {
+    renderWidth: 640,
+    renderHeight: 480,
+    format: PixelFormat.RGBA,
+    originRatioX: 0.056,
+    originRatioY: 0.0,
+    sizeRatioX: 1.0,
+    enableTouch: true,
+    xComponentId: 'surface_renderer'
+  };
 
-    if (this.renderLoopPromise) {
-      this.renderLoopPromise.then(() => {
-        if (this.renderer) {
-          this.renderer.disposeAsync(this.disposeOptions).catch((e: Error) => {
-            hilog.warn(DOMAIN, TAG, 'disposeAsync failed: %{public}s', e.message);
-          });
+  private activeTouches: TouchFeedback[] = [];
+
+  private drawCircle(bufferView: Uint32Array, bufWidth: number, bufHeight: number,
+                     cx: number, cy: number, radius: number, color: number): void {
+    const r2 = radius * radius;
+    const yStart = Math.max(0, cy - radius);
+    const yEnd = Math.min(bufHeight - 1, cy + radius);
+    const xStart = Math.max(0, cx - radius);
+    const xEnd = Math.min(bufWidth - 1, cx + radius);
+
+    for (let y = yStart; y <= yEnd; y++) {
+      const dy = y - cy;
+      const rowOffset = y * bufWidth;
+      for (let x = xStart; x <= xEnd; x++) {
+        const dx = x - cx;
+        if (dx * dx + dy * dy <= r2) {
+          bufferView[rowOffset + x] = color;
         }
-      }).catch(() => {
-        if (this.renderer) {
-          this.renderer.disposeAsync(this.disposeOptions).catch(() => {});
-        }
-      });
-    } else if (this.renderer) {
-      this.renderer.disposeAsync(this.disposeOptions).catch(() => {});
+      }
     }
   }
 
-  /**
-   * 生成测试图案（简化版本，提高性能）
-   */
   private generateTestPattern(bufferView: Uint32Array, width: number, height: number, time: number): void {
     bufferView.fill(0xFFFFFFFF);
 
@@ -111,6 +85,11 @@ struct SurfaceDemoPage {
         }
       }
     }
+
+    for (let i = 0; i < this.activeTouches.length; i++) {
+      const t = this.activeTouches[i];
+      this.drawCircle(bufferView, width, height, t.x, t.y, t.radius, t.color);
+    }
   }
 
   private async sleep(ms: number): Promise<void> {
@@ -119,43 +98,73 @@ struct SurfaceDemoPage {
     });
   }
 
-  /**
-   * 开始渲染循环
-   */
+  private async onSurfaceLoaded(surfaceId: string): Promise<void> {
+    const rw = this.surfaceViewConfig.renderWidth;
+    const rh = this.surfaceViewConfig.renderHeight;
+    const rendererConfig: ArkZeroRendererConfig = {
+      width: rw,
+      height: rh,
+      format: PixelFormat.RGBA
+    };
+    this.renderer = new ArkZeroRenderer(rendererConfig);
+
+    try {
+      await this.renderer.initialize(surfaceId);
+      this.renderer.setOnFrameRendered(() => {
+        this.frameCount++;
+      });
+      this.isInitialized = true;
+      hilog.info(DOMAIN, TAG, 'Renderer initialized');
+      this.startRendering();
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      hilog.error(DOMAIN, TAG, 'Initialization failed: %{public}s', errorMsg);
+    }
+  }
+
   private async startRendering(): Promise<void> {
     if (!this.renderer || !this.isInitialized) {
-      hilog.error(DOMAIN, TAG, '❌ Renderer not initialized');
+      hilog.error(DOMAIN, TAG, 'Renderer not initialized');
       return;
     }
 
-    // 分配一次像素缓冲区并在整个页面生命周期中复用，避免每帧分配造成 GC 压力
-    const bufferSize = this.renderWidth * this.renderHeight * 4; // RGBA
-    if (!this.pixelBuffer || this.pixelBuffer.byteLength !== bufferSize) {
-      this.pixelBuffer = new ArrayBuffer(bufferSize);
-    }
+    const rw = this.surfaceViewConfig.renderWidth;
+    const rh = this.surfaceViewConfig.renderHeight;
+    const bufferSize = rw * rh * 4;
+    this.pixelBuffer = new ArrayBuffer(bufferSize);
     this.pixelView = new Uint32Array(this.pixelBuffer);
 
     let frameTime = 0;
     this.running = true;
 
-    // 单 buffer 复用：更新内容后立即通知渲染器刷新，渲染提交仍保持序列化，避免 buffer 被 native 侧并发读取
     this.renderLoopPromise = (async () => {
       while (this.running) {
         try {
-          this.generateTestPattern(this.pixelView!, this.renderWidth, this.renderHeight, frameTime);
+          this.generateTestPattern(this.pixelView!, rw, rh, frameTime);
 
           await this.renderer!.renderFrame(
             this.pixelBuffer!,
-            this.renderWidth,
-            this.renderHeight
+            rw,
+            rh
           );
 
           if (!this.running) break;
 
           frameTime += 8;
+
+          let writeIdx = 0;
+          for (let i = 0; i < this.activeTouches.length; i++) {
+            this.activeTouches[i].ttl--;
+            if (this.activeTouches[i].ttl > 0) {
+              this.activeTouches[writeIdx] = this.activeTouches[i];
+              writeIdx++;
+            }
+          }
+          this.activeTouches.length = writeIdx;
+
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
-          hilog.error(DOMAIN, TAG, '❌ Render failed: %{public}s', errorMsg);
+          hilog.error(DOMAIN, TAG, 'Render failed: %{public}s', errorMsg);
           if (!this.running) break;
         }
 
@@ -163,44 +172,65 @@ struct SurfaceDemoPage {
       }
     })();
 
-    hilog.info(DOMAIN, TAG, '✅ Rendering started with single reusable ArrayBuffer, resolution: %{public}dx%{public}d', this.renderWidth, this.renderHeight);
+    hilog.info(DOMAIN, TAG, 'Rendering started: %{public}dx%{public}d', rw, rh);
   }
 
-  private handleTouchEvent(event: TouchEvent): void {
-    for (let i = 0; i < event.touches.length; i++) {
-      const touch = event.touches[i];
-      hilog.info(DOMAIN, TAG, 'Touch: id=%{public}d x=%{public}f y=%{public}f type=%{public}d',
-        touch.id, touch.x, touch.y, event.type);
+  private handleTouch(event: NormalizedTouchEvent): void {
+    if (event.type === TouchType.Down || event.type === TouchType.Up || event.type === TouchType.Cancel) {
+      for (let i = 0; i < event.touches.length; i++) {
+        const touch = event.touches[i];
+        hilog.info(DOMAIN, TAG,
+          'Touch: id=%{public}d ratio=(%{public}d%%,%{public}d%%) pixel=(%{public}d,%{public}d)',
+          touch.id, Math.floor(touch.ratioX * 100), Math.floor(touch.ratioY * 100),
+          touch.pixelX, touch.pixelY);
+      }
+    }
+
+    if (event.type === TouchType.Down || event.type === TouchType.Move) {
+      for (let i = 0; i < event.touches.length; i++) {
+        const touch = event.touches[i];
+        this.activeTouches.push({
+          x: touch.pixelX,
+          y: touch.pixelY,
+          radius: 30,
+          color: 0xFF00FF00,
+          ttl: 3
+        });
+      }
+    }
+  }
+
+  aboutToDisappear() {
+    this.running = false;
+
+    if (this.renderLoopPromise) {
+      this.renderLoopPromise.then(() => {
+        if (this.renderer) {
+          this.renderer.disposeAsync(this.disposeOptions).catch((e: Error) => {
+            hilog.warn(DOMAIN, TAG, 'disposeAsync failed: %{public}s', e.message);
+          });
+        }
+      }).catch(() => {
+        if (this.renderer) {
+          this.renderer.disposeAsync(this.disposeOptions).catch(() => {});
+        }
+      });
+    } else if (this.renderer) {
+      this.renderer.disposeAsync(this.disposeOptions).catch(() => {});
     }
   }
 
   build() {
     Stack() {
-      XComponent({
-        id: 'surface_renderer',
-        type: XComponentType.SURFACE,
-        controller: this.xComponentController
+      ArkZeroSurfaceView({
+        config: this.surfaceViewConfig,
+        touchHandler: (event: NormalizedTouchEvent) => {
+          this.handleTouch(event);
+        },
+        onSurfaceLoaded: (surfaceId: string) => {
+          this.onSurfaceLoaded(surfaceId);
+        }
       })
-        .onLoad(() => {
-          this.surfaceId = this.xComponentController.getXComponentSurfaceId();
-          hilog.info(DOMAIN, TAG, 'XComponent loaded, surfaceId: %{public}s', this.surfaceId);
-          
-          this.renderer!.initialize(this.surfaceId)
-            .then(() => {
-              this.isInitialized = true;
-              hilog.info(DOMAIN, TAG, 'Renderer initialized');
-              this.startRendering();
-            })
-            .catch((error: Error) => {
-              const errorMsg = error instanceof Error ? error.message : String(error);
-              hilog.error(DOMAIN, TAG, 'Initialization failed: %{public}s', errorMsg);
-            });
-        })
-        .onDestroy(() => {
-          hilog.info(DOMAIN, TAG, 'XComponent destroyed');
-        })
-        .width('100%')
-        .height('100%')
 
       Row() {
         Button('Back')
@@ -210,12 +240,12 @@ struct SurfaceDemoPage {
           .onClick(() => {
             router.back();
           })
-        
+
         Text(`Status: ${this.isInitialized ? 'Running' : 'Initializing'}`)
           .fontSize(14)
           .fontColor(Color.White)
           .margin({ right: 20 });
-        
+
         Text(`Frames: ${this.frameCount}`)
           .fontSize(14)
           .fontColor(Color.White);
@@ -229,8 +259,5 @@ struct SurfaceDemoPage {
     .width('100%')
     .height('100%')
     .backgroundColor(Color.Black)
-    .onTouch((event: TouchEvent) => {
-      this.handleTouchEvent(event);
-    })
   }
 }

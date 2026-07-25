@@ -5,6 +5,7 @@ import { StressIntegrationTest } from '../tests/StressIntegration.test';
 import { CallbackIntegrationTest } from '../tests/CallbackIntegration.test';
 import { LifecycleObserverIntegrationTest } from '../tests/LifecycleObserverIntegration.test';
 import { IncrementalBenchmarkTest } from '../tests/IncrementalBenchmark.test';
+import { TouchCaptureIntegrationTest, TouchMarker, getFingerColor } from '../tests/TouchCaptureIntegration.test';
 import { TestResultPanel, TestCaseResult } from '../components/TestResultPanel';
 import { router } from '@kit.ArkUI';
 import hilog from '@ohos.hilog';
@@ -19,7 +20,8 @@ enum TestModule {
   STRESS = '压力测试',
   CALLBACK = '回调机制测试',
   LIFECYCLE_OBSERVER = '生命周期观察者',
-  INCREMENTAL_BENCH = '增量渲染基准测试'
+  INCREMENTAL_BENCH = '增量渲染基准测试',
+  TOUCH_CAPTURE = '触控捕获测试'
 }
 
 @Entry
@@ -34,8 +36,12 @@ struct IntegrationTestPage {
   @State currentTestModule: string = '';
   @State showModuleSelector: boolean = false;
   @State isRunning: boolean = false;
-  
+  @State touchMarkers: TouchMarker[] = [];
+  @State isTouchTestActive: boolean = false;
+  @State touchInstruction: string = '';
+
   private xComponentController: XComponentController = new XComponentController();
+  private touchTest?: TouchCaptureIntegrationTest;
 
   aboutToAppear() {
     hilog.info(DOMAIN, TAG, 'Integration Test Page loaded');
@@ -46,16 +52,16 @@ struct IntegrationTestPage {
       hilog.error(DOMAIN, TAG, 'Surface not ready');
       return;
     }
-    
+
     this.isRunning = true;
     this.showTestPanel = true;
     this.showModuleSelector = false;
     this.testResults = [];
     this.completedTests = 0;
     this.currentTestModule = module;
-    
+
     hilog.info(DOMAIN, TAG, `Starting test module: ${module}`);
-    
+
     try {
       switch (module) {
         case TestModule.RENDERER:
@@ -86,12 +92,18 @@ struct IntegrationTestPage {
           this.totalTests = 8;
           await this.runIncrementalBenchmark();
           break;
+        case TestModule.TOUCH_CAPTURE:
+          this.totalTests = 5;
+          await this.runTouchCaptureTest();
+          break;
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       hilog.error(DOMAIN, TAG, `Test module execution failed: ${errorMsg}`);
     } finally {
       this.isRunning = false;
+      this.isTouchTestActive = false;
+      this.touchMarkers = [];
     }
   }
 
@@ -106,8 +118,8 @@ struct IntegrationTestPage {
 
   private async runEGLContextTest(): Promise<void> {
     const test = new EGLContextLifecycleTest(
-      this.surfaceId, 
-      1920, 
+      this.surfaceId,
+      1920,
       1080,
       (results: TestCaseResult[]) => {
         this.testResults = results;
@@ -120,8 +132,8 @@ struct IntegrationTestPage {
 
   private async runPixelFormatTest(): Promise<void> {
     const test = new PixelFormatIntegrationTest(
-      this.surfaceId, 
-      800, 
+      this.surfaceId,
+      800,
       600,
       (results: TestCaseResult[]) => {
         this.testResults = results;
@@ -134,8 +146,8 @@ struct IntegrationTestPage {
 
   private async runStressTest(): Promise<void> {
     const test = new StressIntegrationTest(
-      this.surfaceId, 
-      800, 
+      this.surfaceId,
+      800,
       600,
       (results: TestCaseResult[]) => {
         this.testResults = results;
@@ -148,8 +160,8 @@ struct IntegrationTestPage {
 
   private async runCallbackTest(): Promise<void> {
     const test = new CallbackIntegrationTest(
-      this.surfaceId, 
-      800, 
+      this.surfaceId,
+      800,
       600,
       (results: TestCaseResult[]) => {
         this.testResults = results;
@@ -162,8 +174,8 @@ struct IntegrationTestPage {
 
   private async runLifecycleObserverTest(): Promise<void> {
     const test = new LifecycleObserverIntegrationTest(
-      this.surfaceId, 
-      1920, 
+      this.surfaceId,
+      1920,
       1080,
       (results: TestCaseResult[]) => {
         this.testResults = results;
@@ -186,12 +198,65 @@ struct IntegrationTestPage {
     await test.runAllTests();
   }
 
-  private handleTouchEvent(event: TouchEvent): void {
+  private async runTouchCaptureTest(): Promise<void> {
+    this.isTouchTestActive = true;
+    this.touchMarkers = [];
+    this.touchInstruction = '请在屏幕上触摸';
+
+    this.touchTest = new TouchCaptureIntegrationTest(
+      this.surfaceId,
+      800,
+      600,
+      (results: TestCaseResult[]) => {
+        this.testResults = results;
+        this.completedTests = results.length;
+        this.touchInstruction = '测试完成';
+        hilog.info(DOMAIN, TAG, `Touch Capture tests completed: ${results.length} cases`);
+      }
+    );
+
+    await this.touchTest.runAllTests();
+  }
+
+  private handleTouchOverlayEvent(event: TouchEvent): void {
+    if (this.touchTest) {
+      this.touchTest.onTouchEvent(event);
+    }
+
+    const newMarkers: TouchMarker[] = [];
     for (let i = 0; i < event.touches.length; i++) {
       const touch = event.touches[i];
-      hilog.info(DOMAIN, TAG, 'Touch: id=%{public}d x=%{public}f y=%{public}f type=%{public}d',
+      const color = getFingerColor(touch.id);
+      const marker: TouchMarker = {
+        id: touch.id,
+        x: touch.x,
+        y: touch.y,
+        color: color
+      };
+      newMarkers.push(marker);
+
+      hilog.info(DOMAIN, TAG, 'TouchOverlay: id=%{public}d x=%{public}f y=%{public}f type=%{public}d',
         touch.id, touch.x, touch.y, event.type);
     }
+
+    if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+      this.touchMarkers = [];
+    } else {
+      this.touchMarkers = newMarkers;
+    }
+  }
+
+  @Builder
+  TouchMarkerCircles() {
+    ForEach(this.touchMarkers, (marker: TouchMarker) => {
+      Circle()
+        .width(60)
+        .height(60)
+        .fill(marker.color + '80')
+        .stroke(marker.color)
+        .strokeWidth(3)
+        .position({ x: marker.x - 30, y: marker.y - 30 })
+    }, (marker: TouchMarker) => `${marker.id}_${marker.x}_${marker.y}`)
   }
 
   build() {
@@ -212,6 +277,18 @@ struct IntegrationTestPage {
         .width('100%')
         .height('100%')
 
+      if (this.isTouchTestActive) {
+        Column() {
+          this.TouchMarkerCircles()
+        }
+        .width('100%')
+        .height('100%')
+        .hitTestBehavior(HitTestMode.Default)
+        .onTouch((event: TouchEvent) => {
+          this.handleTouchOverlayEvent(event);
+        })
+      }
+
       if (!this.showTestPanel && !this.showModuleSelector) {
         Column() {
           Text('ArkZeroRenderer 集成测试')
@@ -219,12 +296,12 @@ struct IntegrationTestPage {
             .fontWeight(FontWeight.Bold)
             .fontColor(Color.White)
             .margin({ top: 20 })
-          
+
           Text('选择要运行的测试模块')
             .fontSize(14)
             .fontColor('#CCCCCC')
             .margin({ top: 10 })
-          
+
           Button('返回首页')
             .fontSize(14)
             .width(250)
@@ -233,7 +310,7 @@ struct IntegrationTestPage {
             .onClick(() => {
               router.back();
             })
-          
+
           Column() {
             Button(TestModule.RENDERER)
               .fontSize(14)
@@ -243,7 +320,7 @@ struct IntegrationTestPage {
               .onClick(() => {
                 this.runTestModule(TestModule.RENDERER);
               })
-            
+
             Button(TestModule.EGL_CONTEXT)
               .fontSize(14)
               .width(250)
@@ -252,7 +329,7 @@ struct IntegrationTestPage {
               .onClick(() => {
                 this.runTestModule(TestModule.EGL_CONTEXT);
               })
-            
+
             Button(TestModule.PIXEL_FORMAT)
               .fontSize(14)
               .width(250)
@@ -261,7 +338,7 @@ struct IntegrationTestPage {
               .onClick(() => {
                 this.runTestModule(TestModule.PIXEL_FORMAT);
               })
-            
+
             Button(TestModule.STRESS)
               .fontSize(14)
               .width(250)
@@ -270,7 +347,7 @@ struct IntegrationTestPage {
               .onClick(() => {
                 this.runTestModule(TestModule.STRESS);
               })
-            
+
             Button(TestModule.CALLBACK)
               .fontSize(14)
               .width(250)
@@ -279,7 +356,7 @@ struct IntegrationTestPage {
               .onClick(() => {
                 this.runTestModule(TestModule.CALLBACK);
               })
-            
+
             Button(TestModule.LIFECYCLE_OBSERVER)
               .fontSize(14)
               .width(250)
@@ -288,7 +365,7 @@ struct IntegrationTestPage {
               .onClick(() => {
                 this.runTestModule(TestModule.LIFECYCLE_OBSERVER);
               })
-            
+
             Button(TestModule.INCREMENTAL_BENCH)
               .fontSize(14)
               .width(250)
@@ -297,9 +374,19 @@ struct IntegrationTestPage {
               .onClick(() => {
                 this.runTestModule(TestModule.INCREMENTAL_BENCH);
               })
+
+            Button(TestModule.TOUCH_CAPTURE)
+              .fontSize(14)
+              .width(250)
+              .margin({ top: 10 })
+              .backgroundColor('#9C27B0')
+              .enabled(this.isInitialized)
+              .onClick(() => {
+                this.runTestModule(TestModule.TOUCH_CAPTURE);
+              })
           }
           .margin({ top: 30 })
-          
+
           if (!this.isInitialized) {
             Text('等待 Surface 初始化...')
               .fontSize(12)
@@ -326,9 +413,16 @@ struct IntegrationTestPage {
               .fontSize(16)
               .fontWeight(FontWeight.Bold)
               .fontColor(Color.White)
-            
+
             Blank()
-            
+
+            if (this.isTouchTestActive) {
+              Text(this.touchInstruction)
+                .fontSize(12)
+                .fontColor('#FF9800')
+                .margin({ right: 10 })
+            }
+
             Button('返回')
               .fontSize(12)
               .width(80)
@@ -336,6 +430,9 @@ struct IntegrationTestPage {
               .enabled(!this.isRunning)
               .onClick(() => {
                 this.showTestPanel = false;
+                this.isTouchTestActive = false;
+                this.touchMarkers = [];
+                this.touchTest = undefined;
                 this.testResults = [];
                 this.completedTests = 0;
                 this.currentTestModule = '';
@@ -344,7 +441,7 @@ struct IntegrationTestPage {
           .width('100%')
           .padding({ left: 15, right: 15, top: 10, bottom: 10 })
           .backgroundColor('rgba(0, 0, 0, 0.9)')
-          
+
           TestResultPanel({
             testResults: this.testResults,
             totalTests: this.totalTests,
@@ -362,8 +459,5 @@ struct IntegrationTestPage {
     .width('100%')
     .height('100%')
     .backgroundColor(Color.Black)
-    .onTouch((event: TouchEvent) => {
-      this.handleTouchEvent(event);
-    })
   }
 }
