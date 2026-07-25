@@ -64,23 +64,23 @@ struct SurfaceDemoPage {
   }
 
   aboutToDisappear() {
-    // 停止渲染循环，并在飞行渲染完成后安全释放资源
     this.running = false;
 
-    // 等待循环结束后再销毁 renderer，避免 native 仍在使用 buffer 时释放
-    (async () => {
-      try {
-        if (this.renderLoopPromise) {
-          await this.renderLoopPromise;
-        }
-      } catch (e) {
-        // 忽略渲染错误，仍要尝试释放资源
-      } finally {
+    if (this.renderLoopPromise) {
+      this.renderLoopPromise.then(() => {
         if (this.renderer) {
-          await this.renderer.disposeAsync(this.disposeOptions);
+          this.renderer.disposeAsync(this.disposeOptions).catch((e: Error) => {
+            hilog.warn(DOMAIN, TAG, 'disposeAsync failed: %{public}s', e.message);
+          });
         }
-      }
-    })();
+      }).catch(() => {
+        if (this.renderer) {
+          this.renderer.disposeAsync(this.disposeOptions).catch(() => {});
+        }
+      });
+    } else if (this.renderer) {
+      this.renderer.disposeAsync(this.disposeOptions).catch(() => {});
+    }
   }
 
   /**
@@ -142,23 +142,23 @@ struct SurfaceDemoPage {
     this.renderLoopPromise = (async () => {
       while (this.running) {
         try {
-          // 生成测试图案
           this.generateTestPattern(this.pixelView!, this.renderWidth, this.renderHeight, frameTime);
 
-          // 通知渲染器刷新当前 buffer，使用端不再重新分配 buffer
           await this.renderer!.renderFrame(
             this.pixelBuffer!,
             this.renderWidth,
             this.renderHeight
           );
 
-          frameTime += 8; // 降低时间增量
+          if (!this.running) break;
+
+          frameTime += 8;
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
           hilog.error(DOMAIN, TAG, '❌ Render failed: %{public}s', errorMsg);
+          if (!this.running) break;
         }
 
-        // 实验期间放慢一点，便于观察稳定性
         await this.sleep(100);
       }
     })();
@@ -179,7 +179,6 @@ struct SurfaceDemoPage {
       XComponent({
         id: 'surface_renderer',
         type: XComponentType.SURFACE,
-        libraryname: 'nativerender',
         controller: this.xComponentController
       })
         .onLoad(() => {

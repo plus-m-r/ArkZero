@@ -1,26 +1,36 @@
 # ArkZero - Ultra Low Latency Renderer
 
-ArkZero 是一个基于 HarmonyOS 的超低延迟渲染器项目，支持零拷贝渲染和自动后端检测。
+ArkZero 是一个基于 HarmonyOS 的超低延迟增量渲染器，支持零拷贝渲染、脏区增量上传和累积呈现。
 
-## 📚 文档
+## 文档
 
-所有技术文档已移动到 **[docs](./docs/)** 目录：
+- [docs/README.md](./docs/README.md) - 项目概述和入门指南
+- [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) - 系统架构说明
+- [docs/API_REFERENCE.md](./docs/API_REFERENCE.md) - API 详细说明
+- [docs/UNIT_TEST_DESIGN.md](./docs/UNIT_TEST_DESIGN.md) - 测试设计
 
-- **[📖 文档中心](./docs/INDEX.md)** - 从这里开始浏览所有文档
-- **[🚀 快速开始](./docs/README.md)** - 项目概述和入门指南
-- **[🏗️ 架构设计](./docs/ARCHITECTURE.md)** - 系统架构说明
-- **[🧪 测试文档](./docs/UNIT_TEST_DESIGN.md)** - 完整的测试设计（⭐核心）
-- **[📖 API 参考](./docs/API_REFERENCE.md)** - API 详细说明
+## 主要功能
 
-## 🎯 主要功能
+- 零拷贝渲染 - ArrayBuffer 直接传递指针到 Native 层
+- 增量脏区渲染 - 仅上传变化区域，节省 GPU 带宽
+- 分离式 API - `updateDirtyRegions` + `presentFrame`，支持累积模式
+- 多格式支持 - RGBA/RGB/BGRA/NV21/NV12，GPU 端零转换渲染
+- 异步渲染 - renderFrame 返回 Promise，完成后自动回调
+- 多实例支持 - 每个 ArkZeroRenderer 独立管理 Native 资源
+- XComponent 直出 - 绕过 UI 合成器，延迟 <10ms
 
-- ✅ **零拷贝渲染** - ArrayBuffer 直接传递指针到 Native 层
-- ✅ **自动后端检测** - Vulkan > OpenGL ES > CPU 软渲染
-- ✅ **异步渲染** - renderFrame 返回 Promise，完成后自动回调
-- ✅ **多实例支持** - 每个 ArkZeroRenderer 独立管理 Native 资源
-- ✅ **XComponent 集成** - Direct Surface Rendering，延迟 <10ms
+## 性能指标（MatePad Pro 13 模拟器，软件 GPU）
 
-## 🚀 快速开始
+| 模式 | ms/frame | 说明 |
+|------|----------|------|
+| 全帧渲染 | 30.6 | 基线 |
+| 分离式 1% 脏区 | 26.1 | -15% |
+| 累积 3 帧 1 次 present | ~8.6 | -72% |
+| 累积 10 帧 1 次 present | ~1.4 | -95% |
+
+真实设备（硬件 GPU）预期 2-5ms/frame。
+
+## 快速开始
 
 ### 1. 构建应用
 
@@ -34,41 +44,57 @@ hvigorw --mode module -p module=entry -p product=default assembleHap
 hdc install entry/build/default/outputs/default/entry-default-signed.hap
 ```
 
-### 3. 运行测试
+### 3. 代码示例
 
-在应用首页点击 **"🧪 运行集成测试"** 按钮即可运行可视化测试。
+```typescript
+import { ArkZeroRenderer, PixelFormat, DirtyRect } from '../components/rendering/ArkZeroRenderer';
 
-详细使用方法请参考：**[docs/UNIT_TEST_DESIGN.md](./docs/UNIT_TEST_DESIGN.md)** 第 4.2.3 章节
+const renderer = new ArkZeroRenderer({
+  width: 1920,
+  height: 1080,
+  format: PixelFormat.RGBA
+});
 
-## 📂 项目结构
+await renderer.initialize(surfaceId);
+
+// 全帧渲染
+await renderer.renderFrame(pixelData, 1920, 1080);
+
+// 增量渲染（分离式）
+await renderer.updateDirtyRegions(pixelData, 1920, 1080, [{ x: 0, y: 0, w: 100, h: 100 }]);
+await renderer.presentFrame();
+
+// 累积模式：多次 update + 一次 present
+for (let i = 0; i < 10; i++) {
+  await renderer.updateDirtyRegions(data, w, h, dirtyRects);
+}
+await renderer.presentFrame();
+
+// 清理
+renderer.dispose();
+```
+
+## 项目结构
 
 ```
 ArkZero/
-├── docs/                    # 📚 所有技术文档
-│   ├── INDEX.md            # 文档导航
-│   ├── README.md           # 项目概述
-│   ├── ARCHITECTURE.md     # 架构设计
-│   ├── UNIT_TEST_DESIGN.md # 测试设计 ⭐
-│   └── API_REFERENCE.md    # API 参考
-├── entry/                   # 主模块
-│   └── src/
-│       ├── main/           # 主代码
-│       │   ├── ets/        # ArkTS 代码
-│       │   └── cpp/        # C++ 代码
-│       └── ohosTest/       # 单元测试
-└── ...
+├── docs/                    # 技术文档
+├── entry/src/main/
+│   ├── cpp/
+│   │   ├── renderer/        # 核心渲染引擎
+│   │   │   ├── api/         # NAPI 高层桥接（RendererApi）
+│   │   │   ├── backend/     # GLESBackend + EGL/Texture/YUV/Pool/Strategy
+│   │   │   ├── core/        # Renderer 外观类 + Command + PerformanceMonitor
+│   │   │   └── manager/     # RendererManager + SurfaceManager
+│   │   ├── napi_bridge/     # NAPI 底层桥接（各组件独立 NAPI 绑定）
+│   │   ├── common/          # 公共常量与类型（DirtyRect 等）
+│   │   └── types/           # TypeScript 类型定义（Index.d.ts）
+│   └── ets/
+│       ├── components/      # ArkZeroRenderer 封装组件
+│       ├── pages/           # 示例页面（Index, SurfaceDemoPage）
+│       └── integration/     # 集成测试 + 基准测试
 ```
 
-## 🔗 相关链接
+## 许可证
 
-- [HarmonyOS 官方文档](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides)
-- [Hypium 测试框架](https://gitee.com/openharmony/testfwk_arkxtest)
-
-## 📄 许可证
-
-本项目采用 Apache-2.0 许可证。详见 [LICENSE](./LICENSE) 文件。
-
----
-
-**维护者**: ArkZeroRenderer Team  
-**最后更新**: 2026-05-13
+Apache License 2.0
