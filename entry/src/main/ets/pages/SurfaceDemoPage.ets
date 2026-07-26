@@ -1,4 +1,4 @@
-import { ArkZeroSurfaceView, SurfaceViewConfig, NormalizedTouchEvent, ArkZeroRenderSession, RenderSessionConfig, PixelFormat, TileRegion } from '@plusml/arkzero';
+import { ArkZeroSurfaceView, SurfaceViewConfig, NormalizedTouchEvent, ArkZeroRenderSession, RenderSessionConfig, PixelFormat } from '@plusml/arkzero';
 import { router } from '@kit.ArkUI';
 import hilog from '@ohos.hilog';
 
@@ -17,7 +17,6 @@ interface TouchFeedback {
 @Component
 struct SurfaceDemoPage {
   @State isInitialized: boolean = false;
-  @State frameCount: number = 0;
 
   private session?: ArkZeroRenderSession;
   private pixelBuffer?: ArrayBuffer;
@@ -232,11 +231,6 @@ struct SurfaceDemoPage {
           })
 
         Text(`Status: ${this.isInitialized ? 'Running' : 'Initializing'}`)
-          .fontSize(14)
-          .fontColor(Color.White)
-          .margin({ right: 20 });
-
-        Text(`Frames: ${this.frameCount}`)
           .fontSize(14)
           .fontColor(Color.White);
       }
