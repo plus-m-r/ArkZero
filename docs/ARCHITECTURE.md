@@ -19,7 +19,8 @@ library/src/main/cpp/
 │   └── yuv_shader_manager_napi.h/.cpp
 ├── renderer/
 │   ├── api/
-│   │   └── RendererApi.h/.cpp       # NAPI 高层 API（fire-and-forget，立即 resolve）
+│   │   ├── RendererApi.h/.cpp       # NAPI 高层 API（fire-and-forget，立即 resolve）
+│   │   └── RefCleaner.h/.cpp        # napi_ref 跨线程安全清理（napi_threadsafe_function）
 │   ├── backend/
 │   │   ├── IRenderBackend.h         # 渲染后端接口
 │   │   ├── GLESBackend.h/.cpp       # Facade：双缓冲 + Upload/SwapAndPresent 分离
@@ -87,7 +88,7 @@ entry/src/main/ets/
                │ import nativerender
 ┌──────────────▼───────────────────────────────────────────────┐
 │  NAPI Fire-and-Forget 层 (RendererApi.cpp)                   │
-│  - memcpy 数据 → enqueue 到 RenderThread → 立即 resolve       │
+│  - 创建 napi_ref 防止 GC，仅传指针+长度入队（零 memcpy）       │
 │  - JS 线程零等待，不经过 napi_async_work / libuv 线程池        │
 │  - 同步 API 仅：CreateRenderer（阻塞等初始化完成）             │
 └──────────────┬───────────────────────────────────────────────┘
@@ -120,22 +121,25 @@ entry/src/main/ets/
 
 ### 1. Fire-and-Forget 架构
 
-渲染调用在 JS 线程只做数据入队，立即返回，不等 VSync：
+渲染调用在 JS 线程只做指针入队（零 memcpy），立即返回，不等 VSync：
 
 ```
 JS 线程                              RenderThread
 ─────────────                        ─────────────────
 renderFrame(data)
-  ↓ memcpy(data) → cmd.pixelData
+  ↓ napi_ref(data) — 防 GC
+  ↓ cmd.srcData = data_ptr
   ↓ enqueue(cmd) ──────────────→    cmd = dequeue()
-  ↓ resolve(promise)                 UploadFrame(cmd.data)
-  ↓ return (~0.1ms)                  SwapAndPresent()
-                                     ↳ swap(Front,Back)
-                                     ↳ Draw(Front)
-                                     ↳ SwapBuffers() → VSync
+  ↓ resolve(promise)                 memcpy(cmd.pixelData, srcData)
+  ↓ return (~0.1ms)                  RefCleaner.ScheduleDelete(ref)
+                                     UploadFrame(cmd.data)
+                                     SwapAndPresent()
+                                      ↳ swap(Front,Back)
+                                      ↳ Draw(Front)
+                                      ↳ SwapBuffers() → VSync
 ```
 
-**关键**：JS 调用方感知延迟 ~0.1ms（memcpy + enqueue），VSync 等待在渲染线程自动发生。
+**关键**：JS 调用方感知延迟 ~0.1ms（仅 enqueue），memcpy 和 VSync 等待全部在渲染线程完成。
 
 ### 2. 双缓冲纹理
 
@@ -205,20 +209,23 @@ ArkTS 层通过 `number` 类型 handle 引用 Native 对象，而非直接暴露
 
 ## 性能数据（MatePad Pro 13 模拟器，软件 GPU）
 
-| 场景 | 旧架构 (napi_async_work) | 新架构 (fire-and-forget) | 提升 |
-|------|--------------------------|--------------------------|------|
-| 单瓦片 | 64ms | **1ms** | 64× |
-| 多瓦片 | 16ms | **4ms** | 4× |
-| 瓦片 + Present | 21ms | **1ms** | 21× |
-| 全帧 | ~30ms | **1ms** | 30× |
+| 场景 | 旧架构 (napi_async_work) | Fire-and-forget (v1.1) | Deferred memcpy (v1.2) | 总提升 |
+|------|--------------------------|------------------------|------------------------|--------|
+| 单瓦片 | 64ms | 1ms | **1ms** | 64× |
+| 多瓦片 | 16ms | 4ms | **4ms** | 4× |
+| 瓦片 + Present | 21ms | 1ms | **1ms** | 21× |
+| 全帧 | ~30ms | ~33ms | **1ms** | 30× |
+| 连续多帧 | — | ~24.6ms/帧 | **~2ms/帧** | 12× |
 
 ## 关键约束
 
 | 约束 | 说明 |
 |------|------|
-| 像素数据复制 | memcpy ≈ 0.3ms/帧（640×480 RGBA），防止 use-after-free |
+| Deferred memcpy | JS 线程零拷贝，memcpy 在渲染线程执行；napi_ref 防止 ArrayBuffer 被 GC |
+| RefCleaner | 通过 napi_threadsafe_function 安全删除 napi_ref，跨线程安全 |
 | RenderThread 独占 GL | 所有 GL 操作仅在 RenderThread 执行 |
 | 双缓冲 | SwapAndPresent 后 Back 纹理重新 Acquire，确保上传/显示不冲突 |
+| 销毁清屏 | Destroy 前渲染纯黑帧，避免随机画面残留 |
 | VSync 保持 ON | 移动 GPU 上 eglSwapInterval(0) 导致管线阻塞 |
 | 模拟器软件 GPU | 性能数据为软件渲染，真实设备预期更低 |
 | 触控叠加层只捕获 | 单一职责：不负责视觉渲染 |

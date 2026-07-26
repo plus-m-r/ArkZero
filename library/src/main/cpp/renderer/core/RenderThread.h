@@ -8,6 +8,7 @@
 #include <vector>
 #include <atomic>
 #include <memory>
+#include <napi/native_api.h>
 #include "../../common/common.h"
 
 namespace NativeXComponentSample {
@@ -48,6 +49,15 @@ struct RenderCommand {
 
     void* nativeWindow = nullptr;
     bool vsyncEnabled = true;
+
+    void* srcData = nullptr;
+    size_t srcDataSize = 0;
+    napi_env deferredEnv = nullptr;
+    napi_ref deferredRef = nullptr;
+    bool deferredCopy = false;
+
+    std::vector<napi_ref> tileDeferredRefs;
+    std::vector<napi_env> tileDeferredEnvs;
 };
 
 class RenderThread {
@@ -81,6 +91,8 @@ private:
     void ProcessResize(RenderCommand& cmd);
     void ProcessSetVSync(RenderCommand& cmd);
     void ProcessDestroy(RenderCommand& cmd);
+    void ExecuteDeferredCopy(RenderCommand& cmd);
+    void CleanupTileDeferredRefs(RenderCommand& cmd);
 
     std::thread m_thread;
     std::queue<RenderCommand> m_queue;

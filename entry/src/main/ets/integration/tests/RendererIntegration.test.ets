@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-import { ArkZeroRenderer, PixelFormat, DirtyRect } from '@plusml/arkzero';
+import { ArkZeroRenderer, PixelFormat, TileRegion } from '@plusml/arkzero';
 import { TestCaseResult, TestStatus } from '../components/TestResultPanel';
 import hilog from '@ohos.hilog';
 
@@ -58,7 +58,7 @@ export class RendererIntegrationTest {
     await this.testRenderFrame();
     await this.testResize();
     await this.testMultipleRenders();
-    await this.testIncrementalRender();
+    await this.testTileRender();
     await this.testDispose();
     
     hilog.info(DOMAIN, TAG, `✅ All tests completed: ${this.results.length} cases`);
@@ -261,60 +261,45 @@ export class RendererIntegrationTest {
     }
   }
 
-  private async testIncrementalRender(): Promise<void> {
+  private async testTileRender(): Promise<void> {
     const startTime = Date.now();
-    const testName = '增量渲染';
-    
+    const testName = 'Tile渲染';
+
     try {
-      hilog.info(DOMAIN, TAG, 'Test: 增量渲染');
-      
+      hilog.info(DOMAIN, TAG, 'Test: Tile渲染');
+
       if (!this.renderer) {
         throw new Error('渲染器未初始化');
       }
 
-      const frameWidth = 800;
-      const frameHeight = 600;
+      const tileW = 120;
+      const tileH = 80;
+      const tileBuffer = new ArrayBuffer(tileW * tileH * 4);
+      const tile32 = new Uint32Array(tileBuffer);
+      tile32.fill(0xFF00FF00);
 
-      const fullBuffer = new ArrayBuffer(frameWidth * frameHeight * 4);
-      const full32 = new Uint32Array(fullBuffer);
-      full32.fill(0xFF0000FF);
-      await this.renderer.renderFrame(fullBuffer, frameWidth, frameHeight);
+      const tile: TileRegion = {
+        ratioX: 0.1,
+        ratioY: 0.2,
+        tilePixelWidth: tileW,
+        tilePixelHeight: tileH,
+        pixelData: tileBuffer
+      };
 
-      full32.fill(0xFF00FF00, 100 * frameWidth + 100, 100 * frameWidth + 100 + 50);
-      for (let row = 1; row < 50; row++) {
-        const start = (100 + row) * frameWidth + 100;
-        full32.fill(0xFF00FF00, start, start + 50);
-      }
-
-      full32.fill(0xFF0000FF, 200 * frameWidth + 200, 200 * frameWidth + 200 + 80);
-      for (let row = 1; row < 40; row++) {
-        const start = (200 + row) * frameWidth + 200;
-        full32.fill(0xFF0000FF, start, start + 80);
-      }
-
-      const region1: DirtyRect = { x: 100, y: 100, w: 50, h: 50 };
-      const region2: DirtyRect = { x: 200, y: 200, w: 80, h: 40 };
-
-      const incrementalStart = Date.now();
-      await this.renderer.renderFrameRegions(
-        fullBuffer,
-        frameWidth,
-        frameHeight,
-        [region1, region2],
-        true
-      );
-      const incrementalDuration = Date.now() - incrementalStart;
+      const renderStart = Date.now();
+      await this.renderer.renderTileRegions([tile], 800, 600, true);
+      const renderMs = Date.now() - renderStart;
 
       const duration = Date.now() - startTime;
       this.results.push({
         name: testName,
         status: TestStatus.PASSED,
         duration: duration,
-        message: `2区域增量渲染成功 (${incrementalDuration}ms)`
+        message: `120x80 tile at (10%,20%) OK, render=${renderMs}ms`
       });
-      
-      hilog.info(DOMAIN, TAG, `${testName}: PASSED (${incrementalDuration}ms)`);
-      
+
+      hilog.info(DOMAIN, TAG, `${testName}: PASSED (${renderMs}ms)`);
+
     } catch (error) {
       const duration = Date.now() - startTime;
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -322,9 +307,9 @@ export class RendererIntegrationTest {
         name: testName,
         status: TestStatus.FAILED,
         duration: duration,
-        message: `增量渲染失败: ${errorMsg}`
+        message: `Tile渲染失败: ${errorMsg}`
       });
-      
+
       hilog.error(DOMAIN, TAG, `${testName}: FAILED - ${errorMsg}`);
     }
   }

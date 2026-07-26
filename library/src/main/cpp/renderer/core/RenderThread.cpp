@@ -1,7 +1,9 @@
 #include "RenderThread.h"
 #include "../backend/GLESBackend.h"
+#include "../api/RefCleaner.h"
 #include <hilog/log.h>
 #include "../../common/common.h"
+#include <cstring>
 
 namespace NativeXComponentSample {
 
@@ -207,8 +209,11 @@ void RenderThread::ProcessRenderFrame(RenderCommand& cmd) {
     if (!m_backend || !m_backend->IsInitialized()) {
         OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
             "ArkZeroRenderer", "[RENDER-THREAD] RenderFrame: backend not initialized");
+        ExecuteDeferredCopy(cmd);
         return;
     }
+
+    ExecuteDeferredCopy(cmd);
 
     m_backend->UploadFrame(
         cmd.pixelData.data(),
@@ -219,8 +224,11 @@ void RenderThread::ProcessRenderFrame(RenderCommand& cmd) {
 
 void RenderThread::ProcessRenderFrameRegions(RenderCommand& cmd) {
     if (!m_backend || !m_backend->IsInitialized()) {
+        ExecuteDeferredCopy(cmd);
         return;
     }
+
+    ExecuteDeferredCopy(cmd);
 
     m_backend->UploadFrameRegions(
         cmd.pixelData.data(),
@@ -233,6 +241,7 @@ void RenderThread::ProcessRenderFrameRegions(RenderCommand& cmd) {
 
 void RenderThread::ProcessRenderTileRegions(RenderCommand& cmd) {
     if (!m_backend || !m_backend->IsInitialized()) {
+        CleanupTileDeferredRefs(cmd);
         return;
     }
 
@@ -241,12 +250,17 @@ void RenderThread::ProcessRenderTileRegions(RenderCommand& cmd) {
         static_cast<int32_t>(cmd.tiles.size()),
         cmd.frameWidth,
         cmd.frameHeight);
+
+    CleanupTileDeferredRefs(cmd);
 }
 
 void RenderThread::ProcessUpdateDirty(RenderCommand& cmd) {
     if (!m_backend || !m_backend->IsInitialized()) {
+        ExecuteDeferredCopy(cmd);
         return;
     }
+
+    ExecuteDeferredCopy(cmd);
 
     m_backend->UploadFrameRegions(
         cmd.pixelData.data(),
@@ -259,8 +273,11 @@ void RenderThread::ProcessUpdateDirty(RenderCommand& cmd) {
 
 void RenderThread::ProcessUploadFrame(RenderCommand& cmd) {
     if (!m_backend || !m_backend->IsInitialized()) {
+        ExecuteDeferredCopy(cmd);
         return;
     }
+
+    ExecuteDeferredCopy(cmd);
 
     m_backend->UploadFrame(
         cmd.pixelData.data(),
@@ -271,8 +288,11 @@ void RenderThread::ProcessUploadFrame(RenderCommand& cmd) {
 
 void RenderThread::ProcessUploadFrameRegions(RenderCommand& cmd) {
     if (!m_backend || !m_backend->IsInitialized()) {
+        ExecuteDeferredCopy(cmd);
         return;
     }
+
+    ExecuteDeferredCopy(cmd);
 
     m_backend->UploadFrameRegions(
         cmd.pixelData.data(),
@@ -285,6 +305,7 @@ void RenderThread::ProcessUploadFrameRegions(RenderCommand& cmd) {
 
 void RenderThread::ProcessUploadTileRegions(RenderCommand& cmd) {
     if (!m_backend || !m_backend->IsInitialized()) {
+        CleanupTileDeferredRefs(cmd);
         return;
     }
 
@@ -293,6 +314,8 @@ void RenderThread::ProcessUploadTileRegions(RenderCommand& cmd) {
         static_cast<int32_t>(cmd.tiles.size()),
         cmd.frameWidth,
         cmd.frameHeight);
+
+    CleanupTileDeferredRefs(cmd);
 }
 
 void RenderThread::ProcessPresentFrame(RenderCommand& cmd) {
@@ -328,6 +351,38 @@ void RenderThread::ProcessDestroy(RenderCommand& cmd) {
     }
     OH_LOG_Print(LOG_APP, LOG_INFO, 0x0001,
         "ArkZeroRenderer", "[RENDER-THREAD] Backend destroyed");
+}
+
+void RenderThread::ExecuteDeferredCopy(RenderCommand& cmd) {
+    if (!cmd.deferredCopy || cmd.srcData == nullptr || cmd.srcDataSize == 0) {
+        return;
+    }
+
+    cmd.pixelData.resize(cmd.srcDataSize);
+    memcpy(cmd.pixelData.data(), cmd.srcData, cmd.srcDataSize);
+
+    OH_LOG_Print(LOG_APP, LOG_DEBUG, 0x0001,
+        "ArkZeroRenderer", "[RENDER-THREAD] Deferred memcpy: %{public}zu bytes", cmd.srcDataSize);
+
+    if (cmd.deferredRef != nullptr && cmd.deferredEnv != nullptr) {
+        RefCleaner::Instance().ScheduleDelete(cmd.deferredEnv, cmd.deferredRef);
+        cmd.deferredRef = nullptr;
+        cmd.deferredEnv = nullptr;
+    }
+
+    cmd.deferredCopy = false;
+    cmd.srcData = nullptr;
+    cmd.srcDataSize = 0;
+}
+
+void RenderThread::CleanupTileDeferredRefs(RenderCommand& cmd) {
+    for (size_t i = 0; i < cmd.tileDeferredRefs.size(); i++) {
+        if (cmd.tileDeferredRefs[i] != nullptr && cmd.tileDeferredEnvs[i] != nullptr) {
+            RefCleaner::Instance().ScheduleDelete(cmd.tileDeferredEnvs[i], cmd.tileDeferredRefs[i]);
+        }
+    }
+    cmd.tileDeferredRefs.clear();
+    cmd.tileDeferredEnvs.clear();
 }
 
 } // namespace NativeXComponentSample

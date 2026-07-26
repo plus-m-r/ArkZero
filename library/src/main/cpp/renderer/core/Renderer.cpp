@@ -174,6 +174,17 @@ void Renderer::Destroy()
 
     m_initialized = false;
 
+    if (m_renderThread.IsRunning()) {
+        RenderCommand clearCmd;
+        clearCmd.type = RenderCommandType::RENDER_FRAME;
+        clearCmd.width = m_width;
+        clearCmd.height = m_height;
+        clearCmd.pixelData.resize(static_cast<size_t>(m_width) * m_height * 4, 0);
+        m_renderThread.EnqueueCommand(std::move(clearCmd));
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(16));
+    }
+
     RenderCommand cmd;
     cmd.type = RenderCommandType::DESTROY;
     m_renderThread.EnqueueCommand(std::move(cmd));

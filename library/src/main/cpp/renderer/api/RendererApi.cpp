@@ -2,6 +2,7 @@
 #include "../manager/RendererManager.h"
 #include "../manager/SurfaceManager.h"
 #include "../core/Renderer.h"
+#include "RefCleaner.h"
 #include <hilog/log.h>
 #include <cstdint>
 #include <memory>
@@ -218,13 +219,21 @@ napi_value RenderFrame(napi_env env, napi_callback_info info) {
     cmd.height = static_cast<int32_t>(height);
 
     if (data && byteLength > 0) {
-        cmd.pixelData.resize(byteLength);
-        memcpy(cmd.pixelData.data(), data, byteLength);
+        napi_ref ref = nullptr;
+        napi_create_reference(env, args[1], 1, &ref);
+        cmd.srcData = data;
+        cmd.srcDataSize = byteLength;
+        cmd.deferredEnv = env;
+        cmd.deferredRef = ref;
+        cmd.deferredCopy = true;
     }
 
     napi_value promise = nullptr;
     napi_deferred deferred;
     if (napi_create_promise(env, &deferred, &promise) != napi_ok) {
+        if (cmd.deferredRef != nullptr) {
+            napi_delete_reference(env, cmd.deferredRef);
+        }
         napi_throw_error(env, NULL, "Failed to create promise");
         return nullptr;
     }
@@ -236,7 +245,7 @@ napi_value RenderFrame(napi_env env, napi_callback_info info) {
     napi_resolve_deferred(env, deferred, resolveValue);
 
     OH_LOG_Print(LOG_APP, LOG_INFO, 0x0001,
-        "ArkZeroRenderer", "[FIRE-AND-FORGET] RenderFrame enqueued: handle=%{public}d, w=%{public}d, h=%{public}d, bytes=%{public}zu",
+        "ArkZeroRenderer", "[FIRE-AND-FORGET] RenderFrame enqueued (deferred): handle=%{public}d, w=%{public}d, h=%{public}d, bytes=%{public}zu",
         handle, static_cast<int32_t>(width), static_cast<int32_t>(height), byteLength);
 
     return promise;
@@ -360,13 +369,21 @@ napi_value RenderFrameRegions(napi_env env, napi_callback_info info) {
     cmd.regions = std::move(regions);
 
     if (data && byteLength > 0) {
-        cmd.pixelData.resize(byteLength);
-        memcpy(cmd.pixelData.data(), data, byteLength);
+        napi_ref ref = nullptr;
+        napi_create_reference(env, args[1], 1, &ref);
+        cmd.srcData = data;
+        cmd.srcDataSize = byteLength;
+        cmd.deferredEnv = env;
+        cmd.deferredRef = ref;
+        cmd.deferredCopy = true;
     }
 
     napi_value promise = nullptr;
     napi_deferred deferred;
     if (napi_create_promise(env, &deferred, &promise) != napi_ok) {
+        if (cmd.deferredRef != nullptr) {
+            napi_delete_reference(env, cmd.deferredRef);
+        }
         napi_throw_error(env, NULL, "Failed to create promise");
         return nullptr;
     }
@@ -493,13 +510,21 @@ napi_value UpdateDirtyRegions(napi_env env, napi_callback_info info) {
     cmd.regions = std::move(regions);
 
     if (data && byteLength > 0) {
-        cmd.pixelData.resize(byteLength);
-        memcpy(cmd.pixelData.data(), data, byteLength);
+        napi_ref ref = nullptr;
+        napi_create_reference(env, args[1], 1, &ref);
+        cmd.srcData = data;
+        cmd.srcDataSize = byteLength;
+        cmd.deferredEnv = env;
+        cmd.deferredRef = ref;
+        cmd.deferredCopy = true;
     }
 
     napi_value promise = nullptr;
     napi_deferred deferred;
     if (napi_create_promise(env, &deferred, &promise) != napi_ok) {
+        if (cmd.deferredRef != nullptr) {
+            napi_delete_reference(env, cmd.deferredRef);
+        }
         napi_throw_error(env, NULL, "Failed to create promise");
         return nullptr;
     }
@@ -810,12 +835,19 @@ napi_value RenderTileRegions(napi_env env, napi_callback_info info) {
     }
 
     std::vector<TileRegion> tiles(tileCount);
-    std::vector<std::vector<uint8_t>> tilePixelBuffers(tileCount);
+    std::vector<std::vector<uint8_t>> tilePixelBuffers;
+    std::vector<napi_ref> tileDeferredRefs(tileCount, nullptr);
+    std::vector<napi_env> tileDeferredEnvs(tileCount, nullptr);
 
     for (uint32_t i = 0; i < tileCount; i++) {
         napi_value element = nullptr;
         if (napi_get_element(env, args[1], i, &element) != napi_ok) {
             napi_throw_type_error(env, NULL, "Failed to get tile element");
+            for (uint32_t j = 0; j < i; j++) {
+                if (tileDeferredRefs[j] != nullptr) {
+                    napi_delete_reference(env, tileDeferredRefs[j]);
+                }
+            }
             return nullptr;
         }
 
@@ -831,6 +863,11 @@ napi_value RenderTileRegions(napi_env env, napi_callback_info info) {
             napi_get_named_property(env, element, "tilePixelHeight", &tilePixelHeightVal) != napi_ok ||
             napi_get_named_property(env, element, "pixelData", &pixelDataVal) != napi_ok) {
             napi_throw_type_error(env, NULL, "Missing tile property");
+            for (uint32_t j = 0; j < i; j++) {
+                if (tileDeferredRefs[j] != nullptr) {
+                    napi_delete_reference(env, tileDeferredRefs[j]);
+                }
+            }
             return nullptr;
         }
 
@@ -841,12 +878,22 @@ napi_value RenderTileRegions(napi_env env, napi_callback_info info) {
             napi_get_value_double(env, tilePixelWidthVal, &tilePixelWidth) != napi_ok ||
             napi_get_value_double(env, tilePixelHeightVal, &tilePixelHeight) != napi_ok) {
             napi_throw_type_error(env, NULL, "Failed to get tile numeric property");
+            for (uint32_t j = 0; j < i; j++) {
+                if (tileDeferredRefs[j] != nullptr) {
+                    napi_delete_reference(env, tileDeferredRefs[j]);
+                }
+            }
             return nullptr;
         }
 
         bool isAb = false;
         if (napi_is_arraybuffer(env, pixelDataVal, &isAb) != napi_ok || !isAb) {
             napi_throw_type_error(env, NULL, "tile.pixelData must be an ArrayBuffer");
+            for (uint32_t j = 0; j < i; j++) {
+                if (tileDeferredRefs[j] != nullptr) {
+                    napi_delete_reference(env, tileDeferredRefs[j]);
+                }
+            }
             return nullptr;
         }
 
@@ -854,20 +901,31 @@ napi_value RenderTileRegions(napi_env env, napi_callback_info info) {
         size_t abLength = 0;
         if (napi_get_arraybuffer_info(env, pixelDataVal, &abData, &abLength) != napi_ok) {
             napi_throw_type_error(env, NULL, "Failed to get tile pixelData ArrayBuffer");
+            for (uint32_t j = 0; j < i; j++) {
+                if (tileDeferredRefs[j] != nullptr) {
+                    napi_delete_reference(env, tileDeferredRefs[j]);
+                }
+            }
             return nullptr;
         }
 
         if (abData && abLength > 0) {
-            tilePixelBuffers[i].resize(abLength);
-            memcpy(tilePixelBuffers[i].data(), abData, abLength);
+            napi_ref ref = nullptr;
+            napi_create_reference(env, pixelDataVal, 1, &ref);
+            tileDeferredRefs[i] = ref;
+            tileDeferredEnvs[i] = env;
+
+            tiles[i].pixelData = abData;
+            tiles[i].dataSize = abLength;
+        } else {
+            tiles[i].pixelData = nullptr;
+            tiles[i].dataSize = 0;
         }
 
         tiles[i].ratioX = ratioX;
         tiles[i].ratioY = ratioY;
         tiles[i].tilePixelWidth = static_cast<int32_t>(tilePixelWidth);
         tiles[i].tilePixelHeight = static_cast<int32_t>(tilePixelHeight);
-        tiles[i].dataSize = abLength;
-        tiles[i].pixelData = tilePixelBuffers[i].data();
     }
 
     RenderCommand cmd;
@@ -877,10 +935,17 @@ napi_value RenderTileRegions(napi_env env, napi_callback_info info) {
     cmd.swapBuffers = swap;
     cmd.tiles = std::move(tiles);
     cmd.tilePixelBuffers = std::move(tilePixelBuffers);
+    cmd.tileDeferredRefs = std::move(tileDeferredRefs);
+    cmd.tileDeferredEnvs = std::move(tileDeferredEnvs);
 
     napi_value promise = nullptr;
     napi_deferred deferred;
     if (napi_create_promise(env, &deferred, &promise) != napi_ok) {
+        for (auto& ref : cmd.tileDeferredRefs) {
+            if (ref != nullptr) {
+                napi_delete_reference(env, ref);
+            }
+        }
         napi_throw_error(env, NULL, "Failed to create promise");
         return nullptr;
     }
@@ -892,7 +957,7 @@ napi_value RenderTileRegions(napi_env env, napi_callback_info info) {
     napi_resolve_deferred(env, deferred, resolveValue);
 
     OH_LOG_Print(LOG_APP, LOG_INFO, 0x0001,
-        "ArkZeroRenderer", "[FIRE-AND-FORGET] RenderTileRegions enqueued: handle=%{public}d, tiles=%{public}d",
+        "ArkZeroRenderer", "[FIRE-AND-FORGET] RenderTileRegions enqueued (deferred): handle=%{public}d, tiles=%{public}d",
         handle, tileCount);
 
     return promise;

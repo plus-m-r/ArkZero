@@ -33,6 +33,7 @@ add_library(nativerender SHARED
     renderer/manager/RendererManager.cpp
     renderer/manager/SurfaceManager.cpp
     renderer/api/RendererApi.cpp
+    renderer/api/RefCleaner.cpp
     # NAPI 桥接（核心接口）
     napi_bridge/renderer_manager_napi.cpp
     napi_bridge/surface_manager_napi.cpp

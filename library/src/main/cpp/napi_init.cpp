@@ -18,6 +18,7 @@
 
 #include "common/common.h"
 #include "renderer/api/RendererApi.h"
+#include "renderer/api/RefCleaner.h"
 #include "renderer/manager/SurfaceManager.h"
 #include "napi_bridge/renderer_manager_napi.h"
 #include "napi_bridge/surface_manager_napi.h"
@@ -133,6 +134,8 @@ static napi_value Init(napi_env env, napi_value exports) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "Init", "napi_define_properties failed");
         return nullptr;
     }
+
+    RefCleaner::Instance().Initialize(env);
 
     // Extract OH_NativeXComponent from exports (when libraryname is set on XComponent)
     napi_value exportInstance = nullptr;

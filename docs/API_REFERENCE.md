@@ -8,7 +8,7 @@ ArkZero 提供三层 API：
 2. **ArkZeroRenderer**（`ArkZeroRenderer.ets`）— 渲染器封装，类型安全，生命周期管理
 3. **ArkZeroRenderSession**（`ArkZeroRenderSession.ets`）— 会话层，自动生命周期管理
 
-所有渲染方法采用 **fire-and-forget** 模式：JS 调用立即返回，VSync 等待在常驻渲染线程自动完成。
+所有渲染方法采用 **fire-and-forget + deferred memcpy** 模式：JS 调用立即返回（零拷贝），memcpy 和 VSync 等待在常驻渲染线程完成。
 
 ---
 
@@ -82,7 +82,7 @@ interface TileRegion {
 
 #### async renderFrame(pixelData: ArrayBuffer, width: number, height: number): Promise\<void\>
 
-全帧渲染。fire-and-forget：立即返回，渲染线程自动 Upload + SwapAndPresent。
+全帧渲染。fire-and-forget：立即返回（零 memcpy），渲染线程自动 memcpy + Upload + SwapAndPresent。
 
 #### async renderFrameRegions(pixelData: ArrayBuffer, frameWidth: number, frameHeight: number, regions: DirtyRect[], swap?: boolean): Promise\<void\>
 
@@ -158,20 +158,23 @@ declare module 'libnativerender.so' {
 
 ## C++ 层架构
 
-### Fire-and-Forget 数据流
+### Fire-and-Forget + Deferred Memcpy 数据流
 
 ```
 JS 线程                              RenderThread (常驻)
 ─────────────                        ─────────────────
 renderFrame(data)
-  ↓ memcpy → cmd.pixelData
+  ↓ napi_ref(data) — 防 GC
+  ↓ cmd.srcData = data_ptr
   ↓ enqueue(cmd) ──────────────→    dequeue(cmd)
-  ↓ resolve(promise)                 UploadFrame(cmd.data) → Back纹理
-  ↓ return                           SwapAndPresent()
-                                       ↳ swap(Front, Back)
-                                       ↳ Draw(Front)
-                                       ↳ SwapBuffers() → VSync
-                                       ↳ Acquire new Back
+  ↓ resolve(promise)                 memcpy(cmd.pixelData, srcData)
+  ↓ return                           RefCleaner.ScheduleDelete(ref)
+                                     UploadFrame(cmd.data) → Back纹理
+                                     SwapAndPresent()
+                                      ↳ swap(Front, Back)
+                                      ↳ Draw(Front)
+                                      ↳ SwapBuffers() → VSync
+                                      ↳ Acquire new Back
 ```
 
 ### GLESBackend 双缓冲
@@ -199,5 +202,7 @@ MatePad Pro 13 模拟器（软件 GPU）：
 | renderTileRegions (单瓦片) | ~1ms |
 | renderTileRegions (4瓦片) | ~4ms |
 | updateDirtyRegions + presentFrame | ~1ms + ~1ms |
+| 连续多帧 (5帧) | ~2ms/帧 |
+| resize + renderFrame | ~6ms |
 
-真实设备预期更低。
+> v1.2 deferred memcpy：全帧 memcpy 从 JS 线程转移到渲染线程，JS 感知延迟从 ~33ms 降至 ~1ms。

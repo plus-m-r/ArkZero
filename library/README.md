@@ -14,8 +14,10 @@ The native `.so` files bundled in this package are built from the C++ source cod
 | Multi-tile render | ~4ms |
 | Tile + present | ~1ms |
 | Full frame render | ~1ms |
+| Consecutive frames | ~2ms/frame |
+| Resize + render | ~6ms |
 
-Fire-and-forget architecture: all render calls return immediately after enqueueing data. VSync wait happens on the dedicated render thread, not the JS thread.
+Fire-and-forget + deferred memcpy architecture: JS thread creates napi_ref to prevent GC, passes raw pointer to render thread — zero memcpy on JS thread. VSync wait happens on the dedicated render thread.
 
 ## Quick Start
 
