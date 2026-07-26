@@ -70,6 +70,7 @@ static napi_value Init(napi_env env, napi_value exports) {
         { "renderFrame", nullptr, RenderFrame, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "renderFrameRegions", nullptr, RenderFrameRegions, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "updateDirtyRegions", nullptr, UpdateDirtyRegions, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "renderTileRegions", nullptr, RenderTileRegions, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "presentFrame", nullptr, PresentFrame, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "resize", nullptr, ResizeRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "destroy", nullptr, DestroyRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },

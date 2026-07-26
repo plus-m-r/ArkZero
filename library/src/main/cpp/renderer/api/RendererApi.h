@@ -11,6 +11,8 @@ napi_value RenderFrame(napi_env env, napi_callback_info info);
 
 napi_value RenderFrameRegions(napi_env env, napi_callback_info info);
 
+napi_value RenderTileRegions(napi_env env, napi_callback_info info);
+
 napi_value UpdateDirtyRegions(napi_env env, napi_callback_info info);
 
 napi_value PresentFrame(napi_env env, napi_callback_info info);

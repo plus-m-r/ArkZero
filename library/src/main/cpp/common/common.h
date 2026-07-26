@@ -263,4 +263,15 @@ struct DirtyRect {
     int32_t h;
 };
 
+struct TileRegion {
+    const void* pixelData;
+    size_t dataSize;
+    double ratioX;
+    double ratioY;
+    double ratioW;
+    double ratioH;
+    int32_t tilePixelWidth;
+    int32_t tilePixelHeight;
+};
+
 #endif // NATIVE_XCOMPONENT_COMMON_H

@@ -19,6 +19,7 @@ enum class RenderCommandType {
     INIT,
     RENDER_FRAME,
     RENDER_FRAME_REGIONS,
+    RENDER_TILE_REGIONS,
     UPDATE_DIRTY,
     PRESENT_FRAME,
     RESIZE,
@@ -38,6 +39,9 @@ struct RenderCommand {
 
     std::vector<DirtyRect> regions;
     bool swapBuffers = true;
+
+    std::vector<TileRegion> tiles;
+    std::vector<std::vector<uint8_t>> tilePixelBuffers;
 
     void* nativeWindow = nullptr;
 
@@ -63,6 +67,7 @@ private:
     void ProcessInit(RenderCommand& cmd);
     void ProcessRenderFrame(RenderCommand& cmd);
     void ProcessRenderFrameRegions(RenderCommand& cmd);
+    void ProcessRenderTileRegions(RenderCommand& cmd);
     void ProcessUpdateDirty(RenderCommand& cmd);
     void ProcessPresentFrame(RenderCommand& cmd);
     void ProcessResize(RenderCommand& cmd);

@@ -27,6 +27,19 @@ struct RenderWorkData {
     napi_async_work asyncWork = nullptr;
 };
 
+struct TileRenderWorkData {
+    int32_t handle = 0;
+    int32_t frameWidth = 0;
+    int32_t frameHeight = 0;
+    bool swapBuffers = true;
+    std::vector<TileRegion> tiles;
+    std::vector<std::vector<uint8_t>> tilePixelBuffers;
+    bool success = false;
+    std::string errorMsg;
+    napi_deferred deferred = nullptr;
+    napi_async_work asyncWork = nullptr;
+};
+
 static void RenderFrameExecute(napi_env env, void* data) {
     auto* workData = static_cast<RenderWorkData*>(data);
     Renderer* renderer = RendererManager::GetInstance().GetRenderer(workData->handle);
@@ -894,6 +907,230 @@ napi_value DestroyRenderer(napi_env env, napi_callback_info info) {
     napi_value resolveValue;
     napi_get_undefined(env, &resolveValue);
     napi_resolve_deferred(env, deferred, resolveValue);
+
+    return promise;
+}
+
+static void RenderTileRegionsExecute(napi_env env, void* data) {
+    auto* workData = static_cast<TileRenderWorkData*>(data);
+    Renderer* renderer = RendererManager::GetInstance().GetRenderer(workData->handle);
+    if (!renderer) {
+        workData->success = false;
+        workData->errorMsg = "Invalid renderer handle";
+        return;
+    }
+
+    std::future<bool> fut = renderer->RenderTileRegionsAsync(
+        workData->tiles.data(),
+        static_cast<int32_t>(workData->tiles.size()),
+        workData->frameWidth,
+        workData->frameHeight,
+        workData->swapBuffers);
+
+    workData->success = fut.get();
+    if (!workData->success) {
+        workData->errorMsg = "RenderTileRegions failed on render thread";
+    }
+}
+
+static void TileGenericComplete(napi_env env, napi_status status, void* data) {
+    auto* workData = static_cast<TileRenderWorkData*>(data);
+
+    napi_value result = nullptr;
+    napi_get_undefined(env, &result);
+
+    if (workData->success) {
+        napi_resolve_deferred(env, workData->deferred, result);
+    } else {
+        napi_value message = nullptr;
+        napi_value error = nullptr;
+        napi_create_string_utf8(env, workData->errorMsg.c_str(), NAPI_AUTO_LENGTH, &message);
+        napi_create_error(env, nullptr, message, &error);
+        napi_reject_deferred(env, workData->deferred, error);
+    }
+
+    napi_delete_async_work(env, workData->asyncWork);
+    delete workData;
+}
+
+napi_value RenderTileRegions(napi_env env, napi_callback_info info) {
+    if ((env == nullptr) || (info == nullptr)) {
+        return nullptr;
+    }
+
+    size_t argCnt = 5;
+    napi_value args[5] = { nullptr };
+    if (napi_get_cb_info(env, info, &argCnt, args, nullptr, nullptr) != napi_ok) {
+        return nullptr;
+    }
+
+    if (argCnt != 5) {
+        napi_throw_type_error(env, NULL,
+            "Wrong number of arguments. Expected: handle, tiles, frameWidth, frameHeight, swap");
+        return nullptr;
+    }
+
+    napi_valuetype valuetype;
+
+    if (napi_typeof(env, args[0], &valuetype) != napi_ok || valuetype != napi_number) {
+        napi_throw_type_error(env, NULL, "First argument must be a number (handle)");
+        return nullptr;
+    }
+    int32_t handle;
+    if (napi_get_value_int32(env, args[0], &handle) != napi_ok) {
+        napi_throw_type_error(env, NULL, "Failed to get handle value");
+        return nullptr;
+    }
+
+    bool isArray = false;
+    if (napi_is_array(env, args[1], &isArray) != napi_ok || !isArray) {
+        napi_throw_type_error(env, NULL, "Second argument must be an array of TileRegion");
+        return nullptr;
+    }
+    uint32_t tileCount = 0;
+    if (napi_get_array_length(env, args[1], &tileCount) != napi_ok) {
+        return nullptr;
+    }
+
+    if (napi_typeof(env, args[2], &valuetype) != napi_ok || valuetype != napi_number) {
+        napi_throw_type_error(env, NULL, "Third argument must be a number (frameWidth)");
+        return nullptr;
+    }
+    double frameWidth;
+    if (napi_get_value_double(env, args[2], &frameWidth) != napi_ok) {
+        return nullptr;
+    }
+
+    if (napi_typeof(env, args[3], &valuetype) != napi_ok || valuetype != napi_number) {
+        napi_throw_type_error(env, NULL, "Fourth argument must be a number (frameHeight)");
+        return nullptr;
+    }
+    double frameHeight;
+    if (napi_get_value_double(env, args[3], &frameHeight) != napi_ok) {
+        return nullptr;
+    }
+
+    bool swap = false;
+    napi_get_value_bool(env, args[4], &swap);
+
+    Renderer* renderer = RendererManager::GetInstance().GetRenderer(handle);
+    if (renderer == nullptr) {
+        napi_throw_error(env, NULL, "Invalid renderer handle");
+        return nullptr;
+    }
+
+    auto* workData = new TileRenderWorkData();
+    workData->handle = handle;
+    workData->frameWidth = static_cast<int32_t>(frameWidth);
+    workData->frameHeight = static_cast<int32_t>(frameHeight);
+    workData->swapBuffers = swap;
+
+    workData->tiles.resize(tileCount);
+    workData->tilePixelBuffers.resize(tileCount);
+
+    for (uint32_t i = 0; i < tileCount; i++) {
+        napi_value element = nullptr;
+        if (napi_get_element(env, args[1], i, &element) != napi_ok) {
+            delete workData;
+            napi_throw_type_error(env, NULL, "Failed to get tile element");
+            return nullptr;
+        }
+
+        napi_value ratioXVal = nullptr;
+        napi_value ratioYVal = nullptr;
+        napi_value ratioWVal = nullptr;
+        napi_value ratioHVal = nullptr;
+        napi_value tilePixelWidthVal = nullptr;
+        napi_value tilePixelHeightVal = nullptr;
+        napi_value pixelDataVal = nullptr;
+
+        if (napi_get_named_property(env, element, "ratioX", &ratioXVal) != napi_ok ||
+            napi_get_named_property(env, element, "ratioY", &ratioYVal) != napi_ok ||
+            napi_get_named_property(env, element, "ratioW", &ratioWVal) != napi_ok ||
+            napi_get_named_property(env, element, "ratioH", &ratioHVal) != napi_ok ||
+            napi_get_named_property(env, element, "tilePixelWidth", &tilePixelWidthVal) != napi_ok ||
+            napi_get_named_property(env, element, "tilePixelHeight", &tilePixelHeightVal) != napi_ok ||
+            napi_get_named_property(env, element, "pixelData", &pixelDataVal) != napi_ok) {
+            delete workData;
+            napi_throw_type_error(env, NULL, "Missing tile property");
+            return nullptr;
+        }
+
+        double ratioX, ratioY, ratioW, ratioH;
+        double tilePixelWidth, tilePixelHeight;
+        if (napi_get_value_double(env, ratioXVal, &ratioX) != napi_ok ||
+            napi_get_value_double(env, ratioYVal, &ratioY) != napi_ok ||
+            napi_get_value_double(env, ratioWVal, &ratioW) != napi_ok ||
+            napi_get_value_double(env, ratioHVal, &ratioH) != napi_ok ||
+            napi_get_value_double(env, tilePixelWidthVal, &tilePixelWidth) != napi_ok ||
+            napi_get_value_double(env, tilePixelHeightVal, &tilePixelHeight) != napi_ok) {
+            delete workData;
+            napi_throw_type_error(env, NULL, "Failed to get tile numeric property");
+            return nullptr;
+        }
+
+        bool isAb = false;
+        if (napi_is_arraybuffer(env, pixelDataVal, &isAb) != napi_ok || !isAb) {
+            delete workData;
+            napi_throw_type_error(env, NULL, "tile.pixelData must be an ArrayBuffer");
+            return nullptr;
+        }
+
+        void* abData = nullptr;
+        size_t abLength = 0;
+        if (napi_get_arraybuffer_info(env, pixelDataVal, &abData, &abLength) != napi_ok) {
+            delete workData;
+            napi_throw_type_error(env, NULL, "Failed to get tile pixelData ArrayBuffer");
+            return nullptr;
+        }
+
+        if (abData && abLength > 0) {
+            workData->tilePixelBuffers[i].resize(abLength);
+            memcpy(workData->tilePixelBuffers[i].data(), abData, abLength);
+        }
+
+        workData->tiles[i].ratioX = ratioX;
+        workData->tiles[i].ratioY = ratioY;
+        workData->tiles[i].ratioW = ratioW;
+        workData->tiles[i].ratioH = ratioH;
+        workData->tiles[i].tilePixelWidth = static_cast<int32_t>(tilePixelWidth);
+        workData->tiles[i].tilePixelHeight = static_cast<int32_t>(tilePixelHeight);
+        workData->tiles[i].dataSize = abLength;
+        workData->tiles[i].pixelData = workData->tilePixelBuffers[i].data();
+    }
+
+    napi_value promise = nullptr;
+    if (napi_create_promise(env, &workData->deferred, &promise) != napi_ok) {
+        delete workData;
+        napi_throw_error(env, NULL, "Failed to create promise");
+        return nullptr;
+    }
+
+    napi_value resourceName = nullptr;
+    napi_create_string_utf8(env, "RenderTileRegions", NAPI_AUTO_LENGTH, &resourceName);
+
+    napi_async_work asyncWork = nullptr;
+    napi_status status = napi_create_async_work(env, nullptr, resourceName,
+        RenderTileRegionsExecute, TileGenericComplete, workData, &asyncWork);
+    if (status != napi_ok) {
+        delete workData;
+        napi_throw_error(env, NULL, "Failed to create async work");
+        return nullptr;
+    }
+
+    workData->asyncWork = asyncWork;
+
+    status = napi_queue_async_work(env, asyncWork);
+    if (status != napi_ok) {
+        napi_delete_async_work(env, asyncWork);
+        delete workData;
+        napi_throw_error(env, NULL, "Failed to queue async work");
+        return nullptr;
+    }
+
+    OH_LOG_Print(LOG_APP, LOG_INFO, 0x0001,
+        "ArkZeroRenderer", "[ASYNC] RenderTileRegions queued: handle=%{public}d, tiles=%{public}u, frame=%{public}dx%{public}d",
+        handle, tileCount, workData->frameWidth, workData->frameHeight);
 
     return promise;
 }

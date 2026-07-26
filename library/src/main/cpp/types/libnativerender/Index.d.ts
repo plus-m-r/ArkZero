@@ -23,12 +23,30 @@ declare module 'libnativerender.so' {
     h: number;
   }
 
+  interface NativeTileRegion {
+    ratioX: number;
+    ratioY: number;
+    ratioW: number;
+    ratioH: number;
+    tilePixelWidth: number;
+    tilePixelHeight: number;
+    pixelData: ArrayBuffer;
+  }
+
   export function renderFrameRegions(
     handle: number,
     pixelData: ArrayBuffer,
     frameWidth: number,
     frameHeight: number,
     regions: Array<DirtyRect>,
+    swap: boolean
+  ): Promise<void>;
+
+  export function renderTileRegions(
+    handle: number,
+    tiles: Array<NativeTileRegion>,
+    frameWidth: number,
+    frameHeight: number,
     swap: boolean
   ): Promise<void>;
 
@@ -231,7 +249,9 @@ declare module 'libnativerender.so' {
     create: typeof create;
     renderFrame: typeof renderFrame;
     DirtyRect: DirtyRect;
+    NativeTileRegion: NativeTileRegion;
     renderFrameRegions: typeof renderFrameRegions;
+    renderTileRegions: typeof renderTileRegions;
     updateDirtyRegions: typeof updateDirtyRegions;
     presentFrame: typeof presentFrame;
     resize: typeof resize;

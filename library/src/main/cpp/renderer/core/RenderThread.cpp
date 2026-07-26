@@ -110,6 +110,9 @@ void RenderThread::ProcessCommand(RenderCommand& cmd) {
             case RenderCommandType::RENDER_FRAME_REGIONS:
                 ProcessRenderFrameRegions(cmd);
                 break;
+            case RenderCommandType::RENDER_TILE_REGIONS:
+                ProcessRenderTileRegions(cmd);
+                break;
             case RenderCommandType::UPDATE_DIRTY:
                 ProcessUpdateDirty(cmd);
                 break;
@@ -198,6 +201,22 @@ void RenderThread::ProcessRenderFrameRegions(RenderCommand& cmd) {
         cmd.frameHeight,
         cmd.regions.data(),
         static_cast<int32_t>(cmd.regions.size()),
+        cmd.swapBuffers);
+
+    cmd.completion.set_value(success);
+}
+
+void RenderThread::ProcessRenderTileRegions(RenderCommand& cmd) {
+    if (!m_backend || !m_backend->IsInitialized()) {
+        cmd.completion.set_value(false);
+        return;
+    }
+
+    bool success = m_backend->RenderTileRegions(
+        cmd.tiles.data(),
+        static_cast<int32_t>(cmd.tiles.size()),
+        cmd.frameWidth,
+        cmd.frameHeight,
         cmd.swapBuffers);
 
     cmd.completion.set_value(success);

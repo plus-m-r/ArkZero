@@ -72,6 +72,10 @@ public:
                             int32_t frameWidth, int32_t frameHeight,
                             const DirtyRect* regions, int32_t regionCount) override;
 
+    bool RenderTileRegions(const TileRegion* tiles, int32_t tileCount,
+                           int32_t frameWidth, int32_t frameHeight,
+                           bool swapBuffers);
+
     bool PresentFrame() override;
     bool Resize(int32_t width, int32_t height) override;
     void Destroy() override;

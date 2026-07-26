@@ -1,4 +1,4 @@
-import { ArkZeroSurfaceView, SurfaceViewConfig, NormalizedTouchEvent, ArkZeroRenderer, PixelFormat, ArkZeroRendererConfig, DisposeAsyncOptions } from '@plusml/arkzero';
+import { ArkZeroSurfaceView, SurfaceViewConfig, NormalizedTouchEvent, ArkZeroRenderSession, RenderSessionConfig, PixelFormat, TileRegion } from '@plusml/arkzero';
 import { router } from '@kit.ArkUI';
 import hilog from '@ohos.hilog';
 
@@ -19,12 +19,11 @@ struct SurfaceDemoPage {
   @State isInitialized: boolean = false;
   @State frameCount: number = 0;
 
-  private renderer?: ArkZeroRenderer;
+  private session?: ArkZeroRenderSession;
   private pixelBuffer?: ArrayBuffer;
   private pixelView?: Uint32Array;
   private running: boolean = false;
   private renderLoopPromise?: Promise<void>;
-  private readonly disposeOptions: DisposeAsyncOptions = { wait: true, timeoutMs: 2000 };
 
   private readonly surfaceViewConfig: SurfaceViewConfig = {
     renderWidth: 640,
@@ -97,33 +96,31 @@ struct SurfaceDemoPage {
     });
   }
 
-  private async onSurfaceLoaded(surfaceId: string): Promise<void> {
+  private onSurfaceLoaded(surfaceId: string): void {
     const rw = this.surfaceViewConfig.renderWidth;
     const rh = this.surfaceViewConfig.renderHeight;
-    const rendererConfig: ArkZeroRendererConfig = {
+    const sessionConfig: RenderSessionConfig = {
       width: rw,
       height: rh,
-      format: PixelFormat.RGBA
+      format: PixelFormat.RGBA,
+      onError: (errorMsg: string) => {
+        hilog.error(DOMAIN, TAG, 'Session error: %{public}s', errorMsg);
+      }
     };
-    this.renderer = new ArkZeroRenderer(rendererConfig);
+    this.session = new ArkZeroRenderSession(sessionConfig);
 
-    try {
-      await this.renderer.initialize(surfaceId);
-      this.renderer.setOnFrameRendered(() => {
-        this.frameCount++;
-      });
+    this.session.attach(surfaceId).then(() => {
       this.isInitialized = true;
-      hilog.info(DOMAIN, TAG, 'Renderer initialized');
+      hilog.info(DOMAIN, TAG, 'Session attached');
       this.startRendering();
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      hilog.error(DOMAIN, TAG, 'Initialization failed: %{public}s', errorMsg);
-    }
+    }).catch((error: Error) => {
+      hilog.error(DOMAIN, TAG, 'Session attach failed: %{public}s', error.message);
+    });
   }
 
   private async startRendering(): Promise<void> {
-    if (!this.renderer || !this.isInitialized) {
-      hilog.error(DOMAIN, TAG, 'Renderer not initialized');
+    if (!this.session || !this.isInitialized) {
+      hilog.error(DOMAIN, TAG, 'Session not initialized');
       return;
     }
 
@@ -141,11 +138,7 @@ struct SurfaceDemoPage {
         try {
           this.generateTestPattern(this.pixelView!, rw, rh, frameTime);
 
-          await this.renderer!.renderFrame(
-            this.pixelBuffer!,
-            rw,
-            rh
-          );
+          await this.session!.renderFullFrame(this.pixelBuffer!, rw, rh);
 
           if (!this.running) break;
 
@@ -204,18 +197,16 @@ struct SurfaceDemoPage {
 
     if (this.renderLoopPromise) {
       this.renderLoopPromise.then(() => {
-        if (this.renderer) {
-          this.renderer.disposeAsync(this.disposeOptions).catch((e: Error) => {
-            hilog.warn(DOMAIN, TAG, 'disposeAsync failed: %{public}s', e.message);
-          });
+        if (this.session) {
+          this.session.detach();
         }
       }).catch(() => {
-        if (this.renderer) {
-          this.renderer.disposeAsync(this.disposeOptions).catch(() => {});
+        if (this.session) {
+          this.session.detach();
         }
       });
-    } else if (this.renderer) {
-      this.renderer.disposeAsync(this.disposeOptions).catch(() => {});
+    } else if (this.session) {
+      this.session.detach();
     }
   }
 

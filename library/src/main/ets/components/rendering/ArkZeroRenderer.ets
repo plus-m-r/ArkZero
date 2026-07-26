@@ -26,6 +26,16 @@ export interface DirtyRect {
   h: number;
 }
 
+export interface TileRegion {
+  ratioX: number;
+  ratioY: number;
+  ratioW: number;
+  ratioH: number;
+  tilePixelWidth: number;
+  tilePixelHeight: number;
+  pixelData: ArrayBuffer;
+}
+
 export interface DisposeAsyncOptions {
   wait?: boolean;
   timeoutMs?: number;
@@ -119,6 +129,35 @@ export class ArkZeroRenderer {
         frameWidth,
         frameHeight,
         regions,
+        swap
+      );
+
+      if (swap && this.onFrameRenderedCallback) {
+        this.onFrameRenderedCallback();
+      }
+
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      throw new Error(errorMsg);
+    }
+  }
+
+  async renderTileRegions(
+    tiles: TileRegion[],
+    frameWidth: number,
+    frameHeight: number,
+    swap: boolean = true
+  ): Promise<void> {
+    if (!this.isInitialized) {
+      throw new Error('ArkZeroRenderer not initialized');
+    }
+
+    try {
+      await nativerender.renderTileRegions(
+        this.nativeHandle,
+        tiles,
+        frameWidth,
+        frameHeight,
         swap
       );
 

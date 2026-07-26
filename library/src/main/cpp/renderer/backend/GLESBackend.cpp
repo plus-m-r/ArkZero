@@ -363,6 +363,61 @@ bool GLESBackend::UpdateDirtyRegions(const void* pixelData, size_t dataSize,
     return true;
 }
 
+bool GLESBackend::RenderTileRegions(const TileRegion* tiles, int32_t tileCount,
+                                     int32_t frameWidth, int32_t frameHeight,
+                                     bool swapBuffers) {
+    if (!m_isInitialized || !tiles || tileCount <= 0) {
+        return false;
+    }
+
+    if (IsYUVFormat(m_format)) {
+        return false;
+    }
+
+    if (!m_eglManager.MakeCurrent()) {
+        return false;
+    }
+
+    const int32_t viewportWidth = m_eglManager.GetSurfaceWidth() > 0 ? m_eglManager.GetSurfaceWidth() : m_width;
+    const int32_t viewportHeight = m_eglManager.GetSurfaceHeight() > 0 ? m_eglManager.GetSurfaceHeight() : m_height;
+    glViewport(0, 0, viewportWidth, viewportHeight);
+
+    GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
+    GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(m_format);
+
+    TextureManager* texture = m_textureStrategy->Acquire(frameWidth, frameHeight, internalFormat, glFormat);
+    if (!texture) {
+        return false;
+    }
+
+    for (int32_t i = 0; i < tileCount; i++) {
+        int32_t pixelX = static_cast<int32_t>(tiles[i].ratioX * frameWidth);
+        int32_t pixelY = static_cast<int32_t>(tiles[i].ratioY * frameHeight);
+        int32_t tw = tiles[i].tilePixelWidth;
+        int32_t th = tiles[i].tilePixelHeight;
+
+        int32_t glY = frameHeight - pixelY - th;
+
+        texture->UpdateRegion(tiles[i].pixelData, pixelX, glY, tw, th, tw, glFormat);
+    }
+
+    bool success = m_textureShader.Draw(texture->GetTextureId(), viewportWidth, viewportHeight);
+
+    m_textureStrategy->Release(texture);
+
+    if (!success) {
+        return false;
+    }
+
+    if (swapBuffers) {
+        if (!m_eglManager.SwapBuffers()) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool GLESBackend::PresentFrame() {
     if (!m_isInitialized) {
         return false;

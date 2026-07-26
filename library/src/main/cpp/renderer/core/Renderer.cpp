@@ -100,6 +100,42 @@ std::future<bool> Renderer::RenderFrameRegionsAsync(const void* pixelData, size_
     return m_renderThread.EnqueueCommand(std::move(cmd));
 }
 
+std::future<bool> Renderer::RenderTileRegionsAsync(const TileRegion* tiles, int32_t tileCount,
+                                                     int32_t frameWidth, int32_t frameHeight,
+                                                     bool swapBuffers)
+{
+    RenderCommand cmd;
+    cmd.type = RenderCommandType::RENDER_TILE_REGIONS;
+    cmd.frameWidth = frameWidth;
+    cmd.frameHeight = frameHeight;
+    cmd.swapBuffers = swapBuffers;
+
+    if (tiles && tileCount > 0) {
+        cmd.tilePixelBuffers.resize(tileCount);
+        cmd.tiles.resize(tileCount);
+        for (int32_t i = 0; i < tileCount; i++) {
+            cmd.tiles[i].ratioX = tiles[i].ratioX;
+            cmd.tiles[i].ratioY = tiles[i].ratioY;
+            cmd.tiles[i].ratioW = tiles[i].ratioW;
+            cmd.tiles[i].ratioH = tiles[i].ratioH;
+            cmd.tiles[i].tilePixelWidth = tiles[i].tilePixelWidth;
+            cmd.tiles[i].tilePixelHeight = tiles[i].tilePixelHeight;
+
+            if (tiles[i].pixelData && tiles[i].dataSize > 0) {
+                cmd.tilePixelBuffers[i].resize(tiles[i].dataSize);
+                memcpy(cmd.tilePixelBuffers[i].data(), tiles[i].pixelData, tiles[i].dataSize);
+                cmd.tiles[i].pixelData = cmd.tilePixelBuffers[i].data();
+                cmd.tiles[i].dataSize = tiles[i].dataSize;
+            } else {
+                cmd.tiles[i].pixelData = nullptr;
+                cmd.tiles[i].dataSize = 0;
+            }
+        }
+    }
+
+    return m_renderThread.EnqueueCommand(std::move(cmd));
+}
+
 std::future<bool> Renderer::UpdateDirtyRegionsAsync(const void* pixelData, size_t dataSize,
                                                      int32_t frameWidth, int32_t frameHeight,
                                                      const DirtyRect* regions, int32_t regionCount)

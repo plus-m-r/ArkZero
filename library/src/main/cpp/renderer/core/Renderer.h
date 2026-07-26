@@ -28,6 +28,10 @@ public:
                                                const DirtyRect* regions, int32_t regionCount,
                                                bool swapBuffers);
 
+    std::future<bool> RenderTileRegionsAsync(const TileRegion* tiles, int32_t tileCount,
+                                              int32_t frameWidth, int32_t frameHeight,
+                                              bool swapBuffers);
+
     std::future<bool> UpdateDirtyRegionsAsync(const void* pixelData, size_t dataSize,
                                                int32_t frameWidth, int32_t frameHeight,
                                                const DirtyRect* regions, int32_t regionCount);
