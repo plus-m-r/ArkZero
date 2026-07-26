@@ -1,7 +1,7 @@
 {
   "name": "@plusml/arkzero",
   "version": "1.0.0",
-  "description": "Low-latency async renderer for OpenHarmony with ratio-based viewport and normalized touch capture",
+  "description": "Low-latency asynchronous graphics rendering library for OpenHarmony, provides proportional viewport management and standardized touch event processing",
   "main": "Index.ets",
   "author": "plusml",
   "license": "Apache-2.0",

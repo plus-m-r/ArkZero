@@ -1,6 +1,10 @@
 # @plusml/arkzero
 
-Ultra low latency renderer for HarmonyOS with async render thread, ratio-based viewport, and normalized touch.
+Low-latency asynchronous graphics rendering library for OpenHarmony, provides proportional viewport management and standardized touch event processing.
+
+**Full source code available at:** https://github.com/plus-m-r/ArkZero
+
+The native `.so` files bundled in this package are built from the C++ source code in `src/main/cpp/` of this repository. Build instructions are documented in the project root README.
 
 ## Quick Start
 
