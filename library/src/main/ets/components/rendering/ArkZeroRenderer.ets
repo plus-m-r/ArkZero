@@ -29,8 +29,6 @@ export interface DirtyRect {
 export interface TileRegion {
   ratioX: number;
   ratioY: number;
-  ratioW: number;
-  ratioH: number;
   tilePixelWidth: number;
   tilePixelHeight: number;
   pixelData: ArrayBuffer;

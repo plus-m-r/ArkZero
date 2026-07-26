@@ -1038,16 +1038,12 @@ napi_value RenderTileRegions(napi_env env, napi_callback_info info) {
 
         napi_value ratioXVal = nullptr;
         napi_value ratioYVal = nullptr;
-        napi_value ratioWVal = nullptr;
-        napi_value ratioHVal = nullptr;
         napi_value tilePixelWidthVal = nullptr;
         napi_value tilePixelHeightVal = nullptr;
         napi_value pixelDataVal = nullptr;
 
         if (napi_get_named_property(env, element, "ratioX", &ratioXVal) != napi_ok ||
             napi_get_named_property(env, element, "ratioY", &ratioYVal) != napi_ok ||
-            napi_get_named_property(env, element, "ratioW", &ratioWVal) != napi_ok ||
-            napi_get_named_property(env, element, "ratioH", &ratioHVal) != napi_ok ||
             napi_get_named_property(env, element, "tilePixelWidth", &tilePixelWidthVal) != napi_ok ||
             napi_get_named_property(env, element, "tilePixelHeight", &tilePixelHeightVal) != napi_ok ||
             napi_get_named_property(env, element, "pixelData", &pixelDataVal) != napi_ok) {
@@ -1056,12 +1052,10 @@ napi_value RenderTileRegions(napi_env env, napi_callback_info info) {
             return nullptr;
         }
 
-        double ratioX, ratioY, ratioW, ratioH;
+        double ratioX, ratioY;
         double tilePixelWidth, tilePixelHeight;
         if (napi_get_value_double(env, ratioXVal, &ratioX) != napi_ok ||
             napi_get_value_double(env, ratioYVal, &ratioY) != napi_ok ||
-            napi_get_value_double(env, ratioWVal, &ratioW) != napi_ok ||
-            napi_get_value_double(env, ratioHVal, &ratioH) != napi_ok ||
             napi_get_value_double(env, tilePixelWidthVal, &tilePixelWidth) != napi_ok ||
             napi_get_value_double(env, tilePixelHeightVal, &tilePixelHeight) != napi_ok) {
             delete workData;
@@ -1091,8 +1085,6 @@ napi_value RenderTileRegions(napi_env env, napi_callback_info info) {
 
         workData->tiles[i].ratioX = ratioX;
         workData->tiles[i].ratioY = ratioY;
-        workData->tiles[i].ratioW = ratioW;
-        workData->tiles[i].ratioH = ratioH;
         workData->tiles[i].tilePixelWidth = static_cast<int32_t>(tilePixelWidth);
         workData->tiles[i].tilePixelHeight = static_cast<int32_t>(tilePixelHeight);
         workData->tiles[i].dataSize = abLength;

@@ -390,11 +390,34 @@ bool GLESBackend::RenderTileRegions(const TileRegion* tiles, int32_t tileCount,
         return false;
     }
 
+    int32_t bytesPerPixel = PixelFormatConverter::GetBytesPerPixel(m_format);
+
     for (int32_t i = 0; i < tileCount; i++) {
-        int32_t pixelX = static_cast<int32_t>(tiles[i].ratioX * frameWidth);
-        int32_t pixelY = static_cast<int32_t>(tiles[i].ratioY * frameHeight);
+        if (!tiles[i].pixelData) {
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN,
+                "GLESBackend", "RenderTileRegions: tile[%{public}d] pixelData is null", i);
+            continue;
+        }
+
         int32_t tw = tiles[i].tilePixelWidth;
         int32_t th = tiles[i].tilePixelHeight;
+        size_t expectedSize = static_cast<size_t>(tw) * static_cast<size_t>(th) * bytesPerPixel;
+        if (tiles[i].dataSize < expectedSize) {
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN,
+                "GLESBackend", "RenderTileRegions: tile[%{public}d] dataSize=%{public}zu < expected=%{public}zu",
+                i, tiles[i].dataSize, expectedSize);
+            continue;
+        }
+
+        int32_t pixelX = static_cast<int32_t>(tiles[i].ratioX * frameWidth);
+        int32_t pixelY = static_cast<int32_t>(tiles[i].ratioY * frameHeight);
+
+        if (pixelX < 0 || pixelY < 0 || pixelX + tw > frameWidth || pixelY + th > frameHeight) {
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN,
+                "GLESBackend", "RenderTileRegions: tile[%{public}d] out of bounds (%{public}d,%{public}d)+(%{public}dx%{public}d) in %{public}dx%{public}d",
+                i, pixelX, pixelY, tw, th, frameWidth, frameHeight);
+            continue;
+        }
 
         int32_t glY = frameHeight - pixelY - th;
 

@@ -116,8 +116,6 @@ std::future<bool> Renderer::RenderTileRegionsAsync(const TileRegion* tiles, int3
         for (int32_t i = 0; i < tileCount; i++) {
             cmd.tiles[i].ratioX = tiles[i].ratioX;
             cmd.tiles[i].ratioY = tiles[i].ratioY;
-            cmd.tiles[i].ratioW = tiles[i].ratioW;
-            cmd.tiles[i].ratioH = tiles[i].ratioH;
             cmd.tiles[i].tilePixelWidth = tiles[i].tilePixelWidth;
             cmd.tiles[i].tilePixelHeight = tiles[i].tilePixelHeight;
 

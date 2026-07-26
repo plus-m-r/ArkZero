@@ -268,8 +268,6 @@ struct TileRegion {
     size_t dataSize;
     double ratioX;
     double ratioY;
-    double ratioW;
-    double ratioH;
     int32_t tilePixelWidth;
     int32_t tilePixelHeight;
 };

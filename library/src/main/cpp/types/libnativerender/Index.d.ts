@@ -26,8 +26,6 @@ declare module 'libnativerender.so' {
   interface NativeTileRegion {
     ratioX: number;
     ratioY: number;
-    ratioW: number;
-    ratioH: number;
     tilePixelWidth: number;
     tilePixelHeight: number;
     pixelData: ArrayBuffer;
