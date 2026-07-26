@@ -21,6 +21,8 @@ napi_value ResizeRenderer(napi_env env, napi_callback_info info);
 
 napi_value DestroyRenderer(napi_env env, napi_callback_info info);
 
+napi_value SetVSync(napi_env env, napi_callback_info info);
+
 } // namespace NativeXComponentSample
 
 #endif // NATIVE_XCOMPONENT_RENDERER_API_H

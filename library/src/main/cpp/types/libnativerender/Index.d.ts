@@ -68,6 +68,8 @@ declare module 'libnativerender.so' {
 
   export function destroy(handle: number): Promise<void>;
 
+  export function setVSync(handle: number, enabled: boolean): Promise<void>;
+
   // ===== RendererManager API =====
 
   export function managerCreateSurfaceRenderer(
@@ -254,6 +256,7 @@ declare module 'libnativerender.so' {
     presentFrame: typeof presentFrame;
     resize: typeof resize;
     destroy: typeof destroy;
+    setVSync: typeof setVSync;
     managerCreateSurfaceRenderer: typeof managerCreateSurfaceRenderer;
     managerDestroyRenderer: typeof managerDestroyRenderer;
     surfaceManagerCreateNativeWindow: typeof surfaceManagerCreateNativeWindow;

@@ -74,6 +74,7 @@ static napi_value Init(napi_env env, napi_value exports) {
         { "presentFrame", nullptr, PresentFrame, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "resize", nullptr, ResizeRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "destroy", nullptr, DestroyRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "setVSync", nullptr, SetVSync, nullptr, nullptr, nullptr, napi_default, nullptr },
         // RendererManager API
         { "managerCreateSurfaceRenderer", nullptr, ManagerCreateSurfaceRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "managerDestroyRenderer", nullptr, ManagerDestroyRenderer, nullptr, nullptr, nullptr, napi_default, nullptr },

@@ -23,6 +23,7 @@ enum class RenderCommandType {
     UPDATE_DIRTY,
     PRESENT_FRAME,
     RESIZE,
+    SET_VSYNC,
     DESTROY,
     SHUTDOWN
 };
@@ -44,6 +45,7 @@ struct RenderCommand {
     std::vector<std::vector<uint8_t>> tilePixelBuffers;
 
     void* nativeWindow = nullptr;
+    bool vsyncEnabled = true;
 
     std::promise<bool> completion;
 };
@@ -71,6 +73,7 @@ private:
     void ProcessUpdateDirty(RenderCommand& cmd);
     void ProcessPresentFrame(RenderCommand& cmd);
     void ProcessResize(RenderCommand& cmd);
+    void ProcessSetVSync(RenderCommand& cmd);
     void ProcessDestroy(RenderCommand& cmd);
 
     std::thread m_thread;

@@ -79,12 +79,14 @@ bool GLESBackend::Initialize(void* nativeWindow, int32_t width, int32_t height, 
         
         // ⭐ 预分配常用分辨率（仅池化策略支持）
         if (std::string(m_textureStrategy->GetName()) == "PoolStrategy") {
+            m_textureStrategy->Preallocate(800, 600, internalFormat, glFormat);
             m_textureStrategy->Preallocate(1920, 1080, internalFormat, glFormat);
             m_textureStrategy->Preallocate(3840, 2160, internalFormat, glFormat);
             m_textureStrategy->Preallocate(1280, 720, internalFormat, glFormat);
+            m_textureStrategy->Preallocate(640, 480, internalFormat, glFormat);
             
             OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-                "GLESBackend", "✅ Preallocated textures for common resolutions");
+                "GLESBackend", "Preallocated textures for common resolutions");
         }
         
         // ⭐ 初始化 TextureShader（全屏四边形绘制）
@@ -139,14 +141,15 @@ bool GLESBackend::InitializeOffscreen(int32_t width, int32_t height, PixelFormat
         GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(format);
         GLenum glFormat = PixelFormatConverter::GetGLFormat(format);
         
-        // ⭐ 预分配常用分辨率（仅池化策略支持）
         if (std::string(m_textureStrategy->GetName()) == "PoolStrategy") {
+            m_textureStrategy->Preallocate(800, 600, internalFormat, glFormat);
             m_textureStrategy->Preallocate(1920, 1080, internalFormat, glFormat);
             m_textureStrategy->Preallocate(3840, 2160, internalFormat, glFormat);
             m_textureStrategy->Preallocate(1280, 720, internalFormat, glFormat);
+            m_textureStrategy->Preallocate(640, 480, internalFormat, glFormat);
             
             OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
-                "GLESBackend", "✅ Preallocated textures for common resolutions");
+                "GLESBackend", "Preallocated textures for common resolutions");
         }
         
         // ⭐ 初始化 TextureShader（全屏四边形绘制）
@@ -214,31 +217,30 @@ bool GLESBackend::RenderFrame(const void* pixelData, size_t dataSize,
             success = m_yuvShader.RenderNV12(yPlane, uvPlane, width, height);
         }
     } else {
-        GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
-        GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(m_format);
+    GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
+    GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(m_format);
 
-        TextureManager* texture = m_textureStrategy->Acquire(width, height, internalFormat, glFormat);
+    TextureManager* texture = m_textureStrategy->Acquire(width, height, internalFormat, glFormat);
+    if (!texture) {
+        OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
+            "ArkZeroRenderer", "[ARKZERO-FATAL] GLESBackend: Acquire texture FAILED");
+        return false;
+    }
 
-        if (texture) {
-            success = texture->Update(pixelData, width, height, glFormat);
+    success = texture->Update(pixelData, width, height, glFormat);
 
-            if (success) {
-                success = m_textureShader.Draw(texture->GetTextureId(), viewportWidth, viewportHeight);
-                if (!success) {
-                    OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
-                        "ArkZeroRenderer", "[ARKZERO-FATAL] GLESBackend: textureShader.Draw FAILED");
-                }
-            } else {
-                OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
-                    "ArkZeroRenderer", "[ARKZERO-FATAL] GLESBackend: texture->Update FAILED");
-            }
-
-            m_textureStrategy->Release(texture);
-        } else {
+    if (success) {
+        success = m_textureShader.Draw(texture->GetTextureId(), viewportWidth, viewportHeight);
+        if (!success) {
             OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
-                "ArkZeroRenderer", "[ARKZERO-FATAL] GLESBackend: Acquire texture FAILED");
-            success = false;
+                "ArkZeroRenderer", "[ARKZERO-FATAL] GLESBackend: textureShader.Draw FAILED");
         }
+    } else {
+        OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
+            "ArkZeroRenderer", "[ARKZERO-FATAL] GLESBackend: texture->Update FAILED");
+    }
+
+    m_textureStrategy->Release(texture);
     }
 
     if (!success) {
@@ -272,10 +274,6 @@ bool GLESBackend::RenderFrameRegions(const void* pixelData, size_t dataSize,
         return false;
     }
 
-    const int32_t viewportWidth = m_eglManager.GetSurfaceWidth() > 0 ? m_eglManager.GetSurfaceWidth() : frameWidth;
-    const int32_t viewportHeight = m_eglManager.GetSurfaceHeight() > 0 ? m_eglManager.GetSurfaceHeight() : frameHeight;
-    glViewport(0, 0, viewportWidth, viewportHeight);
-
     GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
     GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(m_format);
 
@@ -301,19 +299,24 @@ bool GLESBackend::RenderFrameRegions(const void* pixelData, size_t dataSize,
         texture->UpdateRegion(regionPtr, rx, glY, rw, rh, frameWidth, glFormat);
     }
 
-    bool success = m_textureShader.Draw(texture->GetTextureId(), viewportWidth, viewportHeight);
-
-    m_textureStrategy->Release(texture);
-
-    if (!success) {
-        return false;
-    }
-
     if (swapBuffers) {
+        const int32_t viewportWidth = m_eglManager.GetSurfaceWidth() > 0 ? m_eglManager.GetSurfaceWidth() : m_width;
+        const int32_t viewportHeight = m_eglManager.GetSurfaceHeight() > 0 ? m_eglManager.GetSurfaceHeight() : m_height;
+        glViewport(0, 0, viewportWidth, viewportHeight);
+
+        bool success = m_textureShader.Draw(texture->GetTextureId(), viewportWidth, viewportHeight);
+        if (!success) {
+            m_textureStrategy->Release(texture);
+            return false;
+        }
+
         if (!m_eglManager.SwapBuffers()) {
+            m_textureStrategy->Release(texture);
             return false;
         }
     }
+
+    m_textureStrategy->Release(texture);
 
     return true;
 }
@@ -378,10 +381,6 @@ bool GLESBackend::RenderTileRegions(const TileRegion* tiles, int32_t tileCount,
         return false;
     }
 
-    const int32_t viewportWidth = m_eglManager.GetSurfaceWidth() > 0 ? m_eglManager.GetSurfaceWidth() : m_width;
-    const int32_t viewportHeight = m_eglManager.GetSurfaceHeight() > 0 ? m_eglManager.GetSurfaceHeight() : m_height;
-    glViewport(0, 0, viewportWidth, viewportHeight);
-
     GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
     GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(m_format);
 
@@ -394,8 +393,6 @@ bool GLESBackend::RenderTileRegions(const TileRegion* tiles, int32_t tileCount,
 
     for (int32_t i = 0; i < tileCount; i++) {
         if (!tiles[i].pixelData) {
-            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN,
-                "GLESBackend", "RenderTileRegions: tile[%{public}d] pixelData is null", i);
             continue;
         }
 
@@ -403,9 +400,6 @@ bool GLESBackend::RenderTileRegions(const TileRegion* tiles, int32_t tileCount,
         int32_t th = tiles[i].tilePixelHeight;
         size_t expectedSize = static_cast<size_t>(tw) * static_cast<size_t>(th) * bytesPerPixel;
         if (tiles[i].dataSize < expectedSize) {
-            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN,
-                "GLESBackend", "RenderTileRegions: tile[%{public}d] dataSize=%{public}zu < expected=%{public}zu",
-                i, tiles[i].dataSize, expectedSize);
             continue;
         }
 
@@ -413,9 +407,6 @@ bool GLESBackend::RenderTileRegions(const TileRegion* tiles, int32_t tileCount,
         int32_t pixelY = static_cast<int32_t>(tiles[i].ratioY * frameHeight);
 
         if (pixelX < 0 || pixelY < 0 || pixelX + tw > frameWidth || pixelY + th > frameHeight) {
-            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN,
-                "GLESBackend", "RenderTileRegions: tile[%{public}d] out of bounds (%{public}d,%{public}d)+(%{public}dx%{public}d) in %{public}dx%{public}d",
-                i, pixelX, pixelY, tw, th, frameWidth, frameHeight);
             continue;
         }
 
@@ -424,53 +415,30 @@ bool GLESBackend::RenderTileRegions(const TileRegion* tiles, int32_t tileCount,
         texture->UpdateRegion(tiles[i].pixelData, pixelX, glY, tw, th, tw, glFormat);
     }
 
-    bool success = m_textureShader.Draw(texture->GetTextureId(), viewportWidth, viewportHeight);
-
-    m_textureStrategy->Release(texture);
-
-    if (!success) {
-        return false;
-    }
-
     if (swapBuffers) {
+        const int32_t viewportWidth = m_eglManager.GetSurfaceWidth() > 0 ? m_eglManager.GetSurfaceWidth() : m_width;
+        const int32_t viewportHeight = m_eglManager.GetSurfaceHeight() > 0 ? m_eglManager.GetSurfaceHeight() : m_height;
+        glViewport(0, 0, viewportWidth, viewportHeight);
+
+        bool success = m_textureShader.Draw(texture->GetTextureId(), viewportWidth, viewportHeight);
+        if (!success) {
+            m_textureStrategy->Release(texture);
+            return false;
+        }
+
         if (!m_eglManager.SwapBuffers()) {
+            m_textureStrategy->Release(texture);
             return false;
         }
     }
+
+    m_textureStrategy->Release(texture);
 
     return true;
 }
 
 bool GLESBackend::PresentFrame() {
     if (!m_isInitialized) {
-        return false;
-    }
-
-    if (!m_eglManager.MakeCurrent()) {
-        return false;
-    }
-
-    const int32_t viewportWidth = m_eglManager.GetSurfaceWidth() > 0 ? m_eglManager.GetSurfaceWidth() : m_width;
-    const int32_t viewportHeight = m_eglManager.GetSurfaceHeight() > 0 ? m_eglManager.GetSurfaceHeight() : m_height;
-    glViewport(0, 0, viewportWidth, viewportHeight);
-
-    GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
-    GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(m_format);
-
-    TextureManager* texture = m_textureStrategy->Acquire(m_width, m_height, internalFormat, glFormat);
-    if (!texture) {
-        return false;
-    }
-
-    bool success = m_textureShader.Draw(texture->GetTextureId(), viewportWidth, viewportHeight);
-
-    m_textureStrategy->Release(texture);
-
-    if (!success) {
-        return false;
-    }
-
-    if (!m_eglManager.SwapBuffers()) {
         return false;
     }
 
@@ -590,6 +558,14 @@ const char* GLESBackend::GetCurrentStrategyName() const {
         return m_textureStrategy->GetName();
     }
     return "None";
+}
+
+void GLESBackend::SetVSync(bool enabled) {
+    m_eglManager.SetVSync(enabled);
+}
+
+bool GLESBackend::IsVSyncEnabled() const {
+    return m_eglManager.IsVSyncEnabled();
 }
 
 } // namespace NativeXComponentSample

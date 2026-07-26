@@ -66,6 +66,10 @@ public:
 
     bool SwapBuffers();
 
+    void SetVSync(bool enabled);
+
+    bool IsVSyncEnabled() const { return m_vsyncEnabled; }
+
     /**
      * 获取 EGL Display
      */
@@ -107,6 +111,7 @@ private:
     EGLSurface m_eglSurface;
     bool m_surfaceInvalidated = false;
     bool m_isCurrent = false;
+    bool m_vsyncEnabled = true;
     std::thread::id m_ownerThread;
     int32_t m_surfaceWidth = 0;
     int32_t m_surfaceHeight = 0;

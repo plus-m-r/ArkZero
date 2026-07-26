@@ -231,6 +231,20 @@ export class ArkZeroRenderer {
     }
   }
 
+  async setVSync(enabled: boolean): Promise<void> {
+    if (!this.isInitialized) {
+      throw new Error('ArkZeroRenderer not initialized');
+    }
+
+    try {
+      await nativerender.setVSync(this.nativeHandle, enabled);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      hilog.error(DOMAIN, TAG, 'setVSync failed: %{public}s', errorMsg);
+      throw new Error(errorMsg);
+    }
+  }
+
   dispose(): void {
     if (!this.isInitialized) {
       return;

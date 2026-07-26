@@ -328,6 +328,17 @@ bool EGLContextManager::SwapBuffers() {
     return true;
 }
 
+void EGLContextManager::SetVSync(bool enabled) {
+    if (m_eglDisplay == EGL_NO_DISPLAY) {
+        return;
+    }
+
+    m_vsyncEnabled = enabled;
+    eglSwapInterval(m_eglDisplay, enabled ? 1 : 0);
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN,
+        "EGLContextManager", "VSync %{public}s", enabled ? "enabled" : "disabled");
+}
+
 bool EGLContextManager::UpdateSurfaceSize() {
     if (m_eglDisplay == EGL_NO_DISPLAY || m_eglSurface == EGL_NO_SURFACE) {
         return false;

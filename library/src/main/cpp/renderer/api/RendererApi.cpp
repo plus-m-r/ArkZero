@@ -911,6 +911,65 @@ napi_value DestroyRenderer(napi_env env, napi_callback_info info) {
     return promise;
 }
 
+napi_value SetVSync(napi_env env, napi_callback_info info) {
+    if ((env == nullptr) || (info == nullptr)) {
+        return nullptr;
+    }
+
+    size_t argCnt = 2;
+    napi_value args[2] = { nullptr };
+    if (napi_get_cb_info(env, info, &argCnt, args, nullptr, nullptr) != napi_ok) {
+        return nullptr;
+    }
+
+    if (argCnt != 2) {
+        napi_throw_type_error(env, NULL, "Wrong number of arguments. Expected: handle, enabled");
+        return nullptr;
+    }
+
+    napi_valuetype valuetype;
+    if (napi_typeof(env, args[0], &valuetype) != napi_ok || valuetype != napi_number) {
+        napi_throw_type_error(env, NULL, "First argument must be a number (handle)");
+        return nullptr;
+    }
+    int32_t handle;
+    if (napi_get_value_int32(env, args[0], &handle) != napi_ok) {
+        return nullptr;
+    }
+
+    bool enabled = false;
+    napi_get_value_bool(env, args[1], &enabled);
+
+    Renderer* renderer = RendererManager::GetInstance().GetRenderer(handle);
+    if (renderer == nullptr) {
+        napi_throw_error(env, NULL, "Invalid renderer handle");
+        return nullptr;
+    }
+
+    std::future<bool> fut = renderer->SetVSyncAsync(enabled);
+    bool success = fut.get();
+
+    napi_value promise;
+    napi_deferred deferred;
+    if (napi_create_promise(env, &deferred, &promise) != napi_ok) {
+        return nullptr;
+    }
+
+    if (success) {
+        napi_value resolveValue;
+        napi_get_undefined(env, &resolveValue);
+        napi_resolve_deferred(env, deferred, resolveValue);
+    } else {
+        napi_value message = nullptr;
+        napi_create_string_utf8(env, "SetVSync failed", NAPI_AUTO_LENGTH, &message);
+        napi_value error = nullptr;
+        napi_create_error(env, nullptr, message, &error);
+        napi_reject_deferred(env, deferred, error);
+    }
+
+    return promise;
+}
+
 static void RenderTileRegionsExecute(napi_env env, void* data) {
     auto* workData = static_cast<TileRenderWorkData*>(data);
     Renderer* renderer = RendererManager::GetInstance().GetRenderer(workData->handle);
@@ -921,8 +980,8 @@ static void RenderTileRegionsExecute(napi_env env, void* data) {
     }
 
     std::future<bool> fut = renderer->RenderTileRegionsAsync(
-        workData->tiles.data(),
-        static_cast<int32_t>(workData->tiles.size()),
+        std::move(workData->tiles),
+        std::move(workData->tilePixelBuffers),
         workData->frameWidth,
         workData->frameHeight,
         workData->swapBuffers);
@@ -1119,10 +1178,6 @@ napi_value RenderTileRegions(napi_env env, napi_callback_info info) {
         napi_throw_error(env, NULL, "Failed to queue async work");
         return nullptr;
     }
-
-    OH_LOG_Print(LOG_APP, LOG_INFO, 0x0001,
-        "ArkZeroRenderer", "[ASYNC] RenderTileRegions queued: handle=%{public}d, tiles=%{public}u, frame=%{public}dx%{public}d",
-        handle, tileCount, workData->frameWidth, workData->frameHeight);
 
     return promise;
 }

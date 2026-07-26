@@ -28,9 +28,11 @@ public:
                                                const DirtyRect* regions, int32_t regionCount,
                                                bool swapBuffers);
 
-    std::future<bool> RenderTileRegionsAsync(const TileRegion* tiles, int32_t tileCount,
-                                              int32_t frameWidth, int32_t frameHeight,
-                                              bool swapBuffers);
+    std::future<bool> RenderTileRegionsAsync(
+        std::vector<TileRegion>&& tiles,
+        std::vector<std::vector<uint8_t>>&& tilePixelBuffers,
+        int32_t frameWidth, int32_t frameHeight,
+        bool swapBuffers);
 
     std::future<bool> UpdateDirtyRegionsAsync(const void* pixelData, size_t dataSize,
                                                int32_t frameWidth, int32_t frameHeight,
@@ -39,6 +41,8 @@ public:
     std::future<bool> PresentFrameAsync();
 
     std::future<bool> ResizeAsync(int32_t width, int32_t height);
+
+    std::future<bool> SetVSyncAsync(bool enabled);
 
     void Destroy();
 

@@ -100,36 +100,19 @@ std::future<bool> Renderer::RenderFrameRegionsAsync(const void* pixelData, size_
     return m_renderThread.EnqueueCommand(std::move(cmd));
 }
 
-std::future<bool> Renderer::RenderTileRegionsAsync(const TileRegion* tiles, int32_t tileCount,
-                                                     int32_t frameWidth, int32_t frameHeight,
-                                                     bool swapBuffers)
+std::future<bool> Renderer::RenderTileRegionsAsync(
+    std::vector<TileRegion>&& tiles,
+    std::vector<std::vector<uint8_t>>&& tilePixelBuffers,
+    int32_t frameWidth, int32_t frameHeight,
+    bool swapBuffers)
 {
     RenderCommand cmd;
     cmd.type = RenderCommandType::RENDER_TILE_REGIONS;
     cmd.frameWidth = frameWidth;
     cmd.frameHeight = frameHeight;
     cmd.swapBuffers = swapBuffers;
-
-    if (tiles && tileCount > 0) {
-        cmd.tilePixelBuffers.resize(tileCount);
-        cmd.tiles.resize(tileCount);
-        for (int32_t i = 0; i < tileCount; i++) {
-            cmd.tiles[i].ratioX = tiles[i].ratioX;
-            cmd.tiles[i].ratioY = tiles[i].ratioY;
-            cmd.tiles[i].tilePixelWidth = tiles[i].tilePixelWidth;
-            cmd.tiles[i].tilePixelHeight = tiles[i].tilePixelHeight;
-
-            if (tiles[i].pixelData && tiles[i].dataSize > 0) {
-                cmd.tilePixelBuffers[i].resize(tiles[i].dataSize);
-                memcpy(cmd.tilePixelBuffers[i].data(), tiles[i].pixelData, tiles[i].dataSize);
-                cmd.tiles[i].pixelData = cmd.tilePixelBuffers[i].data();
-                cmd.tiles[i].dataSize = tiles[i].dataSize;
-            } else {
-                cmd.tiles[i].pixelData = nullptr;
-                cmd.tiles[i].dataSize = 0;
-            }
-        }
-    }
+    cmd.tiles = std::move(tiles);
+    cmd.tilePixelBuffers = std::move(tilePixelBuffers);
 
     return m_renderThread.EnqueueCommand(std::move(cmd));
 }
@@ -168,6 +151,14 @@ std::future<bool> Renderer::ResizeAsync(int32_t width, int32_t height)
     cmd.type = RenderCommandType::RESIZE;
     cmd.width = width;
     cmd.height = height;
+    return m_renderThread.EnqueueCommand(std::move(cmd));
+}
+
+std::future<bool> Renderer::SetVSyncAsync(bool enabled)
+{
+    RenderCommand cmd;
+    cmd.type = RenderCommandType::SET_VSYNC;
+    cmd.vsyncEnabled = enabled;
     return m_renderThread.EnqueueCommand(std::move(cmd));
 }
 

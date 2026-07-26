@@ -6,6 +6,8 @@ import { CallbackIntegrationTest } from '../tests/CallbackIntegration.test';
 import { LifecycleObserverIntegrationTest } from '../tests/LifecycleObserverIntegration.test';
 import { IncrementalBenchmarkTest } from '../tests/IncrementalBenchmark.test';
 import { TouchCaptureIntegrationTest, TouchMarker, getFingerColor } from '../tests/TouchCaptureIntegration.test';
+import { TileRenderIntegrationTest } from '../tests/TileRenderIntegration.test';
+import { RenderSessionIntegrationTest } from '../tests/RenderSessionIntegration.test';
 import { TestResultPanel, TestCaseResult } from '../components/TestResultPanel';
 import { router } from '@kit.ArkUI';
 import hilog from '@ohos.hilog';
@@ -21,7 +23,9 @@ enum TestModule {
   CALLBACK = '回调机制测试',
   LIFECYCLE_OBSERVER = '生命周期观察者',
   INCREMENTAL_BENCH = '增量渲染基准测试',
-  TOUCH_CAPTURE = '触控捕获测试'
+  TOUCH_CAPTURE = '触控捕获测试',
+  TILE_RENDER = 'Tile渲染测试',
+  RENDER_SESSION = 'Session会话层测试'
 }
 
 @Entry
@@ -95,6 +99,14 @@ struct IntegrationTestPage {
         case TestModule.TOUCH_CAPTURE:
           this.totalTests = 5;
           await this.runTouchCaptureTest();
+          break;
+        case TestModule.TILE_RENDER:
+          this.totalTests = 5;
+          await this.runTileRenderTest();
+          break;
+        case TestModule.RENDER_SESSION:
+          this.totalTests = 8;
+          await this.runRenderSessionTest();
           break;
       }
     } catch (error) {
@@ -216,6 +228,24 @@ struct IntegrationTestPage {
     );
 
     await this.touchTest.runAllTests();
+  }
+
+  private async runTileRenderTest(): Promise<void> {
+    const test = new TileRenderIntegrationTest(this.surfaceId, (results: TestCaseResult[]) => {
+      this.testResults = results;
+      this.completedTests = results.length;
+      hilog.info(DOMAIN, TAG, `Tile Render tests completed: ${results.length} cases`);
+    });
+    await test.runAllTests();
+  }
+
+  private async runRenderSessionTest(): Promise<void> {
+    const test = new RenderSessionIntegrationTest(this.surfaceId, (results: TestCaseResult[]) => {
+      this.testResults = results;
+      this.completedTests = results.length;
+      hilog.info(DOMAIN, TAG, `Render Session tests completed: ${results.length} cases`);
+    });
+    await test.runAllTests();
   }
 
   private handleTouchOverlayEvent(event: TouchEvent): void {
@@ -383,6 +413,26 @@ struct IntegrationTestPage {
               .enabled(this.isInitialized)
               .onClick(() => {
                 this.runTestModule(TestModule.TOUCH_CAPTURE);
+              })
+
+            Button(TestModule.TILE_RENDER)
+              .fontSize(14)
+              .width(250)
+              .margin({ top: 10 })
+              .backgroundColor('#009688')
+              .enabled(this.isInitialized)
+              .onClick(() => {
+                this.runTestModule(TestModule.TILE_RENDER);
+              })
+
+            Button(TestModule.RENDER_SESSION)
+              .fontSize(14)
+              .width(250)
+              .margin({ top: 10 })
+              .backgroundColor('#795548')
+              .enabled(this.isInitialized)
+              .onClick(() => {
+                this.runTestModule(TestModule.RENDER_SESSION);
               })
           }
           .margin({ top: 30 })

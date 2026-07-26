@@ -88,10 +88,11 @@ public:
      */
     void SetTextureStrategy(const char* strategyType);
     
-    /**
-     * ⭐ 获取当前策略名称
-     */
     const char* GetCurrentStrategyName() const;
+
+    void SetVSync(bool enabled);
+
+    bool IsVSyncEnabled() const;
 
 private:
     /**

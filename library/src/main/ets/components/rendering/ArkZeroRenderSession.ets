@@ -122,6 +122,19 @@ export class ArkZeroRenderSession {
     }
   }
 
+  async setVSync(enabled: boolean): Promise<void> {
+    if (!this.isReady || !this.renderer) {
+      return;
+    }
+
+    try {
+      await this.renderer.setVSync(enabled);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.notifyError(errorMsg);
+    }
+  }
+
   async presentFrame(): Promise<void> {
     if (!this.isReady || !this.renderer) {
       return;

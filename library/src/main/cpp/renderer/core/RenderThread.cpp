@@ -122,6 +122,9 @@ void RenderThread::ProcessCommand(RenderCommand& cmd) {
             case RenderCommandType::RESIZE:
                 ProcessResize(cmd);
                 break;
+            case RenderCommandType::SET_VSYNC:
+                ProcessSetVSync(cmd);
+                break;
             case RenderCommandType::DESTROY:
                 ProcessDestroy(cmd);
                 break;
@@ -261,6 +264,16 @@ void RenderThread::ProcessResize(RenderCommand& cmd) {
         m_height = cmd.height;
     }
     cmd.completion.set_value(success);
+}
+
+void RenderThread::ProcessSetVSync(RenderCommand& cmd) {
+    if (!m_backend || !m_backend->IsInitialized()) {
+        cmd.completion.set_value(false);
+        return;
+    }
+
+    m_backend->SetVSync(cmd.vsyncEnabled);
+    cmd.completion.set_value(true);
 }
 
 void RenderThread::ProcessDestroy(RenderCommand& cmd) {
