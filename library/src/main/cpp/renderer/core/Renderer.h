@@ -5,7 +5,6 @@
 #include <cstddef>
 #include <memory>
 #include <mutex>
-#include <future>
 
 #include "../core/RenderThread.h"
 #include "../../common/common.h"
@@ -20,29 +19,29 @@ public:
 
     bool Initialize(void* nativeWindow);
 
-    std::future<bool> RenderFrameAsync(const void* pixelData, size_t dataSize,
-                                        int32_t width, int32_t height);
+    void RenderFrameAsync(const void* pixelData, size_t dataSize,
+                          int32_t width, int32_t height);
 
-    std::future<bool> RenderFrameRegionsAsync(const void* pixelData, size_t dataSize,
-                                               int32_t frameWidth, int32_t frameHeight,
-                                               const DirtyRect* regions, int32_t regionCount,
-                                               bool swapBuffers);
+    void RenderFrameRegionsAsync(const void* pixelData, size_t dataSize,
+                                 int32_t frameWidth, int32_t frameHeight,
+                                 const DirtyRect* regions, int32_t regionCount,
+                                 bool swapBuffers);
 
-    std::future<bool> RenderTileRegionsAsync(
+    void RenderTileRegionsAsync(
         std::vector<TileRegion>&& tiles,
         std::vector<std::vector<uint8_t>>&& tilePixelBuffers,
         int32_t frameWidth, int32_t frameHeight,
         bool swapBuffers);
 
-    std::future<bool> UpdateDirtyRegionsAsync(const void* pixelData, size_t dataSize,
-                                               int32_t frameWidth, int32_t frameHeight,
-                                               const DirtyRect* regions, int32_t regionCount);
+    void UpdateDirtyRegionsAsync(const void* pixelData, size_t dataSize,
+                                 int32_t frameWidth, int32_t frameHeight,
+                                 const DirtyRect* regions, int32_t regionCount);
 
-    std::future<bool> PresentFrameAsync();
+    void PresentFrameAsync();
 
-    std::future<bool> ResizeAsync(int32_t width, int32_t height);
+    void ResizeAsync(int32_t width, int32_t height);
 
-    std::future<bool> SetVSyncAsync(bool enabled);
+    void SetVSyncAsync(bool enabled);
 
     void Destroy();
 

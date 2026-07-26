@@ -6,7 +6,6 @@
 #include <condition_variable>
 #include <queue>
 #include <vector>
-#include <future>
 #include <atomic>
 #include <memory>
 #include "../../common/common.h"
@@ -21,6 +20,9 @@ enum class RenderCommandType {
     RENDER_FRAME_REGIONS,
     RENDER_TILE_REGIONS,
     UPDATE_DIRTY,
+    UPLOAD_FRAME,
+    UPLOAD_FRAME_REGIONS,
+    UPLOAD_TILE_REGIONS,
     PRESENT_FRAME,
     RESIZE,
     SET_VSYNC,
@@ -46,8 +48,6 @@ struct RenderCommand {
 
     void* nativeWindow = nullptr;
     bool vsyncEnabled = true;
-
-    std::promise<bool> completion;
 };
 
 class RenderThread {
@@ -59,18 +59,24 @@ public:
 
     void Stop();
 
-    std::future<bool> EnqueueCommand(RenderCommand cmd);
+    void EnqueueCommand(RenderCommand cmd);
 
     bool IsRunning() const;
 
+    void NotifyVSync();
+
 private:
     void ThreadLoop();
+    void DrainQueue();
     void ProcessCommand(RenderCommand& cmd);
     void ProcessInit(RenderCommand& cmd);
     void ProcessRenderFrame(RenderCommand& cmd);
     void ProcessRenderFrameRegions(RenderCommand& cmd);
     void ProcessRenderTileRegions(RenderCommand& cmd);
     void ProcessUpdateDirty(RenderCommand& cmd);
+    void ProcessUploadFrame(RenderCommand& cmd);
+    void ProcessUploadFrameRegions(RenderCommand& cmd);
+    void ProcessUploadTileRegions(RenderCommand& cmd);
     void ProcessPresentFrame(RenderCommand& cmd);
     void ProcessResize(RenderCommand& cmd);
     void ProcessSetVSync(RenderCommand& cmd);
@@ -80,7 +86,9 @@ private:
     std::queue<RenderCommand> m_queue;
     mutable std::mutex m_mutex;
     std::condition_variable m_cv;
+    std::condition_variable m_vsyncCv;
     std::atomic<bool> m_running{false};
+    std::atomic<bool> m_vsyncSignaled{false};
 
     std::unique_ptr<GLESBackend> m_backend;
     int32_t m_width = 0;

@@ -34,6 +34,7 @@ void RenderThread::Stop() {
         m_queue.push(std::move(shutdownCmd));
     }
     m_cv.notify_one();
+    m_vsyncCv.notify_one();
 
     if (m_thread.joinable()) {
         m_thread.join();
@@ -44,18 +45,21 @@ void RenderThread::Stop() {
         "ArkZeroRenderer", "[RENDER-THREAD] Stopped");
 }
 
-std::future<bool> RenderThread::EnqueueCommand(RenderCommand cmd) {
-    std::future<bool> fut = cmd.completion.get_future();
+void RenderThread::EnqueueCommand(RenderCommand cmd) {
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_queue.push(std::move(cmd));
     }
     m_cv.notify_one();
-    return fut;
 }
 
 bool RenderThread::IsRunning() const {
     return m_running.load();
+}
+
+void RenderThread::NotifyVSync() {
+    m_vsyncSignaled.store(true);
+    m_vsyncCv.notify_one();
 }
 
 void RenderThread::ThreadLoop() {
@@ -63,47 +67,82 @@ void RenderThread::ThreadLoop() {
         "ArkZeroRenderer", "[RENDER-THREAD] Loop entered");
 
     while (m_running.load()) {
-        RenderCommand cmd;
-        {
-            std::unique_lock<std::mutex> lock(m_mutex);
-            m_cv.wait(lock, [this] {
-                return !m_queue.empty() || !m_running.load();
-            });
+        std::unique_lock<std::mutex> lock(m_mutex);
+        m_cv.wait(lock, [this] {
+            return !m_queue.empty() || !m_running.load();
+        });
 
-            if (!m_running.load() && m_queue.empty()) {
-                break;
-            }
-
-            if (m_queue.empty()) {
-                continue;
-            }
-
-            cmd = std::move(m_queue.front());
-            m_queue.pop();
+        if (!m_running.load() && m_queue.empty()) {
+            break;
         }
+
+        if (m_queue.empty()) {
+            continue;
+        }
+
+        RenderCommand cmd = std::move(m_queue.front());
+        m_queue.pop();
+        lock.unlock();
 
         if (cmd.type == RenderCommandType::SHUTDOWN) {
             if (m_backend) {
                 m_backend->Destroy();
                 m_backend.reset();
             }
-            cmd.completion.set_value(true);
             break;
         }
 
+        if (cmd.type == RenderCommandType::INIT) {
+            ProcessInit(cmd);
+            continue;
+        }
+
+        if (cmd.type == RenderCommandType::DESTROY) {
+            ProcessDestroy(cmd);
+            continue;
+        }
+
+        if (cmd.type == RenderCommandType::SET_VSYNC) {
+            ProcessSetVSync(cmd);
+            continue;
+        }
+
+        if (cmd.type == RenderCommandType::RESIZE) {
+            ProcessResize(cmd);
+            continue;
+        }
+
+        bool needSwap = (cmd.type == RenderCommandType::RENDER_FRAME ||
+                         cmd.type == RenderCommandType::RENDER_FRAME_REGIONS ||
+                         cmd.type == RenderCommandType::RENDER_TILE_REGIONS ||
+                         cmd.type == RenderCommandType::PRESENT_FRAME ||
+                         cmd.type == RenderCommandType::UPLOAD_FRAME ||
+                         cmd.type == RenderCommandType::UPLOAD_TILE_REGIONS);
+
         ProcessCommand(cmd);
+
+        if (needSwap && m_backend && m_backend->IsInitialized()) {
+            m_backend->SwapAndPresent();
+        }
     }
 
     OH_LOG_Print(LOG_APP, LOG_INFO, 0x0001,
         "ArkZeroRenderer", "[RENDER-THREAD] Loop exited");
 }
 
+void RenderThread::DrainQueue() {
+    while (!m_queue.empty()) {
+        RenderCommand cmd = std::move(m_queue.front());
+        m_queue.pop();
+        if (cmd.type != RenderCommandType::SHUTDOWN) {
+            ProcessCommand(cmd);
+        }
+    }
+}
+
 void RenderThread::ProcessCommand(RenderCommand& cmd) {
     try {
         switch (cmd.type) {
-            case RenderCommandType::INIT:
-                ProcessInit(cmd);
-                break;
             case RenderCommandType::RENDER_FRAME:
                 ProcessRenderFrame(cmd);
                 break;
@@ -116,30 +155,27 @@ void RenderThread::ProcessCommand(RenderCommand& cmd) {
             case RenderCommandType::UPDATE_DIRTY:
                 ProcessUpdateDirty(cmd);
                 break;
+            case RenderCommandType::UPLOAD_FRAME:
+                ProcessUploadFrame(cmd);
+                break;
+            case RenderCommandType::UPLOAD_FRAME_REGIONS:
+                ProcessUploadFrameRegions(cmd);
+                break;
+            case RenderCommandType::UPLOAD_TILE_REGIONS:
+                ProcessUploadTileRegions(cmd);
+                break;
             case RenderCommandType::PRESENT_FRAME:
                 ProcessPresentFrame(cmd);
                 break;
-            case RenderCommandType::RESIZE:
-                ProcessResize(cmd);
-                break;
-            case RenderCommandType::SET_VSYNC:
-                ProcessSetVSync(cmd);
-                break;
-            case RenderCommandType::DESTROY:
-                ProcessDestroy(cmd);
-                break;
             default:
-                cmd.completion.set_value(false);
                 break;
         }
     } catch (const std::exception& e) {
         OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
             "ArkZeroRenderer", "[RENDER-THREAD] Exception: %{public}s", e.what());
-        cmd.completion.set_value(false);
     } catch (...) {
         OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
             "ArkZeroRenderer", "[RENDER-THREAD] Unknown exception");
-        cmd.completion.set_value(false);
     }
 }
 
@@ -147,7 +183,6 @@ void RenderThread::ProcessInit(RenderCommand& cmd) {
     if (m_backend && m_backend->IsInitialized()) {
         OH_LOG_Print(LOG_APP, LOG_WARN, 0x0001,
             "ArkZeroRenderer", "[RENDER-THREAD] Already initialized");
-        cmd.completion.set_value(true);
         return;
     }
 
@@ -160,101 +195,114 @@ void RenderThread::ProcessInit(RenderCommand& cmd) {
     if (!success) {
         OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
             "ArkZeroRenderer", "[RENDER-THREAD] GLESBackend::Initialize FAILED");
-        cmd.completion.set_value(false);
         return;
     }
     m_backend = std::move(backend);
 
     OH_LOG_Print(LOG_APP, LOG_INFO, 0x0001,
         "ArkZeroRenderer", "[RENDER-THREAD] GLESBackend initialized on render thread");
-    cmd.completion.set_value(true);
 }
 
 void RenderThread::ProcessRenderFrame(RenderCommand& cmd) {
     if (!m_backend || !m_backend->IsInitialized()) {
         OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
             "ArkZeroRenderer", "[RENDER-THREAD] RenderFrame: backend not initialized");
-        cmd.completion.set_value(false);
         return;
     }
 
-    bool success = m_backend->RenderFrame(
+    m_backend->UploadFrame(
         cmd.pixelData.data(),
         cmd.pixelData.size(),
         cmd.width,
         cmd.height);
-
-    if (!success) {
-        OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
-            "ArkZeroRenderer", "[RENDER-THREAD] RenderFrame FAILED");
-    }
-    cmd.completion.set_value(success);
 }
 
 void RenderThread::ProcessRenderFrameRegions(RenderCommand& cmd) {
     if (!m_backend || !m_backend->IsInitialized()) {
-        cmd.completion.set_value(false);
         return;
     }
 
-    bool success = m_backend->RenderFrameRegions(
-        cmd.pixelData.data(),
-        cmd.pixelData.size(),
-        cmd.frameWidth,
-        cmd.frameHeight,
-        cmd.regions.data(),
-        static_cast<int32_t>(cmd.regions.size()),
-        cmd.swapBuffers);
-
-    cmd.completion.set_value(success);
-}
-
-void RenderThread::ProcessRenderTileRegions(RenderCommand& cmd) {
-    if (!m_backend || !m_backend->IsInitialized()) {
-        cmd.completion.set_value(false);
-        return;
-    }
-
-    bool success = m_backend->RenderTileRegions(
-        cmd.tiles.data(),
-        static_cast<int32_t>(cmd.tiles.size()),
-        cmd.frameWidth,
-        cmd.frameHeight,
-        cmd.swapBuffers);
-
-    cmd.completion.set_value(success);
-}
-
-void RenderThread::ProcessUpdateDirty(RenderCommand& cmd) {
-    if (!m_backend || !m_backend->IsInitialized()) {
-        cmd.completion.set_value(false);
-        return;
-    }
-
-    bool success = m_backend->UpdateDirtyRegions(
+    m_backend->UploadFrameRegions(
         cmd.pixelData.data(),
         cmd.pixelData.size(),
         cmd.frameWidth,
         cmd.frameHeight,
         cmd.regions.data(),
         static_cast<int32_t>(cmd.regions.size()));
+}
 
-    cmd.completion.set_value(success);
+void RenderThread::ProcessRenderTileRegions(RenderCommand& cmd) {
+    if (!m_backend || !m_backend->IsInitialized()) {
+        return;
+    }
+
+    m_backend->UploadTileRegions(
+        cmd.tiles.data(),
+        static_cast<int32_t>(cmd.tiles.size()),
+        cmd.frameWidth,
+        cmd.frameHeight);
+}
+
+void RenderThread::ProcessUpdateDirty(RenderCommand& cmd) {
+    if (!m_backend || !m_backend->IsInitialized()) {
+        return;
+    }
+
+    m_backend->UploadFrameRegions(
+        cmd.pixelData.data(),
+        cmd.pixelData.size(),
+        cmd.frameWidth,
+        cmd.frameHeight,
+        cmd.regions.data(),
+        static_cast<int32_t>(cmd.regions.size()));
+}
+
+void RenderThread::ProcessUploadFrame(RenderCommand& cmd) {
+    if (!m_backend || !m_backend->IsInitialized()) {
+        return;
+    }
+
+    m_backend->UploadFrame(
+        cmd.pixelData.data(),
+        cmd.pixelData.size(),
+        cmd.width,
+        cmd.height);
+}
+
+void RenderThread::ProcessUploadFrameRegions(RenderCommand& cmd) {
+    if (!m_backend || !m_backend->IsInitialized()) {
+        return;
+    }
+
+    m_backend->UploadFrameRegions(
+        cmd.pixelData.data(),
+        cmd.pixelData.size(),
+        cmd.frameWidth,
+        cmd.frameHeight,
+        cmd.regions.data(),
+        static_cast<int32_t>(cmd.regions.size()));
+}
+
+void RenderThread::ProcessUploadTileRegions(RenderCommand& cmd) {
+    if (!m_backend || !m_backend->IsInitialized()) {
+        return;
+    }
+
+    m_backend->UploadTileRegions(
+        cmd.tiles.data(),
+        static_cast<int32_t>(cmd.tiles.size()),
+        cmd.frameWidth,
+        cmd.frameHeight);
 }
 
 void RenderThread::ProcessPresentFrame(RenderCommand& cmd) {
     if (!m_backend || !m_backend->IsInitialized()) {
-        cmd.completion.set_value(false);
         return;
     }
-
-    bool success = m_backend->PresentFrame();
-    cmd.completion.set_value(success);
 }
 
 void RenderThread::ProcessResize(RenderCommand& cmd) {
     if (!m_backend || !m_backend->IsInitialized()) {
-        cmd.completion.set_value(false);
         return;
     }
 
@@ -263,17 +311,14 @@ void RenderThread::ProcessResize(RenderCommand& cmd) {
         m_width = cmd.width;
         m_height = cmd.height;
     }
-    cmd.completion.set_value(success);
 }
 
 void RenderThread::ProcessSetVSync(RenderCommand& cmd) {
     if (!m_backend || !m_backend->IsInitialized()) {
-        cmd.completion.set_value(false);
         return;
     }
 
     m_backend->SetVSync(cmd.vsyncEnabled);
-    cmd.completion.set_value(true);
 }
 
 void RenderThread::ProcessDestroy(RenderCommand& cmd) {
@@ -283,7 +328,6 @@ void RenderThread::ProcessDestroy(RenderCommand& cmd) {
     }
     OH_LOG_Print(LOG_APP, LOG_INFO, 0x0001,
         "ArkZeroRenderer", "[RENDER-THREAD] Backend destroyed");
-    cmd.completion.set_value(true);
 }
 
 } // namespace NativeXComponentSample

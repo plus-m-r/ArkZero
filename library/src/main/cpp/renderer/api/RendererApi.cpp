@@ -12,75 +12,6 @@
 
 namespace NativeXComponentSample {
 
-struct RenderWorkData {
-    int32_t handle = 0;
-    std::vector<uint8_t> pixelData;
-    int32_t width = 0;
-    int32_t height = 0;
-    int32_t frameWidth = 0;
-    int32_t frameHeight = 0;
-    std::vector<DirtyRect> regions;
-    bool swapBuffers = true;
-    bool success = false;
-    std::string errorMsg;
-    napi_deferred deferred = nullptr;
-    napi_async_work asyncWork = nullptr;
-};
-
-struct TileRenderWorkData {
-    int32_t handle = 0;
-    int32_t frameWidth = 0;
-    int32_t frameHeight = 0;
-    bool swapBuffers = true;
-    std::vector<TileRegion> tiles;
-    std::vector<std::vector<uint8_t>> tilePixelBuffers;
-    bool success = false;
-    std::string errorMsg;
-    napi_deferred deferred = nullptr;
-    napi_async_work asyncWork = nullptr;
-};
-
-static void RenderFrameExecute(napi_env env, void* data) {
-    auto* workData = static_cast<RenderWorkData*>(data);
-    Renderer* renderer = RendererManager::GetInstance().GetRenderer(workData->handle);
-    if (!renderer) {
-        workData->success = false;
-        workData->errorMsg = "Invalid renderer handle";
-        return;
-    }
-
-    std::future<bool> fut = renderer->RenderFrameAsync(
-        workData->pixelData.data(),
-        workData->pixelData.size(),
-        workData->width,
-        workData->height);
-
-    workData->success = fut.get();
-    if (!workData->success) {
-        workData->errorMsg = "RenderFrame failed on render thread";
-    }
-}
-
-static void RenderFrameComplete(napi_env env, napi_status status, void* data) {
-    auto* workData = static_cast<RenderWorkData*>(data);
-
-    napi_value result = nullptr;
-    napi_get_undefined(env, &result);
-
-    if (workData->success) {
-        napi_resolve_deferred(env, workData->deferred, result);
-    } else {
-        napi_value message = nullptr;
-        napi_value error = nullptr;
-        napi_create_string_utf8(env, workData->errorMsg.c_str(), NAPI_AUTO_LENGTH, &message);
-        napi_create_error(env, nullptr, message, &error);
-        napi_reject_deferred(env, workData->deferred, error);
-    }
-
-    napi_delete_async_work(env, workData->asyncWork);
-    delete workData;
-}
-
 napi_value CreateRenderer(napi_env env, napi_callback_info info) {
     if ((env == nullptr) || (info == nullptr)) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN,
@@ -281,94 +212,38 @@ napi_value RenderFrame(napi_env env, napi_callback_info info) {
         return nullptr;
     }
 
-    auto* workData = new RenderWorkData();
-    workData->handle = handle;
-    workData->width = static_cast<int32_t>(width);
-    workData->height = static_cast<int32_t>(height);
+    RenderCommand cmd;
+    cmd.type = RenderCommandType::RENDER_FRAME;
+    cmd.width = static_cast<int32_t>(width);
+    cmd.height = static_cast<int32_t>(height);
 
     if (data && byteLength > 0) {
-        workData->pixelData.resize(byteLength);
-        memcpy(workData->pixelData.data(), data, byteLength);
+        cmd.pixelData.resize(byteLength);
+        memcpy(cmd.pixelData.data(), data, byteLength);
     }
 
     napi_value promise = nullptr;
-    if (napi_create_promise(env, &workData->deferred, &promise) != napi_ok) {
-        delete workData;
+    napi_deferred deferred;
+    if (napi_create_promise(env, &deferred, &promise) != napi_ok) {
         napi_throw_error(env, NULL, "Failed to create promise");
         return nullptr;
     }
 
-    napi_value resourceName = nullptr;
-    napi_create_string_utf8(env, "RenderFrame", NAPI_AUTO_LENGTH, &resourceName);
+    renderer->RenderFrameAsync(
+        cmd.pixelData.data(),
+        cmd.pixelData.size(),
+        cmd.width,
+        cmd.height);
 
-    napi_async_work asyncWork = nullptr;
-    napi_status status = napi_create_async_work(env, nullptr, resourceName,
-        RenderFrameExecute, RenderFrameComplete, workData, &asyncWork);
-    if (status != napi_ok) {
-        delete workData;
-        napi_throw_error(env, NULL, "Failed to create async work");
-        return nullptr;
-    }
-
-    workData->asyncWork = asyncWork;
-
-    status = napi_queue_async_work(env, asyncWork);
-    if (status != napi_ok) {
-        napi_delete_async_work(env, asyncWork);
-        delete workData;
-        napi_throw_error(env, NULL, "Failed to queue async work");
-        return nullptr;
-    }
+    napi_value resolveValue;
+    napi_get_undefined(env, &resolveValue);
+    napi_resolve_deferred(env, deferred, resolveValue);
 
     OH_LOG_Print(LOG_APP, LOG_INFO, 0x0001,
-        "ArkZeroRenderer", "[ASYNC] RenderFrame queued: handle=%{public}d, w=%{public}d, h=%{public}d, bytes=%{public}zu",
-        handle, workData->width, workData->height, byteLength);
+        "ArkZeroRenderer", "[FIRE-AND-FORGET] RenderFrame enqueued: handle=%{public}d, w=%{public}d, h=%{public}d, bytes=%{public}zu",
+        handle, cmd.width, cmd.height, byteLength);
 
     return promise;
-}
-
-static void RenderFrameRegionsExecute(napi_env env, void* data) {
-    auto* workData = static_cast<RenderWorkData*>(data);
-    Renderer* renderer = RendererManager::GetInstance().GetRenderer(workData->handle);
-    if (!renderer) {
-        workData->success = false;
-        workData->errorMsg = "Invalid renderer handle";
-        return;
-    }
-
-    std::future<bool> fut = renderer->RenderFrameRegionsAsync(
-        workData->pixelData.data(),
-        workData->pixelData.size(),
-        workData->frameWidth,
-        workData->frameHeight,
-        workData->regions.data(),
-        static_cast<int32_t>(workData->regions.size()),
-        workData->swapBuffers);
-
-    workData->success = fut.get();
-    if (!workData->success) {
-        workData->errorMsg = "RenderFrameRegions failed on render thread";
-    }
-}
-
-static void GenericComplete(napi_env env, napi_status status, void* data) {
-    auto* workData = static_cast<RenderWorkData*>(data);
-
-    napi_value result = nullptr;
-    napi_get_undefined(env, &result);
-
-    if (workData->success) {
-        napi_resolve_deferred(env, workData->deferred, result);
-    } else {
-        napi_value message = nullptr;
-        napi_value error = nullptr;
-        napi_create_string_utf8(env, workData->errorMsg.c_str(), NAPI_AUTO_LENGTH, &message);
-        napi_create_error(env, nullptr, message, &error);
-        napi_reject_deferred(env, workData->deferred, error);
-    }
-
-    napi_delete_async_work(env, workData->asyncWork);
-    delete workData;
 }
 
 napi_value RenderFrameRegions(napi_env env, napi_callback_info info) {
@@ -481,71 +356,33 @@ napi_value RenderFrameRegions(napi_env env, napi_callback_info info) {
         return nullptr;
     }
 
-    auto* workData = new RenderWorkData();
-    workData->handle = handle;
-    workData->frameWidth = static_cast<int32_t>(frameWidth);
-    workData->frameHeight = static_cast<int32_t>(frameHeight);
-    workData->swapBuffers = swap;
-    workData->regions = std::move(regions);
-
+    std::vector<uint8_t> pixelCopy;
     if (data && byteLength > 0) {
-        workData->pixelData.resize(byteLength);
-        memcpy(workData->pixelData.data(), data, byteLength);
+        pixelCopy.resize(byteLength);
+        memcpy(pixelCopy.data(), data, byteLength);
     }
 
+    renderer->RenderFrameRegionsAsync(
+        pixelCopy.data(),
+        pixelCopy.size(),
+        static_cast<int32_t>(frameWidth),
+        static_cast<int32_t>(frameHeight),
+        regions.data(),
+        static_cast<int32_t>(regions.size()),
+        swap);
+
     napi_value promise = nullptr;
-    if (napi_create_promise(env, &workData->deferred, &promise) != napi_ok) {
-        delete workData;
+    napi_deferred deferred;
+    if (napi_create_promise(env, &deferred, &promise) != napi_ok) {
         napi_throw_error(env, NULL, "Failed to create promise");
         return nullptr;
     }
 
-    napi_value resourceName = nullptr;
-    napi_create_string_utf8(env, "RenderFrameRegions", NAPI_AUTO_LENGTH, &resourceName);
-
-    napi_async_work asyncWork = nullptr;
-    napi_status status = napi_create_async_work(env, nullptr, resourceName,
-        RenderFrameRegionsExecute, GenericComplete, workData, &asyncWork);
-    if (status != napi_ok) {
-        delete workData;
-        napi_throw_error(env, NULL, "Failed to create async work");
-        return nullptr;
-    }
-
-    workData->asyncWork = asyncWork;
-
-    status = napi_queue_async_work(env, asyncWork);
-    if (status != napi_ok) {
-        napi_delete_async_work(env, asyncWork);
-        delete workData;
-        napi_throw_error(env, NULL, "Failed to queue async work");
-        return nullptr;
-    }
+    napi_value resolveValue;
+    napi_get_undefined(env, &resolveValue);
+    napi_resolve_deferred(env, deferred, resolveValue);
 
     return promise;
-}
-
-static void UpdateDirtyExecute(napi_env env, void* data) {
-    auto* workData = static_cast<RenderWorkData*>(data);
-    Renderer* renderer = RendererManager::GetInstance().GetRenderer(workData->handle);
-    if (!renderer) {
-        workData->success = false;
-        workData->errorMsg = "Invalid renderer handle";
-        return;
-    }
-
-    std::future<bool> fut = renderer->UpdateDirtyRegionsAsync(
-        workData->pixelData.data(),
-        workData->pixelData.size(),
-        workData->frameWidth,
-        workData->frameHeight,
-        workData->regions.data(),
-        static_cast<int32_t>(workData->regions.size()));
-
-    workData->success = fut.get();
-    if (!workData->success) {
-        workData->errorMsg = "UpdateDirtyRegions failed on render thread";
-    }
 }
 
 napi_value UpdateDirtyRegions(napi_env env, napi_callback_info info) {
@@ -654,63 +491,32 @@ napi_value UpdateDirtyRegions(napi_env env, napi_callback_info info) {
         return nullptr;
     }
 
-    auto* workData = new RenderWorkData();
-    workData->handle = handle;
-    workData->frameWidth = static_cast<int32_t>(frameWidth);
-    workData->frameHeight = static_cast<int32_t>(frameHeight);
-    workData->regions = std::move(regions);
-
+    std::vector<uint8_t> pixelCopy;
     if (data && byteLength > 0) {
-        workData->pixelData.resize(byteLength);
-        memcpy(workData->pixelData.data(), data, byteLength);
+        pixelCopy.resize(byteLength);
+        memcpy(pixelCopy.data(), data, byteLength);
     }
 
+    renderer->UpdateDirtyRegionsAsync(
+        pixelCopy.data(),
+        pixelCopy.size(),
+        static_cast<int32_t>(frameWidth),
+        static_cast<int32_t>(frameHeight),
+        regions.data(),
+        static_cast<int32_t>(regions.size()));
+
     napi_value promise = nullptr;
-    if (napi_create_promise(env, &workData->deferred, &promise) != napi_ok) {
-        delete workData;
+    napi_deferred deferred;
+    if (napi_create_promise(env, &deferred, &promise) != napi_ok) {
         napi_throw_error(env, NULL, "Failed to create promise");
         return nullptr;
     }
 
-    napi_value resourceName = nullptr;
-    napi_create_string_utf8(env, "UpdateDirtyRegions", NAPI_AUTO_LENGTH, &resourceName);
-
-    napi_async_work asyncWork = nullptr;
-    napi_status status = napi_create_async_work(env, nullptr, resourceName,
-        UpdateDirtyExecute, GenericComplete, workData, &asyncWork);
-    if (status != napi_ok) {
-        delete workData;
-        napi_throw_error(env, NULL, "Failed to create async work");
-        return nullptr;
-    }
-
-    workData->asyncWork = asyncWork;
-
-    status = napi_queue_async_work(env, asyncWork);
-    if (status != napi_ok) {
-        napi_delete_async_work(env, asyncWork);
-        delete workData;
-        napi_throw_error(env, NULL, "Failed to queue async work");
-        return nullptr;
-    }
+    napi_value resolveValue;
+    napi_get_undefined(env, &resolveValue);
+    napi_resolve_deferred(env, deferred, resolveValue);
 
     return promise;
-}
-
-static void PresentFrameExecute(napi_env env, void* data) {
-    auto* workData = static_cast<RenderWorkData*>(data);
-    Renderer* renderer = RendererManager::GetInstance().GetRenderer(workData->handle);
-    if (!renderer) {
-        workData->success = false;
-        workData->errorMsg = "Invalid renderer handle";
-        return;
-    }
-
-    std::future<bool> fut = renderer->PresentFrameAsync();
-    workData->success = fut.get();
-    if (!workData->success) {
-        workData->errorMsg = "PresentFrame failed on render thread";
-    }
 }
 
 napi_value PresentFrame(napi_env env, napi_callback_info info) {
@@ -745,37 +551,18 @@ napi_value PresentFrame(napi_env env, napi_callback_info info) {
         return nullptr;
     }
 
-    auto* workData = new RenderWorkData();
-    workData->handle = handle;
+    renderer->PresentFrameAsync();
 
     napi_value promise = nullptr;
-    if (napi_create_promise(env, &workData->deferred, &promise) != napi_ok) {
-        delete workData;
+    napi_deferred deferred;
+    if (napi_create_promise(env, &deferred, &promise) != napi_ok) {
         napi_throw_error(env, NULL, "Failed to create promise");
         return nullptr;
     }
 
-    napi_value resourceName = nullptr;
-    napi_create_string_utf8(env, "PresentFrame", NAPI_AUTO_LENGTH, &resourceName);
-
-    napi_async_work asyncWork = nullptr;
-    napi_status status = napi_create_async_work(env, nullptr, resourceName,
-        PresentFrameExecute, GenericComplete, workData, &asyncWork);
-    if (status != napi_ok) {
-        delete workData;
-        napi_throw_error(env, NULL, "Failed to create async work");
-        return nullptr;
-    }
-
-    workData->asyncWork = asyncWork;
-
-    status = napi_queue_async_work(env, asyncWork);
-    if (status != napi_ok) {
-        napi_delete_async_work(env, asyncWork);
-        delete workData;
-        napi_throw_error(env, NULL, "Failed to queue async work");
-        return nullptr;
-    }
+    napi_value resolveValue;
+    napi_get_undefined(env, &resolveValue);
+    napi_resolve_deferred(env, deferred, resolveValue);
 
     return promise;
 }
@@ -838,15 +625,9 @@ napi_value ResizeRenderer(napi_env env, napi_callback_info info) {
         return nullptr;
     }
 
-    std::future<bool> fut = renderer->ResizeAsync(
+    renderer->ResizeAsync(
         static_cast<int32_t>(width),
         static_cast<int32_t>(height));
-    bool success = fut.get();
-
-    if (!success) {
-        napi_throw_error(env, NULL, "Resize failed");
-        return nullptr;
-    }
 
     napi_value promise;
     napi_deferred deferred;
@@ -946,8 +727,7 @@ napi_value SetVSync(napi_env env, napi_callback_info info) {
         return nullptr;
     }
 
-    std::future<bool> fut = renderer->SetVSyncAsync(enabled);
-    bool success = fut.get();
+    renderer->SetVSyncAsync(enabled);
 
     napi_value promise;
     napi_deferred deferred;
@@ -955,61 +735,11 @@ napi_value SetVSync(napi_env env, napi_callback_info info) {
         return nullptr;
     }
 
-    if (success) {
-        napi_value resolveValue;
-        napi_get_undefined(env, &resolveValue);
-        napi_resolve_deferred(env, deferred, resolveValue);
-    } else {
-        napi_value message = nullptr;
-        napi_create_string_utf8(env, "SetVSync failed", NAPI_AUTO_LENGTH, &message);
-        napi_value error = nullptr;
-        napi_create_error(env, nullptr, message, &error);
-        napi_reject_deferred(env, deferred, error);
-    }
+    napi_value resolveValue;
+    napi_get_undefined(env, &resolveValue);
+    napi_resolve_deferred(env, deferred, resolveValue);
 
     return promise;
-}
-
-static void RenderTileRegionsExecute(napi_env env, void* data) {
-    auto* workData = static_cast<TileRenderWorkData*>(data);
-    Renderer* renderer = RendererManager::GetInstance().GetRenderer(workData->handle);
-    if (!renderer) {
-        workData->success = false;
-        workData->errorMsg = "Invalid renderer handle";
-        return;
-    }
-
-    std::future<bool> fut = renderer->RenderTileRegionsAsync(
-        std::move(workData->tiles),
-        std::move(workData->tilePixelBuffers),
-        workData->frameWidth,
-        workData->frameHeight,
-        workData->swapBuffers);
-
-    workData->success = fut.get();
-    if (!workData->success) {
-        workData->errorMsg = "RenderTileRegions failed on render thread";
-    }
-}
-
-static void TileGenericComplete(napi_env env, napi_status status, void* data) {
-    auto* workData = static_cast<TileRenderWorkData*>(data);
-
-    napi_value result = nullptr;
-    napi_get_undefined(env, &result);
-
-    if (workData->success) {
-        napi_resolve_deferred(env, workData->deferred, result);
-    } else {
-        napi_value message = nullptr;
-        napi_value error = nullptr;
-        napi_create_string_utf8(env, workData->errorMsg.c_str(), NAPI_AUTO_LENGTH, &message);
-        napi_create_error(env, nullptr, message, &error);
-        napi_reject_deferred(env, workData->deferred, error);
-    }
-
-    napi_delete_async_work(env, workData->asyncWork);
-    delete workData;
 }
 
 napi_value RenderTileRegions(napi_env env, napi_callback_info info) {
@@ -1078,19 +808,12 @@ napi_value RenderTileRegions(napi_env env, napi_callback_info info) {
         return nullptr;
     }
 
-    auto* workData = new TileRenderWorkData();
-    workData->handle = handle;
-    workData->frameWidth = static_cast<int32_t>(frameWidth);
-    workData->frameHeight = static_cast<int32_t>(frameHeight);
-    workData->swapBuffers = swap;
-
-    workData->tiles.resize(tileCount);
-    workData->tilePixelBuffers.resize(tileCount);
+    std::vector<TileRegion> tiles(tileCount);
+    std::vector<std::vector<uint8_t>> tilePixelBuffers(tileCount);
 
     for (uint32_t i = 0; i < tileCount; i++) {
         napi_value element = nullptr;
         if (napi_get_element(env, args[1], i, &element) != napi_ok) {
-            delete workData;
             napi_throw_type_error(env, NULL, "Failed to get tile element");
             return nullptr;
         }
@@ -1106,7 +829,6 @@ napi_value RenderTileRegions(napi_env env, napi_callback_info info) {
             napi_get_named_property(env, element, "tilePixelWidth", &tilePixelWidthVal) != napi_ok ||
             napi_get_named_property(env, element, "tilePixelHeight", &tilePixelHeightVal) != napi_ok ||
             napi_get_named_property(env, element, "pixelData", &pixelDataVal) != napi_ok) {
-            delete workData;
             napi_throw_type_error(env, NULL, "Missing tile property");
             return nullptr;
         }
@@ -1117,14 +839,12 @@ napi_value RenderTileRegions(napi_env env, napi_callback_info info) {
             napi_get_value_double(env, ratioYVal, &ratioY) != napi_ok ||
             napi_get_value_double(env, tilePixelWidthVal, &tilePixelWidth) != napi_ok ||
             napi_get_value_double(env, tilePixelHeightVal, &tilePixelHeight) != napi_ok) {
-            delete workData;
             napi_throw_type_error(env, NULL, "Failed to get tile numeric property");
             return nullptr;
         }
 
         bool isAb = false;
         if (napi_is_arraybuffer(env, pixelDataVal, &isAb) != napi_ok || !isAb) {
-            delete workData;
             napi_throw_type_error(env, NULL, "tile.pixelData must be an ArrayBuffer");
             return nullptr;
         }
@@ -1132,52 +852,44 @@ napi_value RenderTileRegions(napi_env env, napi_callback_info info) {
         void* abData = nullptr;
         size_t abLength = 0;
         if (napi_get_arraybuffer_info(env, pixelDataVal, &abData, &abLength) != napi_ok) {
-            delete workData;
             napi_throw_type_error(env, NULL, "Failed to get tile pixelData ArrayBuffer");
             return nullptr;
         }
 
         if (abData && abLength > 0) {
-            workData->tilePixelBuffers[i].resize(abLength);
-            memcpy(workData->tilePixelBuffers[i].data(), abData, abLength);
+            tilePixelBuffers[i].resize(abLength);
+            memcpy(tilePixelBuffers[i].data(), abData, abLength);
         }
 
-        workData->tiles[i].ratioX = ratioX;
-        workData->tiles[i].ratioY = ratioY;
-        workData->tiles[i].tilePixelWidth = static_cast<int32_t>(tilePixelWidth);
-        workData->tiles[i].tilePixelHeight = static_cast<int32_t>(tilePixelHeight);
-        workData->tiles[i].dataSize = abLength;
-        workData->tiles[i].pixelData = workData->tilePixelBuffers[i].data();
+        tiles[i].ratioX = ratioX;
+        tiles[i].ratioY = ratioY;
+        tiles[i].tilePixelWidth = static_cast<int32_t>(tilePixelWidth);
+        tiles[i].tilePixelHeight = static_cast<int32_t>(tilePixelHeight);
+        tiles[i].dataSize = abLength;
+        tiles[i].pixelData = tilePixelBuffers[i].data();
     }
 
+    renderer->RenderTileRegionsAsync(
+        std::move(tiles),
+        std::move(tilePixelBuffers),
+        static_cast<int32_t>(frameWidth),
+        static_cast<int32_t>(frameHeight),
+        swap);
+
     napi_value promise = nullptr;
-    if (napi_create_promise(env, &workData->deferred, &promise) != napi_ok) {
-        delete workData;
+    napi_deferred deferred;
+    if (napi_create_promise(env, &deferred, &promise) != napi_ok) {
         napi_throw_error(env, NULL, "Failed to create promise");
         return nullptr;
     }
 
-    napi_value resourceName = nullptr;
-    napi_create_string_utf8(env, "RenderTileRegions", NAPI_AUTO_LENGTH, &resourceName);
+    napi_value resolveValue;
+    napi_get_undefined(env, &resolveValue);
+    napi_resolve_deferred(env, deferred, resolveValue);
 
-    napi_async_work asyncWork = nullptr;
-    napi_status status = napi_create_async_work(env, nullptr, resourceName,
-        RenderTileRegionsExecute, TileGenericComplete, workData, &asyncWork);
-    if (status != napi_ok) {
-        delete workData;
-        napi_throw_error(env, NULL, "Failed to create async work");
-        return nullptr;
-    }
-
-    workData->asyncWork = asyncWork;
-
-    status = napi_queue_async_work(env, asyncWork);
-    if (status != napi_ok) {
-        napi_delete_async_work(env, asyncWork);
-        delete workData;
-        napi_throw_error(env, NULL, "Failed to queue async work");
-        return nullptr;
-    }
+    OH_LOG_Print(LOG_APP, LOG_INFO, 0x0001,
+        "ArkZeroRenderer", "[FIRE-AND-FORGET] RenderTileRegions enqueued: handle=%{public}d, tiles=%{public}d",
+        handle, tileCount);
 
     return promise;
 }

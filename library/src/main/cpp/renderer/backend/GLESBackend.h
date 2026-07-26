@@ -82,6 +82,15 @@ public:
     const char* GetBackendName() const override { return "OpenGL ES"; }
     bool IsInitialized() const override { return m_isInitialized; }
 
+    void UploadFrame(const void* pixelData, size_t dataSize,
+                     int32_t width, int32_t height);
+    void UploadFrameRegions(const void* pixelData, size_t dataSize,
+                            int32_t frameWidth, int32_t frameHeight,
+                            const DirtyRect* regions, int32_t regionCount);
+    void UploadTileRegions(const TileRegion* tiles, int32_t tileCount,
+                           int32_t frameWidth, int32_t frameHeight);
+    void SwapAndPresent();
+
     /**
      * ⭐ 设置纹理管理策略
      * @param strategyType 策略类型："pool" 或 "direct"
@@ -95,9 +104,8 @@ public:
     bool IsVSyncEnabled() const;
 
 private:
-    /**
-     * 检查是否为 YUV 格式
-     */
+    TextureManager* EnsureBackTexture(int32_t width, int32_t height);
+
     bool IsYUVFormat(PixelFormat format) const;
 
     // ⭐ 组合六个单一职责的组件
@@ -113,6 +121,12 @@ private:
     int32_t m_height;
     PixelFormat m_format;
     bool m_isInitialized;
+
+    TextureManager* m_frontTexture;
+    TextureManager* m_backTexture;
+    int32_t m_textureWidth;
+    int32_t m_textureHeight;
+    bool m_backDirty;
 };
 
 } // namespace NativeXComponentSample
