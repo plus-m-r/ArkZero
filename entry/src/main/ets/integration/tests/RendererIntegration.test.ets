@@ -44,9 +44,17 @@ export class RendererIntegrationTest {
    * 运行所有测试
    */
   async runAllTests(): Promise<TestCaseResult[]> {
-    hilog.info(DOMAIN, TAG, '🧪 Starting Renderer Integration Tests');
+    hilog.info(DOMAIN, TAG, 'Starting Renderer Integration Tests');
     
     await this.testInitialization();
+    
+    if (this.renderer) {
+      const warmBuffer = new ArrayBuffer(800 * 600 * 4);
+      const warm32 = new Uint32Array(warmBuffer);
+      warm32.fill(0xFF000000);
+      await this.renderer.renderFrame(warmBuffer, 800, 600);
+    }
+    
     await this.testRenderFrame();
     await this.testResize();
     await this.testMultipleRenders();

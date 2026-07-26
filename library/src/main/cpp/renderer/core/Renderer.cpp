@@ -58,6 +58,10 @@ bool Renderer::Initialize(void* nativeWindow)
     return true;
 }
 
+void Renderer::EnqueueCommand(RenderCommand cmd) {
+    m_renderThread.EnqueueCommand(std::move(cmd));
+}
+
 void Renderer::RenderFrameAsync(const void* pixelData, size_t dataSize,
                                 int32_t width, int32_t height)
 {

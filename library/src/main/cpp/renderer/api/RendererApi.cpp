@@ -229,11 +229,7 @@ napi_value RenderFrame(napi_env env, napi_callback_info info) {
         return nullptr;
     }
 
-    renderer->RenderFrameAsync(
-        cmd.pixelData.data(),
-        cmd.pixelData.size(),
-        cmd.width,
-        cmd.height);
+    renderer->EnqueueCommand(std::move(cmd));
 
     napi_value resolveValue;
     napi_get_undefined(env, &resolveValue);
@@ -241,7 +237,7 @@ napi_value RenderFrame(napi_env env, napi_callback_info info) {
 
     OH_LOG_Print(LOG_APP, LOG_INFO, 0x0001,
         "ArkZeroRenderer", "[FIRE-AND-FORGET] RenderFrame enqueued: handle=%{public}d, w=%{public}d, h=%{public}d, bytes=%{public}zu",
-        handle, cmd.width, cmd.height, byteLength);
+        handle, static_cast<int32_t>(width), static_cast<int32_t>(height), byteLength);
 
     return promise;
 }
@@ -356,20 +352,17 @@ napi_value RenderFrameRegions(napi_env env, napi_callback_info info) {
         return nullptr;
     }
 
-    std::vector<uint8_t> pixelCopy;
-    if (data && byteLength > 0) {
-        pixelCopy.resize(byteLength);
-        memcpy(pixelCopy.data(), data, byteLength);
-    }
+    RenderCommand cmd;
+    cmd.type = RenderCommandType::RENDER_FRAME_REGIONS;
+    cmd.frameWidth = static_cast<int32_t>(frameWidth);
+    cmd.frameHeight = static_cast<int32_t>(frameHeight);
+    cmd.swapBuffers = swap;
+    cmd.regions = std::move(regions);
 
-    renderer->RenderFrameRegionsAsync(
-        pixelCopy.data(),
-        pixelCopy.size(),
-        static_cast<int32_t>(frameWidth),
-        static_cast<int32_t>(frameHeight),
-        regions.data(),
-        static_cast<int32_t>(regions.size()),
-        swap);
+    if (data && byteLength > 0) {
+        cmd.pixelData.resize(byteLength);
+        memcpy(cmd.pixelData.data(), data, byteLength);
+    }
 
     napi_value promise = nullptr;
     napi_deferred deferred;
@@ -377,6 +370,8 @@ napi_value RenderFrameRegions(napi_env env, napi_callback_info info) {
         napi_throw_error(env, NULL, "Failed to create promise");
         return nullptr;
     }
+
+    renderer->EnqueueCommand(std::move(cmd));
 
     napi_value resolveValue;
     napi_get_undefined(env, &resolveValue);
@@ -491,19 +486,16 @@ napi_value UpdateDirtyRegions(napi_env env, napi_callback_info info) {
         return nullptr;
     }
 
-    std::vector<uint8_t> pixelCopy;
-    if (data && byteLength > 0) {
-        pixelCopy.resize(byteLength);
-        memcpy(pixelCopy.data(), data, byteLength);
-    }
+    RenderCommand cmd;
+    cmd.type = RenderCommandType::UPDATE_DIRTY;
+    cmd.frameWidth = static_cast<int32_t>(frameWidth);
+    cmd.frameHeight = static_cast<int32_t>(frameHeight);
+    cmd.regions = std::move(regions);
 
-    renderer->UpdateDirtyRegionsAsync(
-        pixelCopy.data(),
-        pixelCopy.size(),
-        static_cast<int32_t>(frameWidth),
-        static_cast<int32_t>(frameHeight),
-        regions.data(),
-        static_cast<int32_t>(regions.size()));
+    if (data && byteLength > 0) {
+        cmd.pixelData.resize(byteLength);
+        memcpy(cmd.pixelData.data(), data, byteLength);
+    }
 
     napi_value promise = nullptr;
     napi_deferred deferred;
@@ -511,6 +503,8 @@ napi_value UpdateDirtyRegions(napi_env env, napi_callback_info info) {
         napi_throw_error(env, NULL, "Failed to create promise");
         return nullptr;
     }
+
+    renderer->EnqueueCommand(std::move(cmd));
 
     napi_value resolveValue;
     napi_get_undefined(env, &resolveValue);
@@ -551,7 +545,9 @@ napi_value PresentFrame(napi_env env, napi_callback_info info) {
         return nullptr;
     }
 
-    renderer->PresentFrameAsync();
+    RenderCommand cmd;
+    cmd.type = RenderCommandType::PRESENT_FRAME;
+    renderer->EnqueueCommand(std::move(cmd));
 
     napi_value promise = nullptr;
     napi_deferred deferred;
@@ -625,9 +621,11 @@ napi_value ResizeRenderer(napi_env env, napi_callback_info info) {
         return nullptr;
     }
 
-    renderer->ResizeAsync(
-        static_cast<int32_t>(width),
-        static_cast<int32_t>(height));
+    RenderCommand cmd;
+    cmd.type = RenderCommandType::RESIZE;
+    cmd.width = static_cast<int32_t>(width);
+    cmd.height = static_cast<int32_t>(height);
+    renderer->EnqueueCommand(std::move(cmd));
 
     napi_value promise;
     napi_deferred deferred;
@@ -727,7 +725,10 @@ napi_value SetVSync(napi_env env, napi_callback_info info) {
         return nullptr;
     }
 
-    renderer->SetVSyncAsync(enabled);
+    RenderCommand cmd;
+    cmd.type = RenderCommandType::SET_VSYNC;
+    cmd.vsyncEnabled = enabled;
+    renderer->EnqueueCommand(std::move(cmd));
 
     napi_value promise;
     napi_deferred deferred;
@@ -869,12 +870,13 @@ napi_value RenderTileRegions(napi_env env, napi_callback_info info) {
         tiles[i].pixelData = tilePixelBuffers[i].data();
     }
 
-    renderer->RenderTileRegionsAsync(
-        std::move(tiles),
-        std::move(tilePixelBuffers),
-        static_cast<int32_t>(frameWidth),
-        static_cast<int32_t>(frameHeight),
-        swap);
+    RenderCommand cmd;
+    cmd.type = RenderCommandType::RENDER_TILE_REGIONS;
+    cmd.frameWidth = static_cast<int32_t>(frameWidth);
+    cmd.frameHeight = static_cast<int32_t>(frameHeight);
+    cmd.swapBuffers = swap;
+    cmd.tiles = std::move(tiles);
+    cmd.tilePixelBuffers = std::move(tilePixelBuffers);
 
     napi_value promise = nullptr;
     napi_deferred deferred;
@@ -882,6 +884,8 @@ napi_value RenderTileRegions(napi_env env, napi_callback_info info) {
         napi_throw_error(env, NULL, "Failed to create promise");
         return nullptr;
     }
+
+    renderer->EnqueueCommand(std::move(cmd));
 
     napi_value resolveValue;
     napi_get_undefined(env, &resolveValue);

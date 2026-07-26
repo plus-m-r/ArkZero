@@ -19,6 +19,8 @@ public:
 
     bool Initialize(void* nativeWindow);
 
+    void EnqueueCommand(RenderCommand cmd);
+
     void RenderFrameAsync(const void* pixelData, size_t dataSize,
                           int32_t width, int32_t height);
 
