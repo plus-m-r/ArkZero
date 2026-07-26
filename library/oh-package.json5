@@ -5,10 +5,7 @@
   "main": "Index.ets",
   "author": "plusml",
   "license": "Apache-2.0",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/plus-m-r/ArkZero"
-  },
+  "repository": "https://github.com/plus-m-r/ArkZero",
   "dependencies": {
     "libnativerender.so": "file:./src/main/cpp/types/libnativerender"
   }
