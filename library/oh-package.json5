@@ -1,10 +1,14 @@
 {
   "name": "@plusml/arkzero",
   "version": "1.0.0",
-  "description": "Ultra low latency renderer for HarmonyOS with async render thread, ratio-based viewport, and normalized touch",
+  "description": "Low-latency async renderer for OpenHarmony with ratio-based viewport and normalized touch capture",
   "main": "Index.ets",
   "author": "plusml",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/plus-m-r/ArkZero"
+  },
   "dependencies": {
     "libnativerender.so": "file:./src/main/cpp/types/libnativerender"
   }
