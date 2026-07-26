@@ -1,6 +1,6 @@
 # @plusml/arkzero
 
-Low-latency asynchronous graphics rendering library for OpenHarmony, provides proportional viewport management and standardized touch event processing.
+High-performance GPU rendering library for OpenHarmony. Zero-copy async architecture with tile-based incremental rendering and dual-buffer presentation.
 
 **Full source code available at:** https://github.com/plus-m-r/ArkZero
 
@@ -17,12 +17,12 @@ The native `.so` files bundled in this package are built from the C++ source cod
 | Consecutive frames | ~2ms/frame |
 | Resize + render | ~6ms |
 
-Fire-and-forget + deferred memcpy architecture: JS thread creates napi_ref to prevent GC, passes raw pointer to render thread — zero memcpy on JS thread. VSync wait happens on the dedicated render thread.
+Fire-and-forget + deferred memcpy architecture: JS thread creates napi_ref to prevent GC, passes raw pointer to render thread — zero memcpy on JS thread. VSync wait happens on the dedicated render thread. Proportional viewport layout with ratio-based positioning.
 
 ## Quick Start
 
 ```typescript
-import { ArkZeroSurfaceView, SurfaceViewConfig, NormalizedTouchEvent } from '@plusml/arkzero';
+import { ArkZeroSurfaceView, SurfaceViewConfig } from '@plusml/arkzero';
 import { ArkZeroRenderer, PixelFormat, TileRegion } from '@plusml/arkzero';
 
 const config: SurfaceViewConfig = {
@@ -30,21 +30,11 @@ const config: SurfaceViewConfig = {
   renderHeight: 480,
   format: PixelFormat.RGBA,
   originRatioX: 0.056,
-  sizeRatioX: 1.0,
-  enableTouch: true
-};
-
-const onTouch = (event: NormalizedTouchEvent) => {
-  for (const touch of event.touches) {
-    // touch.ratioX/Y: 0.0~1.0 normalized ratio (device-independent)
-    // touch.pixelX/Y: pixel coordinates mapped to renderWidth/renderHeight
-    drawCircle(pixelBuffer, touch.pixelX, touch.pixelY);
-  }
+  sizeRatioX: 1.0
 };
 
 ArkZeroSurfaceView({
   config: config,
-  touchHandler: onTouch,
   onSurfaceLoaded: (surfaceId: string) => {
     renderer.initialize(surfaceId);
   }
@@ -78,21 +68,21 @@ await renderer.renderTileRegions([tile], 640, 480, true);
 | originRatioY | number | 0.0 | Viewport Y position as screen ratio |
 | sizeRatioX | number | 1.0 | Viewport width as screen ratio |
 | sizeRatioY | number | auto | Viewport height as screen ratio (auto = aspect-fit) |
-| enableTouch | boolean | true | Enable normalized touch capture |
+| enableTouch | boolean | true | Enable interaction input capture |
 | xComponentId | string | 'arkzero_surface' | XComponent instance ID |
 
 ### NormalizedTouchEvent
 
 | Property | Type | Description |
 |---|---|---|
-| type | TouchType | Down/Move/Up |
+| type | InteractionType | Down/Move/Up |
 | touches | TouchPoint[] | Active touch points |
 
 ### TouchPoint
 
 | Property | Type | Description |
 |---|---|---|
-| id | number | Touch point ID |
+| id | number | Point ID |
 | ratioX | number | X position as 0.0~1.0 ratio of component width |
 | ratioY | number | Y position as 0.0~1.0 ratio of component height |
 | pixelX | number | X in renderWidth pixel coordinates |

@@ -4,7 +4,7 @@
 
 ArkZero 提供三层 API：
 
-1. **ArkZeroSurfaceView**（`ArkZeroSurfaceView.ets`）— 视口组件，比例布局 + 归一化触控
+1. **ArkZeroSurfaceView**（`ArkZeroSurfaceView.ets`）— 视口组件，比例布局 + 归一化交互输出
 2. **ArkZeroRenderer**（`ArkZeroRenderer.ets`）— 渲染器封装，类型安全，生命周期管理
 3. **ArkZeroRenderSession**（`ArkZeroRenderSession.ets`）— 会话层，自动生命周期管理
 
@@ -25,7 +25,7 @@ interface SurfaceViewConfig {
   originRatioY?: number;    // 组件左上角 Y = 屏幕高度 × 此值（默认 0.0）
   sizeRatioX?: number;      // 组件宽度 = 屏幕宽度 × 此值（默认 1.0）
   sizeRatioY?: number;      // 组件高度（省略则按宽高比自动计算，fit-to-screen）
-  enableTouch?: boolean;    // 启用触控捕获（默认 true）
+  enableTouch?: boolean;    // 启用交互输入捕获（默认 true）
   xComponentId?: string;    // XComponent ID（默认 'arkzero_surface'）
 }
 
@@ -37,9 +37,9 @@ interface TouchPoint {
   pixelY: number;          // ratioY × renderHeight（pixelBuffer 直接可用）
 }
 
-interface NormalizedTouchEvent {
-  type: TouchType;
-  touches: TouchPoint[];
+interface NormalizedInteractionEvent {
+  type: InteractionType;
+  points: TouchPoint[];
 }
 ```
 

@@ -81,7 +81,7 @@ entry/src/main/ets/
 ┌──────────────▼───────────────────────────────────────────────┐
 │  ArkTS 视口层 (ArkZeroSurfaceView.ets)                       │
 │  - 比例视口布局：originRatio + sizeRatio                       │
-│  - 归一化触控：ratioX/Y + pixelX/Y 便利字段                    │
+│  - 归一化交互输出：ratioX/Y + pixelX/Y 便利字段                │
 │  - 预计算 scaleX/Y = renderWidth/Height / areaWidth/Height    │
 │  - display.getDefaultDisplaySync() 获取屏幕尺寸                │
 └──────────────┬───────────────────────────────────────────────┘
@@ -228,4 +228,4 @@ ArkTS 层通过 `number` 类型 handle 引用 Native 对象，而非直接暴露
 | 销毁清屏 | Destroy 前渲染纯黑帧，避免随机画面残留 |
 | VSync 保持 ON | 移动 GPU 上 eglSwapInterval(0) 导致管线阻塞 |
 | 模拟器软件 GPU | 性能数据为软件渲染，真实设备预期更低 |
-| 触控叠加层只捕获 | 单一职责：不负责视觉渲染 |
+| 交互叠加层只捕获 | 单一职责：不负责视觉渲染 |
