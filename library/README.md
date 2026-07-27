@@ -6,6 +6,12 @@ High-performance GPU rendering library for OpenHarmony. Zero-copy async architec
 
 The native `.so` files bundled in this package are built from the C++ source code in `src/main/cpp/` of this repository. Build instructions are documented in the project root README.
 
+## Install
+
+```bash
+ohpm install @plusml/arkzero
+```
+
 ## Performance
 
 | Scenario | Latency (JS perception) |
