@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "description": "High-performance GPU rendering library for OpenHarmony. Single-texture direct-render-retain architecture with zero-copy async upload, tile-based incremental rendering, and conditional swap presentation",
   "main": "Index.ets",
-  "author": "plusml",
+  "author": "plusml <plusml@outlook.com>",
   "license": "Apache-2.0",
   "repository": "https://github.com/plus-m-r/ArkZero",
   "dependencies": {
