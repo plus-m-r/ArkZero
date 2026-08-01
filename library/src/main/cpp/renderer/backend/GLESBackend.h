@@ -104,29 +104,25 @@ public:
     bool IsVSyncEnabled() const;
 
 private:
-    TextureManager* EnsureBackTexture(int32_t width, int32_t height);
+    TextureManager* EnsureTexture(int32_t width, int32_t height);
 
     bool IsYUVFormat(PixelFormat format) const;
 
-    // ⭐ 组合六个单一职责的组件
-    EGLContextManager m_eglManager;      // EGL 上下文管理
-    TextureManager m_textureManager;     // 纹理管理（RGBA/RGB）
-    TextureShader m_textureShader;       // ⭐ 全屏四边形渲染（RGBA/RGB）
-    YUVShaderManager m_yuvShader;        // YUV Shader 渲染（NV21/NV12）
+    EGLContextManager m_eglManager;
+    TextureShader m_textureShader;
+    YUVShaderManager m_yuvShader;
     
-    // ⭐ 设计模式：策略模式 - 纹理管理策略
-    std::unique_ptr<ITextureStrategy> m_textureStrategy;  // 当前使用的策略
+    std::unique_ptr<ITextureStrategy> m_textureStrategy;
 
     int32_t m_width;
     int32_t m_height;
     PixelFormat m_format;
     bool m_isInitialized;
 
-    TextureManager* m_frontTexture;
-    TextureManager* m_backTexture;
+    TextureManager* m_texture;
     int32_t m_textureWidth;
     int32_t m_textureHeight;
-    bool m_backDirty;
+    bool m_dirty;
 };
 
 } // namespace NativeXComponentSample

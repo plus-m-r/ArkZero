@@ -1,5 +1,38 @@
 # Changelog
 
+## 2.0.0 (2026-08-01)
+
+### Architecture: Single-Texture Direct-Retain + Zero-Copy Upload
+
+**Breaking Change**: Double-buffer pattern replaced with single-texture direct-render-retain model.
+
+- **GLESBackend**: Removed front/back texture swap; single `m_texture` updated in-place via `glTexSubImage2D`, dirty regions naturally persist across frames
+- **SwapAndPresent**: Simplified to Draw + SwapBuffers — no texture swap, no `glBlitFramebuffer` full-frame copy (eliminated ~8MB GPU blit per frame at 1080p)
+- **RenderThread**: `cmd.swapBuffers` flag now respected — only calls `SwapAndPresent` when explicitly requested; `RENDER_FRAME_REGIONS`, `RENDER_TILE_REGIONS`, `UPLOAD_FRAME`, `UPLOAD_TILE_REGIONS` no longer auto-present
+- **PRESENT_FRAME**: Now actually calls `SwapAndPresent()` (was previously a no-op)
+- **Zero-copy upload**: Removed deferred `memcpy` from RenderThread — `srcData` (NAPI ArrayBuffer pointer) passed directly to GPU upload path, eliminating ~8MB CPU copy per frame at 1080p
+- **Renderer**: Removed eager `memcpy` in `RenderFrameAsync`, `RenderFrameRegionsAsync`, `UpdateDirtyRegionsAsync` — all paths use deferred pointer passthrough
+- **TextureManager::Update**: PBO path now maps only the required upload size instead of full PBO capacity
+
+### Performance Improvements
+- Eliminated `glBlitFramebuffer` full-frame GPU blit every present (single-texture retain)
+- Eliminated per-frame deferred memcpy (~8MB at 1080p) — direct pointer upload to GPU
+- Conditional SwapAndPresent — batch multiple dirty-rect/tile uploads before single present
+- TextureManager PBO maps only needed bytes, not full buffer
+
+### Removed
+- `m_frontTexture` / `m_backTexture` double-buffer members from GLESBackend
+- `m_backDirty` flag (replaced by `m_dirty`)
+- `EnsureBackTexture()` (replaced by `EnsureTexture()`)
+- `Renderer::m_mutex` (was unused outside Initialize)
+- `GLESBackend::m_textureManager` (dead code member)
+- `ExecuteDeferredCopy()` (replaced by `CleanupDeferredCopy()`)
+
+### Added
+- `INCREMENTAL_TILE_PARALLEL` test phase in RenderingCorrectnessPage — validates multi-tile single-submit rendering
+- `drawTileLabel()` helper for tile-local text rendering
+- `CleanupDeferredCopy()` — lightweight ref cleanup without memcpy
+
 ## 1.2.0 (2026-07-27)
 
 ### Architecture: Deferred Memcpy (零JS线程拷贝)

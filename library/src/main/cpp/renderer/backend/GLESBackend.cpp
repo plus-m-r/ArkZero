@@ -12,11 +12,10 @@ GLESBackend::GLESBackend()
     , m_height(0)
     , m_format(PixelFormat::RGBA)
     , m_isInitialized(false)
-    , m_frontTexture(nullptr)
-    , m_backTexture(nullptr)
+    , m_texture(nullptr)
     , m_textureWidth(0)
     , m_textureHeight(0)
-    , m_backDirty(false)
+    , m_dirty(false)
 {
     m_textureStrategy = std::make_unique<PoolTextureStrategy>(10);
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, 
@@ -149,23 +148,23 @@ bool GLESBackend::InitializeOffscreen(int32_t width, int32_t height, PixelFormat
     return true;
 }
 
-TextureManager* GLESBackend::EnsureBackTexture(int32_t width, int32_t height) {
+TextureManager* GLESBackend::EnsureTexture(int32_t width, int32_t height) {
     GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
     GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(m_format);
 
-    if (m_backTexture && m_textureWidth == width && m_textureHeight == height) {
-        return m_backTexture;
+    if (m_texture && m_textureWidth == width && m_textureHeight == height) {
+        return m_texture;
     }
 
-    if (m_backTexture) {
-        m_textureStrategy->Release(m_backTexture);
-        m_backTexture = nullptr;
+    if (m_texture) {
+        m_textureStrategy->Release(m_texture);
+        m_texture = nullptr;
     }
 
-    m_backTexture = m_textureStrategy->Acquire(width, height, internalFormat, glFormat);
-    if (!m_backTexture) {
+    m_texture = m_textureStrategy->Acquire(width, height, internalFormat, glFormat);
+    if (!m_texture) {
         OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
-            "ArkZeroRenderer", "[ARKZERO-FATAL] EnsureBackTexture: Acquire FAILED");
+            "ArkZeroRenderer", "[ARKZERO-FATAL] EnsureTexture: Acquire FAILED");
         return nullptr;
     }
 
@@ -173,9 +172,9 @@ TextureManager* GLESBackend::EnsureBackTexture(int32_t width, int32_t height) {
     m_textureHeight = height;
 
     OH_LOG_Print(LOG_APP, LOG_INFO, 0x0001,
-        "ArkZeroRenderer", "[DBBUF] Back texture allocated: %dx%d", width, height);
+        "ArkZeroRenderer", "[SINGLETEX] Texture allocated: %dx%d", width, height);
 
-    return m_backTexture;
+    return m_texture;
 }
 
 void GLESBackend::UploadFrame(const void* pixelData, size_t dataSize,
@@ -192,14 +191,14 @@ void GLESBackend::UploadFrame(const void* pixelData, size_t dataSize,
         return;
     }
 
-    TextureManager* back = EnsureBackTexture(width, height);
-    if (!back) {
+    TextureManager* tex = EnsureTexture(width, height);
+    if (!tex) {
         return;
     }
 
     GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
-    back->Update(pixelData, width, height, glFormat);
-    m_backDirty = true;
+    tex->Update(pixelData, width, height, glFormat);
+    m_dirty = true;
 }
 
 void GLESBackend::UploadFrameRegions(const void* pixelData, size_t dataSize,
@@ -217,8 +216,8 @@ void GLESBackend::UploadFrameRegions(const void* pixelData, size_t dataSize,
         return;
     }
 
-    TextureManager* back = EnsureBackTexture(frameWidth, frameHeight);
-    if (!back) {
+    TextureManager* tex = EnsureTexture(frameWidth, frameHeight);
+    if (!tex) {
         return;
     }
 
@@ -235,12 +234,10 @@ void GLESBackend::UploadFrameRegions(const void* pixelData, size_t dataSize,
         size_t colOffset = static_cast<size_t>(rx) * bytesPerPixel;
         const uint8_t* regionPtr = static_cast<const uint8_t*>(pixelData) + rowOffset + colOffset;
 
-        int32_t glY = frameHeight - ry - rh;
-
-        back->UpdateRegion(regionPtr, rx, glY, rw, rh, frameWidth, glFormat);
+        tex->UpdateRegion(regionPtr, rx, ry, rw, rh, frameWidth, glFormat);
     }
 
-    m_backDirty = true;
+    m_dirty = true;
 }
 
 void GLESBackend::UploadTileRegions(const TileRegion* tiles, int32_t tileCount,
@@ -257,8 +254,8 @@ void GLESBackend::UploadTileRegions(const TileRegion* tiles, int32_t tileCount,
         return;
     }
 
-    TextureManager* back = EnsureBackTexture(frameWidth, frameHeight);
-    if (!back) {
+    TextureManager* tex = EnsureTexture(frameWidth, frameHeight);
+    if (!tex) {
         return;
     }
 
@@ -284,12 +281,10 @@ void GLESBackend::UploadTileRegions(const TileRegion* tiles, int32_t tileCount,
             continue;
         }
 
-        int32_t glY = frameHeight - pixelY - th;
-
-        back->UpdateRegion(tiles[i].pixelData, pixelX, glY, tw, th, tw, glFormat);
+        tex->UpdateRegion(tiles[i].pixelData, pixelX, pixelY, tw, th, tw, glFormat);
     }
 
-    m_backDirty = true;
+    m_dirty = true;
 }
 
 void GLESBackend::SwapAndPresent() {
@@ -297,7 +292,7 @@ void GLESBackend::SwapAndPresent() {
         return;
     }
 
-    if (!m_backDirty || !m_backTexture) {
+    if (!m_dirty || !m_texture) {
         return;
     }
 
@@ -305,14 +300,13 @@ void GLESBackend::SwapAndPresent() {
         return;
     }
 
-    std::swap(m_frontTexture, m_backTexture);
-    m_backDirty = false;
+    m_dirty = false;
 
     const int32_t viewportWidth = m_eglManager.GetSurfaceWidth() > 0 ? m_eglManager.GetSurfaceWidth() : m_width;
     const int32_t viewportHeight = m_eglManager.GetSurfaceHeight() > 0 ? m_eglManager.GetSurfaceHeight() : m_height;
     glViewport(0, 0, viewportWidth, viewportHeight);
 
-    bool success = m_textureShader.Draw(m_frontTexture->GetTextureId(), viewportWidth, viewportHeight);
+    bool success = m_textureShader.Draw(m_texture->GetTextureId(), viewportWidth, viewportHeight);
     if (!success) {
         OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
             "ArkZeroRenderer", "[ARKZERO-FATAL] SwapAndPresent: Draw FAILED");
@@ -324,10 +318,6 @@ void GLESBackend::SwapAndPresent() {
             "ArkZeroRenderer", "[ARKZERO-FATAL] SwapAndPresent: SwapBuffers FAILED");
         return;
     }
-
-    GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
-    GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(m_format);
-    m_backTexture = m_textureStrategy->Acquire(m_textureWidth, m_textureHeight, internalFormat, glFormat);
 }
 
 bool GLESBackend::RenderFrame(const void* pixelData, size_t dataSize, 
@@ -477,34 +467,20 @@ bool GLESBackend::Resize(int32_t width, int32_t height) {
         return true;
     }
 
-    if (m_frontTexture) {
-        m_textureStrategy->Release(m_frontTexture);
-        m_frontTexture = nullptr;
-    }
-    if (m_backTexture) {
-        m_textureStrategy->Release(m_backTexture);
-        m_backTexture = nullptr;
+    if (m_texture) {
+        m_textureStrategy->Release(m_texture);
+        m_texture = nullptr;
     }
     m_textureWidth = 0;
     m_textureHeight = 0;
-    m_backDirty = false;
+    m_dirty = false;
 
-    GLint internalFormat = PixelFormatConverter::GetGLInternalFormat(m_format);
-    GLenum glFormat = PixelFormatConverter::GetGLFormat(m_format);
+    m_width = width;
+    m_height = height;
 
-    TextureManager* texture = m_textureStrategy->Acquire(width, height, internalFormat, glFormat);
-    if (texture) {
-        m_textureStrategy->Release(texture);
-        m_width = width;
-        m_height = height;
-        OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN,
-            "GLESBackend", "Resized using strategy: %s", m_textureStrategy->GetName());
-        return true;
-    } else {
-        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN,
-            "GLESBackend", "Failed to acquire texture from strategy");
-        return false;
-    }
+    OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN,
+        "GLESBackend", "Resized to %dx%d (texture will be created on next EnsureTexture)", width, height);
+    return true;
 }
 
 void GLESBackend::Destroy() {
@@ -515,17 +491,13 @@ void GLESBackend::Destroy() {
     OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN,
         "GLESBackend", "Destroying...");
 
-    if (m_frontTexture) {
-        m_textureStrategy->Release(m_frontTexture);
-        m_frontTexture = nullptr;
-    }
-    if (m_backTexture) {
-        m_textureStrategy->Release(m_backTexture);
-        m_backTexture = nullptr;
+    if (m_texture) {
+        m_textureStrategy->Release(m_texture);
+        m_texture = nullptr;
     }
     m_textureWidth = 0;
     m_textureHeight = 0;
-    m_backDirty = false;
+    m_dirty = false;
 
     if (IsYUVFormat(m_format)) {
         m_yuvShader.Destroy();

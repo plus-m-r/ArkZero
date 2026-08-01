@@ -47,6 +47,16 @@ struct Index {
             url: 'integration/pages/IntegrationTestPage'
           });
         })
+
+      Button('🎨 渲染正确性测试')
+        .fontSize(16)
+        .backgroundColor('#E91E63')
+        .margin({ top: 15 })
+        .onClick(() => {
+          router.pushUrl({
+            url: 'pages/RenderingCorrectnessPage'
+          });
+        })
     }
     .width('100%')
     .height('100%')

@@ -114,12 +114,12 @@ void RenderThread::ThreadLoop() {
             continue;
         }
 
-        bool needSwap = (cmd.type == RenderCommandType::RENDER_FRAME ||
-                         cmd.type == RenderCommandType::RENDER_FRAME_REGIONS ||
-                         cmd.type == RenderCommandType::RENDER_TILE_REGIONS ||
-                         cmd.type == RenderCommandType::PRESENT_FRAME ||
-                         cmd.type == RenderCommandType::UPLOAD_FRAME ||
-                         cmd.type == RenderCommandType::UPLOAD_TILE_REGIONS);
+        bool needSwap = ((cmd.type == RenderCommandType::RENDER_FRAME) ||
+                         (cmd.type == RenderCommandType::RENDER_FRAME_REGIONS && cmd.swapBuffers) ||
+                         (cmd.type == RenderCommandType::RENDER_TILE_REGIONS && cmd.swapBuffers) ||
+                         (cmd.type == RenderCommandType::PRESENT_FRAME) ||
+                         (cmd.type == RenderCommandType::UPLOAD_FRAME && cmd.swapBuffers) ||
+                         (cmd.type == RenderCommandType::UPLOAD_TILE_REGIONS && cmd.swapBuffers));
 
         ProcessCommand(cmd);
 
@@ -209,34 +209,36 @@ void RenderThread::ProcessRenderFrame(RenderCommand& cmd) {
     if (!m_backend || !m_backend->IsInitialized()) {
         OH_LOG_Print(LOG_APP, LOG_FATAL, 0x0001,
             "ArkZeroRenderer", "[RENDER-THREAD] RenderFrame: backend not initialized");
-        ExecuteDeferredCopy(cmd);
+        CleanupDeferredCopy(cmd);
         return;
     }
 
-    ExecuteDeferredCopy(cmd);
+    const void* data = cmd.srcData ? cmd.srcData : cmd.pixelData.data();
+    size_t dataSize = cmd.srcData ? cmd.srcDataSize : cmd.pixelData.size();
 
-    m_backend->UploadFrame(
-        cmd.pixelData.data(),
-        cmd.pixelData.size(),
-        cmd.width,
-        cmd.height);
+    m_backend->UploadFrame(data, dataSize, cmd.width, cmd.height);
+
+    CleanupDeferredCopy(cmd);
 }
 
 void RenderThread::ProcessRenderFrameRegions(RenderCommand& cmd) {
     if (!m_backend || !m_backend->IsInitialized()) {
-        ExecuteDeferredCopy(cmd);
+        CleanupDeferredCopy(cmd);
         return;
     }
 
-    ExecuteDeferredCopy(cmd);
+    const void* data = cmd.srcData ? cmd.srcData : cmd.pixelData.data();
+    size_t dataSize = cmd.srcData ? cmd.srcDataSize : cmd.pixelData.size();
 
     m_backend->UploadFrameRegions(
-        cmd.pixelData.data(),
-        cmd.pixelData.size(),
+        data,
+        dataSize,
         cmd.frameWidth,
         cmd.frameHeight,
         cmd.regions.data(),
         static_cast<int32_t>(cmd.regions.size()));
+
+    CleanupDeferredCopy(cmd);
 }
 
 void RenderThread::ProcessRenderTileRegions(RenderCommand& cmd) {
@@ -256,51 +258,56 @@ void RenderThread::ProcessRenderTileRegions(RenderCommand& cmd) {
 
 void RenderThread::ProcessUpdateDirty(RenderCommand& cmd) {
     if (!m_backend || !m_backend->IsInitialized()) {
-        ExecuteDeferredCopy(cmd);
+        CleanupDeferredCopy(cmd);
         return;
     }
 
-    ExecuteDeferredCopy(cmd);
+    const void* data = cmd.srcData ? cmd.srcData : cmd.pixelData.data();
+    size_t dataSize = cmd.srcData ? cmd.srcDataSize : cmd.pixelData.size();
 
     m_backend->UploadFrameRegions(
-        cmd.pixelData.data(),
-        cmd.pixelData.size(),
+        data,
+        dataSize,
         cmd.frameWidth,
         cmd.frameHeight,
         cmd.regions.data(),
         static_cast<int32_t>(cmd.regions.size()));
+
+    CleanupDeferredCopy(cmd);
 }
 
 void RenderThread::ProcessUploadFrame(RenderCommand& cmd) {
     if (!m_backend || !m_backend->IsInitialized()) {
-        ExecuteDeferredCopy(cmd);
+        CleanupDeferredCopy(cmd);
         return;
     }
 
-    ExecuteDeferredCopy(cmd);
+    const void* data = cmd.srcData ? cmd.srcData : cmd.pixelData.data();
+    size_t dataSize = cmd.srcData ? cmd.srcDataSize : cmd.pixelData.size();
 
-    m_backend->UploadFrame(
-        cmd.pixelData.data(),
-        cmd.pixelData.size(),
-        cmd.width,
-        cmd.height);
+    m_backend->UploadFrame(data, dataSize, cmd.width, cmd.height);
+
+    CleanupDeferredCopy(cmd);
 }
 
 void RenderThread::ProcessUploadFrameRegions(RenderCommand& cmd) {
     if (!m_backend || !m_backend->IsInitialized()) {
-        ExecuteDeferredCopy(cmd);
+        CleanupDeferredCopy(cmd);
         return;
     }
 
-    ExecuteDeferredCopy(cmd);
+    const void* data = cmd.srcData ? cmd.srcData : cmd.pixelData.data();
+    size_t dataSize = cmd.srcData ? cmd.srcDataSize : cmd.pixelData.size();
 
     m_backend->UploadFrameRegions(
-        cmd.pixelData.data(),
-        cmd.pixelData.size(),
+        data,
+        dataSize,
         cmd.frameWidth,
         cmd.frameHeight,
         cmd.regions.data(),
         static_cast<int32_t>(cmd.regions.size()));
+
+    CleanupDeferredCopy(cmd);
 }
 
 void RenderThread::ProcessUploadTileRegions(RenderCommand& cmd) {
@@ -322,6 +329,8 @@ void RenderThread::ProcessPresentFrame(RenderCommand& cmd) {
     if (!m_backend || !m_backend->IsInitialized()) {
         return;
     }
+
+    m_backend->SwapAndPresent();
 }
 
 void RenderThread::ProcessResize(RenderCommand& cmd) {
@@ -353,26 +362,15 @@ void RenderThread::ProcessDestroy(RenderCommand& cmd) {
         "ArkZeroRenderer", "[RENDER-THREAD] Backend destroyed");
 }
 
-void RenderThread::ExecuteDeferredCopy(RenderCommand& cmd) {
-    if (!cmd.deferredCopy || cmd.srcData == nullptr || cmd.srcDataSize == 0) {
-        return;
-    }
-
-    cmd.pixelData.resize(cmd.srcDataSize);
-    memcpy(cmd.pixelData.data(), cmd.srcData, cmd.srcDataSize);
-
-    OH_LOG_Print(LOG_APP, LOG_DEBUG, 0x0001,
-        "ArkZeroRenderer", "[RENDER-THREAD] Deferred memcpy: %{public}zu bytes", cmd.srcDataSize);
-
+void RenderThread::CleanupDeferredCopy(RenderCommand& cmd) {
     if (cmd.deferredRef != nullptr && cmd.deferredEnv != nullptr) {
         RefCleaner::Instance().ScheduleDelete(cmd.deferredEnv, cmd.deferredRef);
         cmd.deferredRef = nullptr;
         cmd.deferredEnv = nullptr;
     }
-
-    cmd.deferredCopy = false;
     cmd.srcData = nullptr;
     cmd.srcDataSize = 0;
+    cmd.deferredCopy = false;
 }
 
 void RenderThread::CleanupTileDeferredRefs(RenderCommand& cmd) {

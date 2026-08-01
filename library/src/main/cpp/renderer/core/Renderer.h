@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <cstddef>
 #include <memory>
-#include <mutex>
 
 #include "../core/RenderThread.h"
 #include "../../common/common.h"
@@ -54,7 +53,6 @@ private:
     Renderer& operator=(const Renderer&) = delete;
 
     RenderThread m_renderThread;
-    std::mutex m_mutex;
 
     int32_t m_width;
     int32_t m_height;

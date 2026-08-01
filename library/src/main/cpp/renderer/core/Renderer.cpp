@@ -1,7 +1,6 @@
 #include "Renderer.h"
 #include "../backend/GLESBackend.h"
 #include <hilog/log.h>
-#include <cstring>
 
 #include "../../common/common.h"
 
@@ -44,10 +43,7 @@ bool Renderer::Initialize(void* nativeWindow)
     cmd.height = m_height;
     cmd.format = m_format;
 
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_renderThread.EnqueueCommand(std::move(cmd));
-    }
+    m_renderThread.EnqueueCommand(std::move(cmd));
 
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
@@ -71,8 +67,9 @@ void Renderer::RenderFrameAsync(const void* pixelData, size_t dataSize,
     cmd.height = height;
 
     if (pixelData && dataSize > 0) {
-        cmd.pixelData.resize(dataSize);
-        memcpy(cmd.pixelData.data(), pixelData, dataSize);
+        cmd.srcData = const_cast<void*>(pixelData);
+        cmd.srcDataSize = dataSize;
+        cmd.deferredCopy = true;
     }
 
     m_renderThread.EnqueueCommand(std::move(cmd));
@@ -90,8 +87,9 @@ void Renderer::RenderFrameRegionsAsync(const void* pixelData, size_t dataSize,
     cmd.swapBuffers = swapBuffers;
 
     if (pixelData && dataSize > 0) {
-        cmd.pixelData.resize(dataSize);
-        memcpy(cmd.pixelData.data(), pixelData, dataSize);
+        cmd.srcData = const_cast<void*>(pixelData);
+        cmd.srcDataSize = dataSize;
+        cmd.deferredCopy = true;
     }
 
     if (regions && regionCount > 0) {
@@ -126,10 +124,12 @@ void Renderer::UpdateDirtyRegionsAsync(const void* pixelData, size_t dataSize,
     cmd.type = RenderCommandType::UPDATE_DIRTY;
     cmd.frameWidth = frameWidth;
     cmd.frameHeight = frameHeight;
+    cmd.swapBuffers = false;
 
     if (pixelData && dataSize > 0) {
-        cmd.pixelData.resize(dataSize);
-        memcpy(cmd.pixelData.data(), pixelData, dataSize);
+        cmd.srcData = const_cast<void*>(pixelData);
+        cmd.srcDataSize = dataSize;
+        cmd.deferredCopy = true;
     }
 
     if (regions && regionCount > 0) {

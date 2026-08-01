@@ -91,7 +91,7 @@ private:
     void ProcessResize(RenderCommand& cmd);
     void ProcessSetVSync(RenderCommand& cmd);
     void ProcessDestroy(RenderCommand& cmd);
-    void ExecuteDeferredCopy(RenderCommand& cmd);
+    void CleanupDeferredCopy(RenderCommand& cmd);
     void CleanupTileDeferredRefs(RenderCommand& cmd);
 
     std::thread m_thread;

@@ -116,11 +116,13 @@ bool TextureManager::Update(const void* pixelData, int32_t width, int32_t height
         int uploadPbo = m_currentPbo;
         int nextPbo = 1 - m_currentPbo;
 
+        size_t uploadSize = static_cast<size_t>(width) * static_cast<size_t>(height) * 4;
+
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, m_pbos[uploadPbo]);
-        void* pboPtr = glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, m_pboSize,
+        void* pboPtr = glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, uploadSize,
                                          GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
         if (pboPtr) {
-            memcpy(pboPtr, pixelData, m_pboSize);
+            memcpy(pboPtr, pixelData, uploadSize);
             glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
 
             if (width != m_width || height != m_height) {
