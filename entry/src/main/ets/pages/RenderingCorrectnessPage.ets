@@ -10,7 +10,8 @@ enum DemoPhase {
   INCREMENTAL_DIRTY = 1,
   INCREMENTAL_TILE = 2,
   INCREMENTAL_TILE_PARALLEL = 3,
-  DONE = 4
+  BGRA_FORMAT_TEST = 4,
+  DONE = 5
 }
 
 interface PhaseLabel {
@@ -19,10 +20,11 @@ interface PhaseLabel {
 }
 
 const PHASE_LABELS: PhaseLabel[] = [
-  { id: DemoPhase.COLOR_BANDS, label: '色彩准确性' },
+  { id: DemoPhase.COLOR_BANDS, label: '色彩准确性(RGBA)' },
   { id: DemoPhase.INCREMENTAL_DIRTY, label: '增量渲染(脏区)' },
   { id: DemoPhase.INCREMENTAL_TILE, label: '增量渲染(Tile)' },
   { id: DemoPhase.INCREMENTAL_TILE_PARALLEL, label: '并行Tile渲染' },
+  { id: DemoPhase.BGRA_FORMAT_TEST, label: '色彩准确性(BGRA)' },
   { id: DemoPhase.DONE, label: '完成' }
 ];
 
@@ -35,8 +37,12 @@ struct RenderingCorrectnessPage {
   @State subStepInfo: string = '';
 
   private session?: ArkZeroRenderSession;
+  private bgraSession?: ArkZeroRenderSession;
+  private savedSurfaceId: string = '';
   private pixelBuffer?: ArrayBuffer;
   private pixelView?: Uint32Array;
+  private bgraPixelBuffer?: ArrayBuffer;
+  private bgraPixelView?: Uint32Array;
   private renderWidth: number = 640;
   private renderHeight: number = 480;
   private running: boolean = false;
@@ -62,6 +68,7 @@ struct RenderingCorrectnessPage {
   }
 
   private onSurfaceLoaded(surfaceId: string): void {
+    this.savedSurfaceId = surfaceId;
     const sessionConfig: RenderSessionConfig = {
       width: this.renderWidth,
       height: this.renderHeight,
@@ -135,9 +142,18 @@ struct RenderingCorrectnessPage {
 
             case DemoPhase.INCREMENTAL_TILE_PARALLEL:
               if (this.runParallelTileStep()) {
+                this.currentPhase = DemoPhase.BGRA_FORMAT_TEST;
+                this.phaseStep = 0;
+                this.phaseLabel = PHASE_LABELS[DemoPhase.BGRA_FORMAT_TEST].label;
+              }
+              await this.sleep(800);
+              break;
+
+            case DemoPhase.BGRA_FORMAT_TEST:
+              if (await this.runBgraFormatTestStep()) {
                 this.currentPhase = DemoPhase.DONE;
                 this.phaseLabel = PHASE_LABELS[DemoPhase.DONE].label;
-                this.subStepInfo = '所有渲染正确性验证完成';
+                this.subStepInfo = '所有渲染正确性验证完成 (RGBA+BGRA)';
               }
               await this.sleep(800);
               break;
@@ -424,7 +440,7 @@ struct RenderingCorrectnessPage {
       const tiles: TileRegion[] = [];
 
       const innerLabels: string[] = ['A', 'B', 'C', 'D'];
-      const innerColors: number[] = [0xFFFF0000, 0xFF0000FF, 0xFF00FF00, 0xFFFFFF00];
+      const innerColors: number[] = [0xFFFF0000, 0xFF0000FF, 0xFF00FF00, 0xFF00FFFF];
       const innerPositions: number[][] = [
         [0.125, 0.125],
         [0.375, 0.125],
@@ -462,6 +478,79 @@ struct RenderingCorrectnessPage {
 
     this.subStepInfo = '并行Tile渲染验证完成: 多瓦片一次性提交';
     return true;
+  }
+
+  private async runBgraFormatTestStep(): Promise<boolean> {
+    if (this.phaseStep === 0) {
+      if (this.session) {
+        this.session.detach();
+        this.session = undefined;
+      }
+
+      const bgraConfig: RenderSessionConfig = {
+        width: this.renderWidth,
+        height: this.renderHeight,
+        format: PixelFormat.BGRA,
+        onError: (errorMsg: string) => {
+          hilog.error(DOMAIN, TAG, 'BGRA Session error: %{public}s', errorMsg);
+        }
+      };
+      this.bgraSession = new ArkZeroRenderSession(bgraConfig);
+
+      const bufferSize = this.renderWidth * this.renderHeight * 4;
+      this.bgraPixelBuffer = new ArrayBuffer(bufferSize);
+      this.bgraPixelView = new Uint32Array(this.bgraPixelBuffer);
+
+      await this.bgraSession.attach(this.savedSurfaceId);
+
+      if (this.bgraPixelView && this.bgraPixelBuffer && this.bgraSession) {
+        this.drawBgraColorBands(this.bgraPixelView, this.renderWidth, this.renderHeight);
+        await this.bgraSession.renderFullFrame(this.bgraPixelBuffer, this.renderWidth, this.renderHeight);
+      }
+
+      this.subStepInfo = 'BGRA格式: 6色带验证 (红/绿/蓝/白/黑/黄)';
+      this.phaseStep = 1;
+      return false;
+    }
+
+    this.subStepInfo = 'BGRA格式验证完成';
+    return true;
+  }
+
+  private drawBgraColorBands(buf: Uint32Array, w: number, h: number): void {
+    buf.fill(0xFF333333);
+
+    const bandCount = 6;
+    const bandW = Math.floor(w / bandCount);
+
+    const bgraColors: number[] = [
+      0xFFFF0000,
+      0xFF00FF00,
+      0xFF0000FF,
+      0xFFFFFFFF,
+      0xFF000000,
+      0xFFFFFF00
+    ];
+    const labels: string[] = ['RED', 'GREEN', 'BLUE', 'WHITE', 'BLACK', 'YELLOW'];
+
+    for (let b = 0; b < bandCount; b++) {
+      const x0 = b * bandW;
+      const x1 = x0 + bandW;
+      for (let y = 0; y < h; y++) {
+        for (let x = x0; x < x1; x++) {
+          buf[y * w + x] = bgraColors[b];
+        }
+      }
+    }
+
+    const labelColor = 0xFFAAAAAA;
+    for (let b = 0; b < bandCount; b++) {
+      const cx = b * bandW + Math.floor(bandW / 2) - 20;
+      const cy = Math.floor(h / 2);
+      this.drawTextLabel(buf, w, h, cx, cy, labels[b], labelColor);
+    }
+
+    this.subStepInfo = 'BGRA 6色带: 红/绿/蓝/白/黑/黄';
   }
 
   private drawTileLabel(buf: Uint32Array, tileW: number, tileH: number, startX: number, startY: number, text: string, color: number): void {
@@ -510,18 +599,23 @@ struct RenderingCorrectnessPage {
   aboutToDisappear() {
     this.running = false;
 
+    const cleanup = (): void => {
+      if (this.session) {
+        this.session.detach();
+      }
+      if (this.bgraSession) {
+        this.bgraSession.detach();
+      }
+    };
+
     if (this.renderLoopPromise) {
       this.renderLoopPromise.then(() => {
-        if (this.session) {
-          this.session.detach();
-        }
+        cleanup();
       }).catch(() => {
-        if (this.session) {
-          this.session.detach();
-        }
+        cleanup();
       });
-    } else if (this.session) {
-      this.session.detach();
+    } else {
+      cleanup();
     }
   }
 
@@ -576,7 +670,7 @@ struct RenderingCorrectnessPage {
         }
 
         if (this.currentPhase === DemoPhase.DONE) {
-          Text('验证通过: 色彩准确 + 增量渲染完成')
+          Text('验证通过: RGBA + BGRA 色彩准确, 增量渲染完成')
             .fontSize(15)
             .fontWeight(FontWeight.Bold)
             .fontColor('#4CAF50')

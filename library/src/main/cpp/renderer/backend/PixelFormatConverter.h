@@ -17,6 +17,11 @@
 #define PIXEL_FORMAT_CONVERTER_H
 
 #include <GLES3/gl3.h>
+
+#ifndef GL_BGRA_EXT
+#define GL_BGRA_EXT 0x80E1
+#endif
+
 #include "../../common/common.h"
 
 namespace NativeXComponentSample {

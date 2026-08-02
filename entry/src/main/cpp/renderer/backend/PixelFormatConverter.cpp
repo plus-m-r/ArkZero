@@ -20,8 +20,9 @@ namespace NativeXComponentSample {
 GLint PixelFormatConverter::GetGLInternalFormat(PixelFormat format) {
     switch (format) {
         case PixelFormat::RGBA:
-        case PixelFormat::BGRA:
             return GL_RGBA;
+        case PixelFormat::BGRA:
+            return GL_BGRA_EXT;
         case PixelFormat::RGB:
             return GL_RGB;
         default:
@@ -36,11 +37,7 @@ GLenum PixelFormatConverter::GetGLFormat(PixelFormat format) {
         case PixelFormat::RGB:
             return GL_RGB;
         case PixelFormat::BGRA:
-#ifdef GL_BGRA_EXT
             return GL_BGRA_EXT;
-#else
-            return GL_RGBA;  // Fallback
-#endif
         default:
             return GL_RGBA;
     }

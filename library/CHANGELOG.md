@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.0.1 (2026-08-02)
+
+### Bug Fix: BGRA PixelFormat Mapping
+
+**Critical Fix**: `PixelFormatConverter` mapped `PixelFormat.BGRA` to `GL_RGBA` instead of `GL_BGRA_EXT`, causing red-blue channel swap in BGRA mode.
+
+- **GetGLInternalFormat(BGRA)**: `GL_RGBA` → `GL_BGRA_EXT` (0x80E1) — internalFormat must match client byte order
+- **GetGLFormat(BGRA)**: Removed `#ifdef GL_BGRA_EXT` conditional fallback to `GL_RGBA`; now always returns `GL_BGRA_EXT`
+- **PixelFormatConverter.h**: Added `#ifndef GL_BGRA_EXT / #define GL_BGRA_EXT 0x80E1` — OpenHarmony `<GLES3/gl3.h>` does not define this extension constant
+
+### Bug Fix: RenderingCorrectnessPage
+
+- **Inner tile D color**: `0xFFFFFF00` (cyan) → `0xFF00FFFF` (yellow) — Uint32 color value was incorrect
+
+### Added
+
+- **BGRA format test phase**: Phase 5 in RenderingCorrectnessPage — creates BGRA session, renders 6 color bands using BGRA byte order, validates `GL_BGRA_EXT` path produces correct colors (red=red, blue=blue, no channel swap)
+
 ## 2.0.0 (2026-08-01)
 
 ### Architecture: Single-Texture Direct-Retain + Zero-Copy Upload
